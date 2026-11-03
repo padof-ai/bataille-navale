@@ -1,0 +1,1 @@
+# Aucune bibliothèque externe n'est nécessaire : le jeu n'utilise que Python.
