@@ -1,0 +1,525 @@
+<title>Petits chevaux</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rye&family=Nunito:wght@600;800&display=swap">
+<style>
+/* Layout : le plateau en croix, crème et vernis, au centre ; au-dessus le tableau des écuries, dessous le dé et le bouton pour lancer. */
+:root{
+  color-scheme:dark;
+  --wood:#4a2c17; --wood2:#24140a;
+  --cream:#fbf3df; --line:#7a5a3a;
+  --ink:#fbf3df; --muted:#d8c6a8; --edge:rgba(251,243,223,.2);
+  --c0:#d62828; --c1:#2a9d4b; --c2:#f2b705; --c3:#1d6fd6;
+  --gold:#f3c94b;
+  --display:"Rye","Rockwell","Georgia",serif;
+  --ui:"Nunito","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0;font-family:var(--ui);color:var(--ink);-webkit-tap-highlight-color:transparent;
+  background:repeating-linear-gradient(90deg,rgba(255,255,255,.03) 0 4px,transparent 4px 17px),radial-gradient(ellipse 80% 60% at 50% 30%,#6b4325 0,var(--wood) 55%,var(--wood2) 100%) fixed,var(--wood)}
+.app{max-width:640px;margin:0 auto;padding-block:10px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:10px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(1.6rem,7vw,2.3rem);line-height:1;color:var(--gold);text-shadow:0 3px 0 #2a1607,0 8px 16px rgba(0,0,0,.45);white-space:nowrap}
+.tools{display:flex;gap:8px}
+button{font:inherit;font-weight:800;color:var(--ink);background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:11px;padding:8px 12px;cursor:pointer}
+button:hover:not(:disabled){border-color:rgba(251,243,223,.5)}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+.players{display:flex;flex-wrap:wrap;gap:6px}
+.pl{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:999px;padding:4px 10px 4px 6px;font-weight:800;font-size:.85rem}
+.pl.act{background:var(--cream);color:#2a1607}
+.pl .dots{display:flex;gap:2px}
+.pl .dots i{width:9px;height:9px;border-radius:50%;border:1.5px solid currentColor;opacity:.5}
+.pl .dots i.in{background:var(--gold);border-color:#a8790a;opacity:1}
+.pl .sw{width:14px;height:14px;border-radius:50%;border:2px solid rgba(0,0,0,.35)}
+#status{background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:12px;padding:9px 12px;font-weight:800;line-height:1.35;min-height:2.8em}
+#status .who{font-family:var(--display);font-weight:400;letter-spacing:.02em}
+.boardwrap{position:relative;width:100%;max-width:560px;margin:0 auto;aspect-ratio:1;border-radius:18px;padding:10px;
+  background:linear-gradient(145deg,#8a5a32,#5a361b);box-shadow:inset 0 0 0 2px rgba(255,255,255,.12),0 16px 30px rgba(0,0,0,.5)}
+svg.board{width:100%;height:100%;display:block;border-radius:10px;overflow:visible}
+.horse{transition:transform .13s ease-out;cursor:default}
+.horse.can{cursor:pointer}
+.horse.can .ring{opacity:1;animation:pulse 1s ease-in-out infinite}
+.horse .ring{opacity:0}
+.horse:focus-visible{outline:none}
+.horse:focus-visible .ring{opacity:1;stroke:#fff}
+@keyframes pulse{50%{stroke-width:2;r:15}}
+.ctrl{display:flex;align-items:center;justify-content:center;gap:16px}
+.die{width:64px;height:64px;border-radius:14px;background:linear-gradient(145deg,#fffdf6,#efe2c4);box-shadow:inset 0 -4px 0 rgba(0,0,0,.12),0 6px 12px rgba(0,0,0,.4);display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:9px;border:0;cursor:pointer}
+.die i{width:12px;height:12px;border-radius:50%;margin:auto;background:transparent}
+.die i.on{background:#2a1607}
+.die.six i.on{background:var(--c0)}
+.die.roll{animation:roll .5s cubic-bezier(.3,.7,.4,1)}
+@keyframes roll{0%{transform:rotate(0) scale(.8)}50%{transform:rotate(200deg) scale(1.15)}100%{transform:rotate(360deg) scale(1)}}
+#rollbtn{background:var(--gold);color:#2a1607;border-color:var(--gold);font-size:1.05rem;padding:12px 22px}
+.foot{display:flex;justify-content:center;gap:8px}
+.rules{background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:14px;padding:12px 14px;font-size:.9rem;line-height:1.5;color:var(--muted)}
+.rules summary{cursor:pointer;font-weight:800;color:var(--ink)}
+.rules ul{margin:8px 0 0;padding-left:18px}
+.rules b{color:var(--ink)}
+.modal{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(15,8,3,.66);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px}
+.modal .box{background:#3a2414;border:1px solid var(--edge);border-radius:16px;padding:20px;width:100%;max-width:460px;max-height:100%;overflow:auto;box-shadow:0 20px 40px rgba(0,0,0,.5)}
+.modal h2{margin:0 0 12px;font-family:var(--display);font-weight:400;font-size:1.5rem;line-height:1.2;color:var(--gold)}
+.modal p{margin:0 0 12px;color:var(--muted);line-height:1.45;font-size:.92rem}
+.modal .row{display:flex;gap:8px;flex-wrap:wrap}.modal .row button{flex:1}
+.primary{background:var(--gold);color:#2a1607;border-color:var(--gold)}
+.opt{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.opt .lbl{font-weight:800;font-size:.9rem}
+.seg{display:flex;flex-wrap:wrap;background:rgba(0,0,0,.25);border:1px solid var(--edge);border-radius:12px;padding:3px;gap:2px}
+.seg button{flex:1 1 auto;border:0;background:transparent;padding:7px 8px;border-radius:9px;color:var(--muted);font-size:.85rem}
+.seg button[aria-pressed="true"]{background:var(--gold);color:#2a1607}
+.seg .off{font-weight:600;font-size:.72rem;opacity:.85}
+.rank{list-style:none;margin:0 0 14px;padding:0;display:flex;flex-direction:column;gap:6px}
+.rank li{display:flex;justify-content:space-between;background:rgba(0,0,0,.25);border-radius:10px;padding:8px 12px;font-weight:800}
+@media (max-width:480px){.tools .t{display:none}}
+@media (prefers-reduced-motion:reduce){.horse{transition:none}.die.roll{animation:none}.horse.can .ring{animation:none}}
+</style>
+
+<div class="app">
+  <div class="top">
+    <h1>Petits chevaux</h1>
+    <div class="tools">
+      <button id="setbtn" aria-label="Réglages">⚙️<span class="t"> Réglages</span></button>
+      <button id="snd" aria-label="Activer ou couper le son"></button>
+    </div>
+  </div>
+  <div class="players" id="players"></div>
+  <div id="status" aria-live="polite"></div>
+  <div class="boardwrap"><svg class="board" id="board" viewBox="0 0 600 600" role="img" aria-label="Plateau des petits chevaux"></svg></div>
+  <div class="ctrl">
+    <button class="die" id="die" aria-label="Dé"></button>
+    <button id="rollbtn">Lancer le dé</button>
+  </div>
+  <div class="foot"><button id="newg">Nouvelle partie</button></div>
+  <details class="rules">
+    <summary>Règles du jeu</summary>
+    <ul>
+      <li>Chaque joueur a 4 chevaux dans son écurie. Il faut faire un <b>6</b> pour en sortir un sur la case de départ de sa couleur.</li>
+      <li>On avance du nombre de points du dé, dans le sens des aiguilles d'une montre. Un <b>6</b> fait rejouer.</li>
+      <li>On ne peut pas sauter par-dessus un autre cheval. En tombant pile sur un cheval adverse, on le renvoie à son écurie.</li>
+      <li>Après un tour complet, le cheval doit s'arrêter pile au pied de son escalier, puis monter marche par marche : un <b>1</b> pour la première, un <b>2</b> pour la deuxième… et un <b>6</b> pour arriver au centre.</li>
+      <li>Le premier joueur qui ramène tous ses chevaux gagne. À deux, chacun joue deux écuries.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="modal" id="endbox" hidden><div class="box"><h2 id="endt"></h2><ol class="rank" id="rank"></ol><div class="row"><button id="again" class="primary">Rejouer</button></div></div></div>
+<div class="modal" id="settings" hidden><div class="box" role="dialog" aria-labelledby="sett">
+  <h2 id="sett">Réglages</h2>
+  <div class="opt"><span class="lbl">Joueurs</span><div class="seg" data-k="n"><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button></div></div>
+  <div class="opt"><span class="lbl">Adversaires</span><div class="seg" data-k="who"><button data-v="ai">Ordinateurs</button><button data-v="hot">Même écran</button></div></div>
+  <div class="opt" id="optlvl"><span class="lbl">Niveau des ordinateurs</span><div class="seg" data-k="lvl"><button data-v="1">Facile</button><button data-v="2">Moyen</button><button data-v="3">Difficile</button></div></div>
+  <div class="opt"><span class="lbl">À deux joueurs</span><div class="seg" data-k="duo"><button data-v="1">Deux écuries chacun <span class="off">· officiel</span></button><button data-v="0">Une écurie</button></div></div>
+  <div class="opt"><span class="lbl">Escalier</span><div class="seg" data-k="stairs"><button data-v="1">Marche par marche <span class="off">· officiel</span></button><button data-v="0">Montée directe</button></div></div>
+  <div class="opt"><span class="lbl">Dépasser un cheval</span><div class="seg" data-k="pass"><button data-v="0">Interdit <span class="off">· officiel</span></button><button data-v="1">Autorisé</button></div></div>
+  <div class="opt"><span class="lbl">Un 6 fait rejouer</span><div class="seg" data-k="six"><button data-v="1">Oui <span class="off">· officiel</span></button><button data-v="0">Non</button></div></div>
+  <div class="opt"><span class="lbl">Pour gagner</span><div class="seg" data-k="goal"><button data-v="4">4 chevaux par écurie <span class="off">· officiel</span></button><button data-v="2">2 chevaux (partie courte)</button></div></div>
+  <p>Les changements démarrent une nouvelle partie.</p>
+  <div class="row"><button id="setcancel">Annuler</button><button id="setok" class="primary">Appliquer</button></div>
+</div></div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const load = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const save = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const D = ms => reduced ? Math.min(ms, 80) : ms;
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for(const k in attrs) e.setAttribute(k, attrs[k]); if(parent) parent.appendChild(e); return e; };
+
+/* ================= SONS ================= */
+const Snd = {
+  ctx: null, on: load("pc_sound") !== "0", nb: null,
+  init(){
+    if(!this.ctx){
+      const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
+      this.ctx = new AC(); this.out = this.ctx.createGain(); this.out.gain.value = .9; this.out.connect(this.ctx.destination);
+      const n = this.ctx.sampleRate, b = this.ctx.createBuffer(1, n, n), d = b.getChannelData(0);
+      for(let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      this.nb = b;
+    }
+    if(this.ctx.state === "suspended") this.ctx.resume();
+  },
+  ok(){ return this.on && this.ctx; },
+  hit(f, q, peak, dur, delay = 0, type = "bandpass"){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.nb; fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .006); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    s.connect(fl).connect(g).connect(this.out); s.start(t, Math.random() * .5); s.stop(t + dur + .02);
+  },
+  tone(f0, f1, dur, peak, delay = 0, type = "sine"){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .006); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(this.out); o.start(t); o.stop(t + dur + .02);
+  },
+  /* sabot sur le bois : deux petits claquements */
+  clop(){ const p = .9 + Math.random() * .2; this.tone(900 * p, 500 * p, .05, .2, 0, "triangle"); this.hit(1800 * p, 4, .15, .04, .03); },
+  rattle(){ for(let i = 0; i < 9; i++) this.hit(2400 + Math.random() * 1600, 3, .18, .04, i * .045 + Math.random() * .02); },
+  six(){ [784, 1047].forEach((f, i) => this.tone(f, f, .18, .12, .05 + i * .09, "triangle")); },
+  leave(){ [523, 659, 784].forEach((f, i) => this.tone(f, f, .16, .12, i * .07, "triangle")); },
+  capture(){ this.tone(900, 160, .5, .16, 0, "sawtooth"); this.hit(300, 1, .3, .25, .05, "lowpass"); },
+  neigh(){ for(let i = 0; i < 6; i++) this.tone(700 + (i % 2) * 180, 600 + (i % 2) * 120, .07, .08, i * .06, "sawtooth"); },
+  step(){ this.tone(660, 990, .14, .12, 0, "triangle"); },
+  home(){ [659, 784, 988, 1319].forEach((f, i) => this.tone(f, f, .22, .13, i * .08, "triangle")); },
+  nope(){ this.tone(220, 180, .14, .08, 0, "triangle"); },
+  win(){ [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, f, i === 4 ? .9 : .28, .15, .1 + i * .12, "triangle")); },
+  lose(){ [392, 370, 349, 294].forEach((f, i) => this.tone(f, f * .97, .45, .1, .1 + i * .3, "sawtooth")); }
+};
+function sndLabel(){ $("snd").textContent = Snd.on ? "🔊" : "🔇"; $("snd").title = Snd.on ? "Son activé" : "Son coupé"; }
+$("snd").onclick = () => { Snd.on = !Snd.on; save("pc_sound", Snd.on ? "1" : "0"); Snd.init(); sndLabel(); };
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => Snd.init(), {capture: true}));
+sndLabel();
+
+/* ================= RÉGLAGES ================= */
+let cfg = {n: 4, who: "ai", lvl: 2, duo: 1, stairs: 1, pass: 0, six: 1, goal: 4};
+try{ const o = JSON.parse(load("pc_cfg") || "null"); if(o) cfg = Object.assign(cfg, o); }catch(e){}
+let NETON = false, localCfg = null;
+const NET = () => NETON;
+const RND = () => NETON ? Net.rand() : Math.random();   // hasard partagé en ligne
+
+/* ================= PLATEAU =================
+   Grille 15 × 15 en croix : 56 cases de parcours, 4 escaliers de 6 marches, le centre.
+   Couleur 0 en bas, puis 1 à gauche, 2 en haut, 3 à droite (sens des aiguilles d'une montre). */
+const COL = ["Rouge", "Vert", "Jaune", "Bleu"], CV = ["var(--c0)", "var(--c1)", "var(--c2)", "var(--c3)"], HEX = ["#d62828", "#2a9d4b", "#f2b705", "#1d6fd6"];
+const CS = 40;
+const inCross = (r, c) => r >= 0 && c >= 0 && r < 15 && c < 15 && ((c >= 6 && c <= 8) || (r >= 6 && r <= 8));
+const isTrack = (r, c) => { if(!inCross(r, c)) return false; for(let dr = -1; dr <= 1; dr++) for(let dc = -1; dc <= 1; dc++) if(!inCross(r + dr, c + dc)) return true; return false; };
+const PATH = (() => {
+  const out = [[0, 8]]; let prev = [0, 7];
+  while(out.length < 56){
+    const [r, c] = out[out.length - 1];
+    const nx = [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]].find(([a, b]) => isTrack(a, b) && !(a === prev[0] && b === prev[1]) && !out.some(([x, y]) => x === a && y === b));
+    prev = [r, c]; out.push(nx);
+  }
+  return out;
+})();
+const ARMS = [
+  {tip: [14, 7], start: [14, 6], steps: [13, 12, 11, 10, 9, 8].map(r => [r, 7]), st: [11.5, 2.5]},
+  {tip: [7, 0], start: [6, 0], steps: [1, 2, 3, 4, 5, 6].map(c => [7, c]), st: [2.5, 2.5]},
+  {tip: [0, 7], start: [0, 8], steps: [1, 2, 3, 4, 5, 6].map(r => [r, 7]), st: [2.5, 11.5]},
+  {tip: [7, 14], start: [8, 14], steps: [13, 12, 11, 10, 9, 8].map(c => [7, c]), st: [11.5, 11.5]}
+];
+const START = ARMS.map(a => PATH.findIndex(([r, c]) => r === a.start[0] && c === a.start[1]));
+const ARR = 61;                          // arrivé au centre
+const glob = (c, p) => (START[c] + p) % 56;
+const cellXY = ([r, c]) => [c * CS + CS / 2, r * CS + CS / 2];
+function horseXY(c, h, p){
+  if(p < 0 || p === ARR){
+    const a = ARMS[c], [r0, c0] = a.st, dx = h % 2 ? 1 : -1, dy = h < 2 ? -1 : 1;
+    return [(c0 + .5 + dx * 1.15) * CS, (r0 + .5 + dy * 1.15) * CS];
+  }
+  if(p <= 55) return cellXY(PATH[glob(c, p)]);
+  return cellXY(ARMS[c].steps[p - 56]);
+}
+
+const HEAD = "M-9 11 L-9 4 C-9 -3 -5 -8 1 -10 L0 -14 L4 -11 C9 -10 12 -6 13 -1 L14 3 C15 5 13 7 11 6 L7 4 C5 5 3 7 3 11 Z";
+const horseEls = {};
+function buildBoard(){
+  const sv = $("board"); sv.innerHTML = "";
+  const defs = el("defs", {}, sv);
+  const gr = el("radialGradient", {id: "gHorse", cx: "35%", cy: "30%", r: "75%"}, defs);
+  el("stop", {offset: "0", "stop-color": "#fff", "stop-opacity": ".55"}, gr); el("stop", {offset: "1", "stop-color": "#000", "stop-opacity": ".15"}, gr);
+  el("rect", {x: 0, y: 0, width: 600, height: 600, rx: 14, fill: "#f6ead0"}, sv);
+  // écuries
+  ARMS.forEach((a, k) => {
+    const [r0, c0] = a.st, x = (c0 - 2.5) * CS, y = (r0 - 2.5) * CS;
+    el("rect", {x: x + 6, y: y + 6, width: 6 * CS - 12, height: 6 * CS - 12, rx: 22, fill: HEX[k], opacity: .9}, sv);
+    el("rect", {x: x + 28, y: y + 28, width: 6 * CS - 56, height: 6 * CS - 56, rx: 16, fill: "#fbf3df"}, sv);
+    for(let h = 0; h < 4; h++){
+      const [hx, hy] = horseXY(k, h, -1);
+      el("circle", {cx: hx, cy: hy, r: 21, fill: "none", stroke: HEX[k], "stroke-width": 3, "stroke-dasharray": "5 4"}, sv);
+    }
+  });
+  // cases du parcours
+  PATH.forEach(([r, c], i) => {
+    const k = START.indexOf(i);
+    el("rect", {x: c * CS + 2, y: r * CS + 2, width: CS - 4, height: CS - 4, rx: 7, fill: k >= 0 ? HEX[k] : "#fffaf0", stroke: "#b89a74", "stroke-width": 1.5}, sv);
+    if(k >= 0) el("path", {d: `M${c * CS + 13} ${r * CS + 12} l14 8 l-14 8 z`, fill: "#fff", opacity: .85, transform: `rotate(${[180, 270, 0, 90][k]} ${c * CS + 20} ${r * CS + 20})`}, sv);
+  });
+  // pieds d'escalier et marches
+  ARMS.forEach((a, k) => {
+    const [tr, tc] = a.tip;
+    el("rect", {x: tc * CS + 4, y: tr * CS + 4, width: CS - 8, height: CS - 8, rx: 8, fill: "none", stroke: HEX[k], "stroke-width": 3}, sv);
+    a.steps.forEach(([r, c], s) => {
+      el("rect", {x: c * CS + 2, y: r * CS + 2, width: CS - 4, height: CS - 4, rx: 7, fill: HEX[k], opacity: .55 + s * .08, stroke: "#b89a74", "stroke-width": 1}, sv);
+      const t = el("text", {x: c * CS + 20, y: r * CS + 26, "text-anchor": "middle", "font-family": "Rye,Georgia,serif", "font-size": 18, fill: "#fff", stroke: "rgba(0,0,0,.55)", "stroke-width": 1.2, "paint-order": "stroke"}, sv); t.textContent = s + 1;
+    });
+  });
+  // centre
+  const cx = 7 * CS + 20, cy = 7 * CS + 20;
+  [0, 1, 2, 3].forEach(k => {
+    const ang = [90, 180, 270, 0][k] * Math.PI / 180, a2 = ang + Math.PI / 2, a1 = ang - Math.PI / 2;
+    el("path", {d: `M${cx} ${cy} L${cx + Math.cos(a1) * 20 * 1.41} ${cy + Math.sin(a1) * 20 * 1.41} L${cx + Math.cos(a2) * 20 * 1.41} ${cy + Math.sin(a2) * 20 * 1.41} Z`, fill: HEX[k]}, sv);
+  });
+  el("circle", {cx, cy, r: 8, fill: "#f3c94b", stroke: "#a8790a", "stroke-width": 2}, sv);
+  // chevaux
+  const hg = el("g", {}, sv);
+  for(let c = 0; c < 4; c++) for(let h = 0; h < 4; h++){
+    const g = el("g", {class: "horse", "data-id": c * 4 + h, tabindex: -1, role: "button", "aria-label": `Cheval ${COL[c]} ${h + 1}`}, hg);
+    el("circle", {class: "ring", r: 19, fill: "none", stroke: "#fff", "stroke-width": 4}, g);
+    el("ellipse", {cx: 1, cy: 15, rx: 14, ry: 4, fill: "#000", opacity: .25}, g);
+    el("circle", {r: 15, fill: HEX[c], stroke: "rgba(0,0,0,.4)", "stroke-width": 1.5}, g);
+    el("circle", {r: 15, fill: "url(#gHorse)"}, g);
+    el("path", {d: HEAD, fill: "#fffaf0", stroke: "#2a1607", "stroke-width": 1.4, "stroke-linejoin": "round", transform: "scale(.82)"}, g);
+    el("circle", {cx: 5.5, cy: -4, r: 1.4, fill: "#2a1607"}, g);
+    const star = el("text", {class: "star", x: 10, y: -8, "font-size": 13, "text-anchor": "middle"}, g); star.textContent = "★";
+    star.setAttribute("fill", "#f3c94b"); star.setAttribute("stroke", "#7a5208"); star.setAttribute("stroke-width", ".6");
+    g.addEventListener("click", () => humanPick(c * 4 + h));
+    g.addEventListener("keydown", e => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); humanPick(c * 4 + h); } });
+    horseEls[c * 4 + h] = g;
+  }
+}
+
+/* ================= ÉTAT ================= */
+let S = null, token = 0, busy = false;
+function colorsFor(n){ return n === 4 ? [[0], [1], [2], [3]] : n === 3 ? [[0], [1], [2]] : cfg.duo ? [[0, 2], [1, 3]] : [[0], [2]]; }
+const isLocalHuman = i => NET() ? i === Net.me : (cfg.who === "hot" || i === 0);
+function newGame(){
+  token++; busy = false;
+  if(NET()) Net.cancel();
+  const n = NET() ? Net.n : cfg.n, cols = colorsFor(n);
+  const names = NET() ? Net.names.map((nm, i) => i === Net.me ? "Vous" : nm)
+    : cols.map((cs, i) => cfg.who === "hot" ? cs.map(c => COL[c]).join(" & ") : i === 0 ? "Vous" : n === 2 ? "L'ordinateur" : "Ordi " + COL[cs[0]]);
+  S = {players: cols.map((cs, i) => ({name: names[i], colors: cs, ai: NET() ? !!Net.bots[i] : cfg.who === "ai" && i > 0})),
+       H: [0, 1, 2, 3].map(() => [-1, -1, -1, -1]), cur: 0, die: 0, phase: "roll", moves: [], over: false, done: []};
+  S.cur = Math.floor(RND() * n);
+  $("endbox").hidden = true;
+  placeAll(); render(); turnStart();
+}
+const P = () => S.players[S.cur];
+const owner = c => S.players.findIndex(p => p.colors.includes(c));
+function occupant(g){ for(let c = 0; c < 4; c++) for(let h = 0; h < 4; h++){ const p = S.H[c][h]; if(p >= 0 && p <= 55 && glob(c, p) === g) return {c, h}; } return null; }
+const onStep = (c, p) => S.H[c].some(x => x === p);
+function target(c, h, d){
+  const p = S.H[c][h], me = owner(c);
+  const land = g => { const o = occupant(g); if(!o) return {cap: null}; if(owner(o.c) === me) return null; return {cap: o}; };
+  if(p === ARR) return null;
+  if(p < 0){
+    if(d !== 6) return null;
+    const l = land(glob(c, 0)); if(!l) return null;
+    return {c, h, from: -1, to: 0, cap: l.cap};
+  }
+  if(cfg.stairs && p >= 55){
+    const need = p - 54; if(d !== need) return null;
+    const t = p + 1;
+    if(t < ARR && onStep(c, t)) return null;
+    return {c, h, from: p, to: t, cap: null};
+  }
+  const t = p + d;
+  if(cfg.stairs ? t > 55 : t > ARR) return null;
+  if(!cfg.pass){
+    for(let q = p + 1; q < Math.min(t, 56); q++) if(q < t && occupant(glob(c, q))) return null;
+    for(let q = 56; q < t; q++) if(onStep(c, q)) return null;
+  }
+  if(t <= 55){ const l = land(glob(c, t)); if(!l) return null; return {c, h, from: p, to: t, cap: l.cap}; }
+  if(t < ARR && onStep(c, t)) return null;
+  return {c, h, from: p, to: t, cap: null};
+}
+function legalMoves(i, d){ const out = []; S.players[i].colors.forEach(c => { for(let h = 0; h < 4; h++){ const m = target(c, h, d); if(m) out.push(m); } }); return out; }
+const arrived = i => S.players[i].colors.reduce((a, c) => a + Math.min(cfg.goal, S.H[c].filter(p => p === ARR).length), 0);
+const needed = i => cfg.goal * S.players[i].colors.length;
+
+/* ================= AFFICHAGE ================= */
+function placeAll(){ for(let c = 0; c < 4; c++) for(let h = 0; h < 4; h++) placeHorse(c, h); }
+function placeHorse(c, h, p = S.H[c][h]){
+  const g = horseEls[c * 4 + h], used = S.players.some(pl => pl.colors.includes(c));
+  g.style.display = used ? "" : "none";
+  const [x, y] = horseXY(c, h, p);
+  g.style.transform = `translate(${x}px,${y}px) scale(1.18)`;
+  g.querySelector(".star").style.display = p === ARR ? "" : "none";
+}
+function render(){
+  if(!S) return;
+  const pls = $("players");
+  pls.innerHTML = S.players.map((p, i) => `<span class="pl${i === S.cur && !S.over ? " act" : ""}">${p.colors.map(c => `<span class="sw" style="background:${CV[c]}"></span>`).join("")}${p.name}<span class="dots">${Array.from({length: needed(i)}, (_, k) => `<i class="${k < arrived(i) ? "in" : ""}"></i>`).join("")}</span></span>`).join("");
+  const mine = !S.over && isLocalHuman(S.cur) && !P().ai && !busy;
+  const can = new Set(mine && S.phase === "choose" ? S.moves.map(m => m.c * 4 + m.h) : []);
+  for(const id in horseEls){ const g = horseEls[id], ok = can.has(+id); g.classList.toggle("can", ok); g.setAttribute("tabindex", ok ? 0 : -1); }
+  $("rollbtn").disabled = !(mine && S.phase === "roll");
+  $("die").disabled = !(mine && S.phase === "roll");
+  renderDie();
+  const who = i => `<span class="who" style="color:${CV[S.players[i].colors[0]]}">${S.players[i].name}</span>`;
+  let t = S.msg || "";
+  if(!t && !S.over){
+    if(!isLocalHuman(S.cur) || P().ai) t = `${who(S.cur)} ${S.phase === "roll" ? "lance le dé…" : "choisit un cheval…"}`;
+    else if(S.phase === "roll") t = `${who(S.cur)} : lancez le dé.`;
+    else if(S.phase === "choose") t = `${who(S.cur)} : vous avez fait ${S.die}. Touchez le cheval à avancer.`;
+  }
+  $("status").innerHTML = t;
+  $("newg").hidden = NET(); $("setbtn").disabled = NET();
+  if(window.Net) Net.refresh();
+}
+const PIPS = {1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8]};
+function renderDie(v = S.die){
+  const d = $("die"); d.classList.toggle("six", v === 6);
+  d.innerHTML = Array.from({length: 9}, (_, i) => `<i class="${v && PIPS[v].includes(i) ? "on" : ""}"></i>`).join("");
+  d.setAttribute("aria-label", v ? "Dé : " + v : "Dé");
+}
+
+/* ================= DÉROULEMENT ================= */
+async function turnStart(){
+  const my = token;
+  S.phase = "roll"; S.moves = []; S.msg = "";
+  render();
+  if(S.over) return;
+  if(NET()){
+    if(S.cur === Net.me){ busy = false; render(); Net.mine(a => { if(my === token && a.r) doRoll(); }); return; }
+    if(!Net.bots[S.cur]){ const a = await Net.turn(S.cur, () => ({r: 1})); if(my !== token) return; return doRoll(); }
+    await sleep(D(800)); if(my !== token) return;
+    return doRoll();
+  }
+  if(P().ai){ await sleep(D(800)); if(my !== token) return; doRoll(); }
+}
+function humanRoll(){
+  if(busy || !S || S.over || S.phase !== "roll" || !isLocalHuman(S.cur) || P().ai) return;
+  if(NET()) Net.send({r: 1});
+  doRoll();
+}
+$("rollbtn").onclick = humanRoll;
+$("die").onclick = humanRoll;
+document.addEventListener("keydown", e => { if((e.key === " " || e.key === "Enter") && e.target === document.body){ e.preventDefault(); humanRoll(); } });
+async function doRoll(){
+  const my = token; busy = true; S.phase = "rolling"; render();
+  const d = 1 + Math.floor(RND() * 6);
+  Snd.rattle();
+  const die = $("die"); die.classList.remove("roll"); void die.offsetWidth; die.classList.add("roll");
+  for(let k = 0; k < 5 && !reduced; k++){ renderDie(1 + Math.floor(Math.random() * 6)); await sleep(90); if(my !== token) return; }
+  S.die = d; renderDie(); if(d === 6) Snd.six();
+  await sleep(D(350)); if(my !== token) return;
+  S.moves = legalMoves(S.cur, d);
+  if(!S.moves.length){
+    S.msg = `${P().name === "Vous" ? "Vous avez" : P().name + " a"} fait ${d} : aucun cheval ne peut bouger.`; busy = false; render();
+    await sleep(D(1300)); if(my !== token) return;
+    return endTurn(d);
+  }
+  if(S.moves.length === 1){ busy = false; S.phase = "auto"; render(); await sleep(D(450)); if(my !== token) return; return doMove(S.moves[0]); }
+  S.phase = "choose"; busy = false; render();
+  const ai = () => ({h: aiPick(S.cur, S.moves)});
+  if(NET()){
+    if(S.cur === Net.me){ Net.mine(a => { if(my === token) pickId(a.h); }); return; }
+    const a = await Net.turn(S.cur, ai); if(my !== token) return;
+    await sleep(D(300)); if(my !== token) return;
+    return pickId(a.h);
+  }
+  if(P().ai){ await sleep(D(600)); if(my !== token) return; pickId(ai().h); }
+}
+function pickId(id){ const m = S.moves.find(x => x.c * 4 + x.h === id); if(m) doMove(m); }
+function humanPick(id){
+  if(busy || !S || S.phase !== "choose" || !isLocalHuman(S.cur) || P().ai) return;
+  const m = S.moves.find(x => x.c * 4 + x.h === id);
+  if(!m){ Snd.nope(); return; }
+  if(NET()) Net.send({h: id});
+  doMove(m);
+}
+async function doMove(m){
+  const my = token; busy = true; S.phase = "move"; render();
+  const {c, h} = m;
+  if(m.from < 0){ S.H[c][h] = 0; placeHorse(c, h); Snd.leave(); await sleep(D(260)); if(my !== token) return; }
+  else for(let p = m.from + 1; p <= m.to; p++){
+    placeHorse(c, h, p); p >= 56 ? Snd.step() : Snd.clop();
+    await sleep(D(150)); if(my !== token) return;
+  }
+  S.H[c][h] = m.to; placeHorse(c, h);
+  if(m.cap){
+    const {c: vc, h: vh} = m.cap;
+    S.H[vc][vh] = -1; Snd.capture(); setTimeout(() => Snd.neigh(), 250);
+    S.msg = `${P().name === "Vous" ? "Vous renvoyez" : P().name + " renvoie"} un cheval ${COL[vc].toLowerCase()} à l'écurie !`;
+    await sleep(D(250)); if(my !== token) return;
+    placeHorse(vc, vh); render();
+    await sleep(D(900)); if(my !== token) return;
+    S.msg = "";
+  }
+  if(m.to === ARR){ Snd.home(); S.msg = `Un cheval ${COL[c].toLowerCase()} est arrivé !`; render(); await sleep(D(900)); if(my !== token) return; S.msg = ""; }
+  if(arrived(S.cur) >= needed(S.cur) && !S.done.includes(S.cur)){
+    S.done.push(S.cur);
+    const left = S.players.map((_, i) => i).filter(i => !S.done.includes(i));
+    if(S.done.length === 1 || left.length <= 1){ S.over = true; busy = false; render(); return showEnd(); }
+  }
+  busy = false;
+  endTurn(S.die);
+}
+function endTurn(d){
+  if(S.over) return;
+  if(!(d === 6 && cfg.six) || S.done.includes(S.cur)){
+    let k = S.cur;
+    do{ k = (k + 1) % S.players.length; } while(S.done.includes(k) && k !== S.cur);
+    S.cur = k;
+  }
+  turnStart();
+}
+function showEnd(){
+  const w = S.done[0], rk = S.players.map((p, i) => ({p, i, a: arrived(i)})).sort((x, y) => (x.i === w ? -1 : y.i === w ? 1 : y.a - x.a));
+  $("endt").textContent = S.players[w].name === "Vous" ? "Vous avez gagné !" : S.players[w].name + " gagne la course !";
+  $("rank").innerHTML = rk.map(x => `<li><span>${x.p.colors.map(c => `<span style="color:${CV[c]}">●</span>`).join("")} ${x.p.name}</span><span>${x.a} / ${needed(x.i)} 🏁</span></li>`).join("");
+  $("endbox").hidden = false;
+  (isLocalHuman(w) && !S.players[w].ai) ? Snd.win() : Snd.lose();
+  if(NET()){ const my = token; Net.next().then(a => { if(my === token && NET() && a && a.t === "new") newGame(); }); }
+}
+$("again").onclick = () => { if(NET()) return Net.send({t: "new"}, null, true); newGame(); };
+$("newg").onclick = () => { if(!NET()) newGame(); };
+
+/* ================= ORDINATEUR ================= */
+function danger(c, g){
+  // un cheval adverse peut-il tomber sur la case g au prochain coup ?
+  const me = owner(c);
+  for(let c2 = 0; c2 < 4; c2++){
+    if(owner(c2) === me || owner(c2) < 0) continue;
+    for(const p of S.H[c2]){
+      if(p < 0 || p > 55) { if(p < 0 && glob(c2, 0) === g) return 1; continue; }
+      const dist = (g - glob(c2, p) + 56) % 56;
+      if(dist >= 1 && dist <= 6 && p + dist <= 55) return 1;
+    }
+  }
+  return 0;
+}
+function aiPick(i, moves){
+  const lvl = cfg.lvl;
+  if(lvl === 1 && Math.random() < .5){ const m = moves[Math.floor(Math.random() * moves.length)]; return m.c * 4 + m.h; }
+  let best = null;
+  for(const m of moves){
+    let v = m.to / 10;
+    if(m.cap) v += 50 + Math.max(0, S.H[m.cap.c][m.cap.h]) / 3;
+    if(m.to === ARR) v += 45;
+    else if(m.to >= 55) v += 30;
+    if(m.from < 0) v += 28;
+    if(m.from >= 0 && m.from <= 55 && danger(m.c, glob(m.c, m.from))) v += lvl === 3 ? 22 : 12;
+    if(m.to <= 55 && danger(m.c, glob(m.c, m.to))) v -= lvl === 3 ? 20 : 10;
+    v += Math.random() * (lvl === 3 ? .5 : 3);
+    if(!best || v > best.v) best = {m, v};
+  }
+  return best.m.c * 4 + best.m.h;
+}
+
+/* ================= RÉGLAGES ================= */
+let draft = null;
+function paintSettings(){
+  document.querySelectorAll("#settings .seg").forEach(seg => seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(draft[seg.dataset.k]) === b.dataset.v)));
+  $("optlvl").hidden = draft.who !== "ai";
+}
+$("setbtn").onclick = () => { if(NET()) return; draft = Object.assign({}, cfg); paintSettings(); $("settings").hidden = false; };
+document.querySelectorAll("#settings .seg").forEach(seg => seg.addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; draft[seg.dataset.k] = seg.dataset.k === "who" ? b.dataset.v : +b.dataset.v; paintSettings(); }));
+$("setcancel").onclick = () => { $("settings").hidden = true; };
+$("setok").onclick = () => { cfg = draft; save("pc_cfg", JSON.stringify(cfg)); $("settings").hidden = true; newGame(); };
+document.addEventListener("keydown", e => { if(e.key === "Escape") $("settings").hidden = true; });
+
+buildBoard();
+newGame();
+
+/* ================= EN LIGNE (sur le site de la salle de jeux) ================= */
+if(window.Net) Net.setup({
+  game: "petits-chevaux", name: "Petits chevaux", min: 2, max: 4, bots: true, seats: () => cfg.n,
+  cfg: () => cfg,
+  seatName: (k, n) => colorsFor(n)[k].map(c => COL[c]).join(" & "),
+  current: () => S && !S.over ? S.cur : -1,
+  start(info){ localCfg = Object.assign({}, cfg); cfg = Object.assign({}, cfg, info.cfg, {n: info.n}); NETON = true; newGame(); },
+  leave(){ NETON = false; if(localCfg) cfg = localCfg; newGame(); }
+});
+})();
+</script>

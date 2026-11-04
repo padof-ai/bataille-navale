@@ -1,0 +1,445 @@
+<title>Jeu de l'oie</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Nunito:wght@600;800&display=swap">
+<style>
+/* Layout : un vieux plateau en spirale, parchemin et vert d'eau ; au-dessus les pions des joueurs, dessous les deux dés. */
+:root{
+  color-scheme:dark;
+  --bg:#18302a; --bg2:#0c1a16;
+  --parch:#f4e7c6; --parch2:#e8d3a0; --ink2:#4a3418;
+  --ink:#f6efdc; --muted:#cfc3a3; --edge:rgba(246,239,220,.2);
+  --gold:#e9b949; --red:#b8322a;
+  --display:"IM Fell English SC","Georgia",serif;
+  --ui:"Nunito","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0;font-family:var(--ui);color:var(--ink);-webkit-tap-highlight-color:transparent;
+  background:radial-gradient(ellipse 80% 60% at 50% 25%,#2d5a4c 0,var(--bg) 55%,var(--bg2) 100%) fixed,var(--bg)}
+.app{max-width:640px;margin:0 auto;padding-block:10px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:10px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(1.8rem,8vw,2.6rem);line-height:1;color:var(--gold);text-shadow:0 3px 0 #0b1612,0 8px 16px rgba(0,0,0,.45);white-space:nowrap}
+.tools{display:flex;gap:8px}
+button{font:inherit;font-weight:800;color:var(--ink);background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:11px;padding:8px 12px;cursor:pointer}
+button:hover:not(:disabled){border-color:rgba(246,239,220,.5)}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+.players{display:flex;flex-wrap:wrap;gap:6px}
+.pl{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:999px;padding:4px 10px 4px 6px;font-weight:800;font-size:.85rem}
+.pl.act{background:var(--parch);color:var(--ink2)}
+.pl .sw{width:14px;height:14px;border-radius:50%;border:2px solid rgba(0,0,0,.35)}
+.pl small{font-weight:700;opacity:.8}
+#status{background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:12px;padding:9px 12px;font-weight:800;line-height:1.35;min-height:2.8em}
+#status .who{font-family:var(--display);font-size:1.1em}
+.boardwrap{width:100%;max-width:580px;margin:0 auto;aspect-ratio:1;border-radius:18px;padding:10px;background:linear-gradient(145deg,#7a5a32,#4a3418);box-shadow:inset 0 0 0 2px rgba(255,255,255,.12),0 16px 30px rgba(0,0,0,.5)}
+svg.board{width:100%;height:100%;display:block;border-radius:10px;overflow:visible}
+.pawn{transition:transform .14s ease-out}
+.ctrl{display:flex;align-items:center;justify-content:center;gap:14px}
+.die{width:58px;height:58px;border-radius:13px;background:linear-gradient(145deg,#fffdf6,#efe2c4);box-shadow:inset 0 -4px 0 rgba(0,0,0,.12),0 6px 12px rgba(0,0,0,.4);display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:8px}
+.die i{width:11px;height:11px;border-radius:50%;margin:auto}
+.die i.on{background:#3a2410}
+.die.roll{animation:roll .5s cubic-bezier(.3,.7,.4,1)}
+.die.roll + .die.roll{animation-delay:.05s}
+@keyframes roll{0%{transform:rotate(0) scale(.8)}50%{transform:rotate(-200deg) scale(1.15)}100%{transform:rotate(-360deg) scale(1)}}
+#rollbtn{background:var(--gold);color:#2a1a08;border-color:var(--gold);font-size:1.05rem;padding:12px 20px}
+.foot{display:flex;justify-content:center;gap:8px}
+.rules{background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:14px;padding:12px 14px;font-size:.9rem;line-height:1.5;color:var(--muted)}
+.rules summary{cursor:pointer;font-weight:800;color:var(--ink)}
+.rules ul{margin:8px 0 0;padding-left:18px}
+.rules b{color:var(--ink)}
+.modal{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(5,12,10,.66);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px}
+.modal .box{background:#1f3a32;border:1px solid var(--edge);border-radius:16px;padding:20px;width:100%;max-width:460px;max-height:100%;overflow:auto;box-shadow:0 20px 40px rgba(0,0,0,.5)}
+.modal h2{margin:0 0 12px;font-family:var(--display);font-weight:400;font-size:1.6rem;line-height:1.2;color:var(--gold)}
+.modal p{margin:0 0 12px;color:var(--muted);line-height:1.45;font-size:.92rem}
+.modal .row{display:flex;gap:8px;flex-wrap:wrap}.modal .row button{flex:1}
+.primary{background:var(--gold);color:#2a1a08;border-color:var(--gold)}
+.opt{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.opt .lbl{font-weight:800;font-size:.9rem}
+.seg{display:flex;flex-wrap:wrap;background:rgba(0,0,0,.25);border:1px solid var(--edge);border-radius:12px;padding:3px;gap:2px}
+.seg button{flex:1 1 auto;border:0;background:transparent;padding:7px 8px;border-radius:9px;color:var(--muted);font-size:.85rem}
+.seg button[aria-pressed="true"]{background:var(--gold);color:#2a1a08}
+.seg .off{font-weight:600;font-size:.72rem;opacity:.85}
+.rank{list-style:none;margin:0 0 14px;padding:0;display:flex;flex-direction:column;gap:6px}
+.rank li{display:flex;justify-content:space-between;background:rgba(0,0,0,.25);border-radius:10px;padding:8px 12px;font-weight:800}
+@media (max-width:480px){.tools .t{display:none}}
+@media (prefers-reduced-motion:reduce){.pawn{transition:none}.die.roll{animation:none}}
+</style>
+
+<div class="app">
+  <div class="top">
+    <h1>Jeu de l'oie</h1>
+    <div class="tools">
+      <button id="setbtn" aria-label="Réglages">⚙️<span class="t"> Réglages</span></button>
+      <button id="snd" aria-label="Activer ou couper le son"></button>
+    </div>
+  </div>
+  <div class="players" id="players"></div>
+  <div id="status" aria-live="polite"></div>
+  <div class="boardwrap"><svg class="board" id="board" viewBox="0 0 800 800" role="img" aria-label="Plateau du jeu de l'oie, 63 cases en spirale"></svg></div>
+  <div class="ctrl">
+    <span class="die" id="d1"></span><span class="die" id="d2"></span>
+    <button id="rollbtn">Lancer les dés</button>
+  </div>
+  <div class="foot"><button id="newg">Nouvelle partie</button></div>
+  <details class="rules">
+    <summary>Règles du jeu</summary>
+    <ul>
+      <li>On lance deux dés et on avance du total. Le premier arrivé <b>pile</b> sur la case 63 gagne ; si l'on dépasse, on recule d'autant.</li>
+      <li>Au premier coup, <b>6 et 3</b> mènent directement à la case 26, <b>5 et 4</b> à la case 53.</li>
+      <li><b>Oie</b> : on avance encore une fois du même nombre (on recule si l'on revenait en arrière).</li>
+      <li><b>Pont</b> (6) : on file à la case 12. <b>Hôtel</b> (19) : on passe 2 tours. <b>Puits</b> (31) et <b>prison</b> (52) : on y reste jusqu'à ce qu'un autre joueur vienne prendre la place.</li>
+      <li><b>Labyrinthe</b> (42) : retour en 30. <b>Tête de mort</b> (58) : retour au départ.</li>
+      <li>Si l'on arrive sur une case occupée, le joueur qui s'y trouvait prend la place d'où l'on vient.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="modal" id="endbox" hidden><div class="box"><h2 id="endt"></h2><ol class="rank" id="rank"></ol><div class="row"><button id="again" class="primary">Rejouer</button></div></div></div>
+<div class="modal" id="settings" hidden><div class="box" role="dialog" aria-labelledby="sett">
+  <h2 id="sett">Réglages</h2>
+  <div class="opt"><span class="lbl">Joueurs</span><div class="seg" data-k="n"><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button><button data-v="6">6</button></div></div>
+  <div class="opt"><span class="lbl">Adversaires</span><div class="seg" data-k="who"><button data-v="ai">Ordinateurs</button><button data-v="hot">Même écran</button></div></div>
+  <div class="opt"><span class="lbl">Les oies</span><div class="seg" data-k="geese"><button data-v="13">13 oies (5, 9, 14, 18…) <span class="off">· officiel</span></button><button data-v="6">6 oies (9, 18, 27…)</button></div></div>
+  <div class="opt"><span class="lbl">Un 9 au premier coup</span><div class="seg" data-k="nine"><button data-v="1">6+3 → 26, 5+4 → 53 <span class="off">· officiel</span></button><button data-v="0">On avance normalement</button></div></div>
+  <div class="opt"><span class="lbl">Puits et prison</span><div class="seg" data-k="jail"><button data-v="1">Jusqu'à être délivré <span class="off">· officiel</span></button><button data-v="0">On passe 2 tours</button></div></div>
+  <div class="opt"><span class="lbl">Case occupée</span><div class="seg" data-k="swap"><button data-v="1">L'autre prend votre place <span class="off">· officiel</span></button><button data-v="0">On partage la case</button></div></div>
+  <p>Les changements démarrent une nouvelle partie.</p>
+  <div class="row"><button id="setcancel">Annuler</button><button id="setok" class="primary">Appliquer</button></div>
+</div></div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const load = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const save = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const D = ms => reduced ? Math.min(ms, 80) : ms;
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for(const k in attrs) e.setAttribute(k, attrs[k]); if(parent) parent.appendChild(e); return e; };
+
+/* ================= SONS ================= */
+const Snd = {
+  ctx: null, on: load("oie_sound") !== "0", nb: null,
+  init(){
+    if(!this.ctx){
+      const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
+      this.ctx = new AC(); this.out = this.ctx.createGain(); this.out.gain.value = .9; this.out.connect(this.ctx.destination);
+      const n = this.ctx.sampleRate, b = this.ctx.createBuffer(1, n, n), d = b.getChannelData(0);
+      for(let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      this.nb = b;
+    }
+    if(this.ctx.state === "suspended") this.ctx.resume();
+  },
+  ok(){ return this.on && this.ctx; },
+  hit(f, q, peak, dur, delay = 0, type = "bandpass"){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.nb; fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .006); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    s.connect(fl).connect(g).connect(this.out); s.start(t, Math.random() * .5); s.stop(t + dur + .02);
+  },
+  tone(f0, f1, dur, peak, delay = 0, type = "sine"){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .006); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(this.out); o.start(t); o.stop(t + dur + .02);
+  },
+  rattle(){ for(let i = 0; i < 14; i++) this.hit(2200 + Math.random() * 1800, 3, .18, .04, i * .04 + Math.random() * .02); },
+  hop(){ this.tone(520 + Math.random() * 60, 700, .06, .1, 0, "triangle"); },
+  /* cri de l'oie : deux « honk » nasillards */
+  honk(){ [0, .22].forEach(d => { this.tone(420, 330, .16, .14, d, "sawtooth"); this.tone(630, 500, .16, .06, d, "square"); }); },
+  bridge(){ [392, 523, 659].forEach((f, i) => this.tone(f, f, .15, .1, i * .06, "triangle")); },
+  splash(){ this.hit(600, .7, .4, .6, 0, "lowpass"); this.tone(300, 80, .5, .1, 0); },
+  bars(){ [0, .12, .24].forEach(d => this.hit(3000, 6, .25, .12, d)); this.tone(110, 90, .4, .12, .05, "square"); },
+  bell(){ [880, 1320].forEach((f, i) => this.tone(f, f * .99, .8, .1, i * .02)); },
+  maze(){ for(let i = 0; i < 6; i++) this.tone(700 - i * 60, 640 - i * 60, .1, .08, i * .07, "triangle"); },
+  death(){ [330, 311, 294, 262].forEach((f, i) => this.tone(f, f * .97, .4, .12, i * .25, "sawtooth")); },
+  bump(){ this.tone(200, 120, .2, .14, 0, "triangle"); },
+  win(){ [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, f, i === 4 ? .9 : .28, .15, .1 + i * .12, "triangle")); this.honk(); },
+  lose(){ [392, 370, 349, 294].forEach((f, i) => this.tone(f, f * .97, .45, .1, .1 + i * .3, "sawtooth")); }
+};
+function sndLabel(){ $("snd").textContent = Snd.on ? "🔊" : "🔇"; $("snd").title = Snd.on ? "Son activé" : "Son coupé"; }
+$("snd").onclick = () => { Snd.on = !Snd.on; save("oie_sound", Snd.on ? "1" : "0"); Snd.init(); sndLabel(); };
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => Snd.init(), {capture: true}));
+sndLabel();
+
+/* ================= RÉGLAGES ================= */
+let cfg = {n: 4, who: "ai", geese: 13, nine: 1, jail: 1, swap: 1};
+try{ const o = JSON.parse(load("oie_cfg") || "null"); if(o) cfg = Object.assign(cfg, o); }catch(e){}
+let NETON = false, localCfg = null;
+const NET = () => NETON;
+const RND = () => NETON ? Net.rand() : Math.random();   // hasard partagé en ligne
+
+/* ================= PLATEAU : spirale de 8 × 8 cases, de 0 (départ) à 63 ================= */
+const CELL = (() => {
+  const out = []; let top = 0, bot = 7, left = 0, right = 7;
+  while(out.length < 64){
+    for(let c = left; c <= right && out.length < 64; c++) out.push([bot, c]); bot--;
+    for(let r = bot; r >= top && out.length < 64; r--) out.push([r, right]); right--;
+    for(let c = right; c >= left && out.length < 64; c--) out.push([top, c]); top++;
+    for(let r = top; r <= bot && out.length < 64; r++) out.push([r, left]); left++;
+  }
+  return out;
+})();
+const geeseSet = () => cfg.geese === 6 ? [9, 18, 27, 36, 45, 54] : [5, 9, 14, 18, 23, 27, 32, 36, 41, 45, 50, 54, 59];
+const SPECIAL = {6: "Pont", 19: "Hôtel", 31: "Puits", 42: "Labyrinthe", 52: "Prison", 58: "Mort", 63: "Jardin"};
+const PCOL = ["#d33a2c", "#2a6fdb", "#2f9e48", "#f0b21a", "#8e4fc9", "#ef7d1a"], PNAME = ["Rouge", "Bleu", "Vert", "Jaune", "Violet", "Orange"];
+const C = 100;
+const center = k => { const [r, c] = CELL[k]; return [c * C + C / 2, r * C + C / 2]; };
+function icon(k, g, x, y){
+  // petites illustrations dessinées (traits sépia)
+  const ink = "#4a3418";
+  if(geeseSet().includes(k)){
+    el("ellipse", {cx: x + 4, cy: y + 12, rx: 22, ry: 13, fill: "#fff", stroke: ink, "stroke-width": 2}, g);
+    el("path", {d: `M${x - 14} ${y + 8} C${x - 18} ${y - 6} ${x - 16} ${y - 18} ${x - 8} ${y - 20}`, fill: "none", stroke: "#fff", "stroke-width": 7, "stroke-linecap": "round"}, g);
+    el("path", {d: `M${x - 14} ${y + 8} C${x - 18} ${y - 6} ${x - 16} ${y - 18} ${x - 8} ${y - 20}`, fill: "none", stroke: ink, "stroke-width": 1.5}, g);
+    el("circle", {cx: x - 8, cy: y - 21, r: 6, fill: "#fff", stroke: ink, "stroke-width": 1.5}, g);
+    el("path", {d: `M${x - 3} ${y - 22} l9 2 l-9 3 z`, fill: "#f08a1a", stroke: ink, "stroke-width": 1}, g);
+    el("circle", {cx: x - 8, cy: y - 22, r: 1.4, fill: ink}, g);
+    el("path", {d: `M${x + 14} ${y + 6} q8 -2 10 -8`, fill: "none", stroke: ink, "stroke-width": 1.5}, g);
+    return;
+  }
+  const S = SPECIAL[k];
+  if(S === "Pont"){
+    el("path", {d: `M${x - 30} ${y + 14} Q${x} ${y - 24} ${x + 30} ${y + 14}`, fill: "none", stroke: "#8a5a2a", "stroke-width": 8}, g);
+    el("path", {d: `M${x - 30} ${y + 14} Q${x} ${y - 24} ${x + 30} ${y + 14}`, fill: "none", stroke: ink, "stroke-width": 1.5}, g);
+    el("path", {d: `M${x - 32} ${y + 22} q8 -5 16 0 t16 0 t16 0 t16 0`, fill: "none", stroke: "#3a7fb6", "stroke-width": 3}, g);
+  } else if(S === "Hôtel"){
+    el("path", {d: `M${x - 24} ${y - 2} L${x} ${y - 24} L${x + 24} ${y - 2} Z`, fill: "#b8322a", stroke: ink, "stroke-width": 2}, g);
+    el("rect", {x: x - 19, y: y - 2, width: 38, height: 28, fill: "#f8f0dc", stroke: ink, "stroke-width": 2}, g);
+    el("rect", {x: x - 5, y: y + 10, width: 10, height: 16, fill: "#8a5a2a"}, g);
+    const t = el("text", {x, y: y + 7, "text-anchor": "middle", "font-size": 11, "font-weight": 800, fill: ink, "font-family": "Georgia,serif"}, g); t.textContent = "HÔTEL";
+  } else if(S === "Puits"){
+    el("rect", {x: x - 20, y: y, width: 40, height: 24, rx: 4, fill: "#9a9a9a", stroke: ink, "stroke-width": 2}, g);
+    el("path", {d: `M${x - 20} ${y + 8} h40 M${x - 20} ${y + 16} h40 M${x - 8} ${y} v8 M${x + 6} ${y + 8} v8`, stroke: ink, "stroke-width": 1}, g);
+    el("path", {d: `M${x - 18} ${y} V${y - 22} M${x + 18} ${y} V${y - 22} M${x - 24} ${y - 22} L${x} ${y - 32} L${x + 24} ${y - 22} Z`, stroke: ink, "stroke-width": 2.4, fill: "#8a5a2a"}, g);
+  } else if(S === "Labyrinthe"){
+    el("path", {d: `M${x - 26} ${y - 26} h52 v52 h-52 v-40 h40 v28 h-28 v-16 h16 v6`, fill: "none", stroke: "#2f6b3e", "stroke-width": 5}, g);
+  } else if(S === "Prison"){
+    el("rect", {x: x - 24, y: y - 24, width: 48, height: 48, rx: 4, fill: "#6f6f6f", stroke: ink, "stroke-width": 2}, g);
+    for(let i = -16; i <= 16; i += 8) el("path", {d: `M${x + i} ${y - 24} V${y + 24}`, stroke: "#2b2b2b", "stroke-width": 3.4}, g);
+    el("path", {d: `M${x - 24} ${y - 6} H${x + 24}`, stroke: "#2b2b2b", "stroke-width": 3.4}, g);
+  } else if(S === "Mort"){
+    el("path", {d: `M${x - 20} ${y - 2} C${x - 22} ${y - 30} ${x + 22} ${y - 30} ${x + 20} ${y - 2} C${x + 20} ${y + 8} ${x + 12} ${y + 10} ${x + 12} ${y + 18} H${x - 12} C${x - 12} ${y + 10} ${x - 20} ${y + 8} ${x - 20} ${y - 2} Z`, fill: "#f6f1e4", stroke: ink, "stroke-width": 2}, g);
+    el("circle", {cx: x - 8, cy: y - 4, r: 6, fill: ink}, g); el("circle", {cx: x + 8, cy: y - 4, r: 6, fill: ink}, g);
+    el("path", {d: `M${x} ${y + 3} l-3 6 h6 z`, fill: ink}, g);
+    el("path", {d: `M${x - 6} ${y + 18} v-5 M${x} ${y + 18} v-5 M${x + 6} ${y + 18} v-5`, stroke: ink, "stroke-width": 1.5}, g);
+  } else if(S === "Jardin"){
+    for(let a = 0; a < 8; a++){ const ang = a * Math.PI / 4; el("ellipse", {cx: x + Math.cos(ang) * 18, cy: y + Math.sin(ang) * 18, rx: 11, ry: 7, fill: "#f2b6c8", stroke: ink, "stroke-width": 1, transform: `rotate(${a * 45} ${x + Math.cos(ang) * 18} ${y + Math.sin(ang) * 18})`}, g); }
+    el("circle", {cx: x, cy: y, r: 13, fill: "#e9b949", stroke: ink, "stroke-width": 2}, g);
+  } else if(k === 0){
+    const t = el("text", {x, y: y + 8, "text-anchor": "middle", "font-size": 22, fill: ink, "font-family": "'IM Fell English SC',Georgia,serif"}, g); t.textContent = "Départ";
+  }
+}
+function buildBoard(){
+  const sv = $("board"); sv.innerHTML = "";
+  el("rect", {x: 0, y: 0, width: 800, height: 800, rx: 12, fill: "#2d5a4c"}, sv);
+  const geese = geeseSet();
+  // la route en spirale
+  const road = CELL.map(([r, c]) => `${c * C + C / 2},${r * C + C / 2}`).join(" ");
+  el("polyline", {points: road, fill: "none", stroke: "#1d3d33", "stroke-width": 92, "stroke-linejoin": "round", "stroke-linecap": "round"}, sv);
+  CELL.forEach(([r, c], k) => {
+    const g = el("g", {}, sv), x = c * C, y = r * C;
+    const special = geese.includes(k) ? "goose" : SPECIAL[k] ? "spec" : "";
+    el("rect", {x: x + 4, y: y + 4, width: C - 8, height: C - 8, rx: 14,
+      fill: k === 0 ? "#e8d3a0" : special === "goose" ? "#dff0f7" : special === "spec" ? (k === 63 ? "#f7e2a0" : "#f6d9c4") : (k % 2 ? "#f4e7c6" : "#efdcae"),
+      stroke: "#4a3418", "stroke-width": 2}, g);
+    if(k){ const t = el("text", {x: x + 13, y: y + 25, "font-size": 18, "font-weight": 800, fill: "#4a3418", "font-family": "Georgia,serif"}, g); t.textContent = k; }
+    icon(k, g, x + C / 2 + 4, y + C / 2 + 8);
+  });
+  // pions
+  const pg = el("g", {id: "pawns"}, sv);
+  for(let i = 0; i < 6; i++){
+    const g = el("g", {class: "pawn", id: "pawn" + i}, pg);
+    el("ellipse", {cx: 0, cy: 17, rx: 13, ry: 5, fill: "#000", opacity: .3}, g);
+    el("path", {d: "M-12 16 C-12 4 -7 -2 -5 -6 A10 10 0 1 1 5 -6 C7 -2 12 4 12 16 Z", fill: PCOL[i], stroke: "rgba(0,0,0,.5)", "stroke-width": 2}, g);
+    el("ellipse", {cx: -4, cy: -16, rx: 3.5, ry: 5, fill: "#fff", opacity: .45}, g);
+  }
+}
+
+/* ================= ÉTAT ================= */
+let S = null, token = 0, busy = false;
+const isLocalHuman = i => NET() ? i === Net.me : (cfg.who === "hot" || i === 0);
+function newGame(){
+  token++; busy = false;
+  if(NET()) Net.cancel();
+  const n = NET() ? Net.n : cfg.n;
+  const names = NET() ? Net.names.map((nm, i) => i === Net.me ? "Vous" : nm)
+    : Array.from({length: n}, (_, i) => cfg.who === "hot" ? PNAME[i] : i === 0 ? "Vous" : n === 2 ? "L'ordinateur" : "Ordi " + PNAME[i]);
+  S = {players: names.map((name, i) => ({name, pos: 0, skip: 0, stuck: false, first: true, ai: NET() ? !!Net.bots[i] : cfg.who === "ai" && i > 0})),
+       cur: 0, phase: "roll", dice: [0, 0], over: false, msg: ""};
+  S.cur = Math.floor(RND() * n);
+  $("endbox").hidden = true;
+  buildBoard(); placeAll(true); render(); turnStart();
+}
+const P = () => S.players[S.cur];
+
+/* ================= AFFICHAGE ================= */
+function placeAll(){ S.players.forEach((_, i) => placePawn(i)); for(let i = S.players.length; i < 6; i++) $("pawn" + i).style.display = "none"; }
+function placePawn(i, pos = S.players[i].pos){
+  const g = $("pawn" + i); g.style.display = "";
+  const same = S.players.map((p, j) => j).filter(j => (j === i ? pos : S.players[j].pos) === pos);
+  const k = same.indexOf(i), n = same.length;
+  const [x, y] = center(pos);
+  const off = n > 1 ? [(k % 3 - (Math.min(n, 3) - 1) / 2) * 24, (Math.floor(k / 3) - (n > 3 ? .5 : 0)) * 26] : [0, 0];
+  g.style.transform = `translate(${x + off[0]}px,${y + off[1] - 4}px)`;
+}
+function render(){
+  if(!S) return;
+  $("players").innerHTML = S.players.map((p, i) => `<span class="pl${i === S.cur && !S.over ? " act" : ""}"><span class="sw" style="background:${PCOL[i]}"></span>${p.name} <small>case ${p.pos}${p.skip ? " · ⏸ " + p.skip : ""}${p.stuck ? " · bloqué" : ""}</small></span>`).join("");
+  const mine = !S.over && isLocalHuman(S.cur) && !P().ai && !busy && S.phase === "roll";
+  $("rollbtn").disabled = !mine;
+  const who = i => `<span class="who" style="color:${PCOL[i]}">${S.players[i].name}</span>`;
+  let t = S.msg;
+  if(!t && !S.over) t = mine ? `${who(S.cur)} : lancez les dés.` : `${who(S.cur)} lance les dés…`;
+  $("status").innerHTML = t;
+  $("newg").hidden = NET(); $("setbtn").disabled = NET();
+  if(window.Net) Net.refresh();
+}
+const PIPS = {1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8]};
+function renderDie(id, v){ $(id).innerHTML = Array.from({length: 9}, (_, i) => `<i class="${v && PIPS[v].includes(i) ? "on" : ""}"></i>`).join(""); $(id).setAttribute("aria-label", v ? "Dé : " + v : "Dé"); }
+
+/* ================= DÉROULEMENT ================= */
+async function turnStart(){
+  const my = token;
+  S.phase = "roll"; S.msg = ""; render();
+  if(S.over) return;
+  const p = P();
+  // tours passés ou joueur bloqué : rien à faire, cela ne demande aucun coup
+  if(p.skip > 0 || p.stuck){
+    busy = true;
+    const me = p.name === "Vous";
+    S.msg = p.stuck ? (me ? `Vous attendez qu'un autre joueur vienne vous délivrer (case ${p.pos}).` : `${p.name} attend qu'un autre joueur vienne le délivrer (case ${p.pos}).`)
+      : (me ? "Vous passez votre tour." : `${p.name} passe son tour.`);
+    if(p.skip > 0) p.skip--;
+    render(); await sleep(D(1300)); if(my !== token) return;
+    busy = false; return nextTurn();
+  }
+  if(NET()){
+    if(S.cur === Net.me){ busy = false; render(); Net.mine(a => { if(my === token && a.r) doRoll(); }); return; }
+    if(!Net.bots[S.cur]){ await Net.turn(S.cur, () => ({r: 1})); if(my !== token) return; return doRoll(); }
+    await sleep(D(700)); if(my !== token) return;
+    return doRoll();
+  }
+  if(p.ai){ await sleep(D(700)); if(my !== token) return; doRoll(); }
+}
+function humanRoll(){
+  if(busy || !S || S.over || S.phase !== "roll" || !isLocalHuman(S.cur) || P().ai) return;
+  if(NET()) Net.send({r: 1});
+  doRoll();
+}
+$("rollbtn").onclick = humanRoll;
+async function hopTo(i, from, to){
+  const my = token, dir = to > from ? 1 : -1;
+  for(let k = from + dir; dir > 0 ? k <= to : k >= to; k += dir){ placePawn(i, k); Snd.hop(); await sleep(D(130)); if(my !== token) return false; }
+  return true;
+}
+async function jumpTo(i, to){ const my = token; placePawn(i, to); await sleep(D(420)); return my === token; }
+async function doRoll(){
+  const my = token, i = S.cur, p = P();
+  busy = true; S.phase = "move"; render();
+  const a = 1 + Math.floor(RND() * 6), b = 1 + Math.floor(RND() * 6), sum = a + b;
+  Snd.rattle();
+  ["d1", "d2"].forEach(id => { const d = $(id); d.classList.remove("roll"); void d.offsetWidth; d.classList.add("roll"); });
+  for(let k = 0; k < 5 && !reduced; k++){ renderDie("d1", 1 + Math.floor(Math.random() * 6)); renderDie("d2", 1 + Math.floor(Math.random() * 6)); await sleep(90); if(my !== token) return; }
+  renderDie("d1", a); renderDie("d2", b);
+  await sleep(D(350)); if(my !== token) return;
+  const from = p.pos, nm = p.name === "Vous" ? "Vous" : p.name;
+  const say = t => { S.msg = t; render(); };
+  const V = (s3, s2) => p.name === "Vous" ? s2 : s3;
+  let pos = from, dir = 1;
+  if(p.first && from === 0 && cfg.nine && sum === 9){
+    const to = (a === 6 || b === 6) ? 26 : 53;
+    say(`${nm} : ${a} et ${b} au premier coup, direction la case ${to} !`); Snd.bridge();
+    if(!await hopTo(i, 0, Math.min(9, to))) return;
+    if(!await jumpTo(i, to)) return;
+    pos = to;
+  } else {
+    // avance (et recul au-delà de 63)
+    let t = pos + sum;
+    if(t > 63){ if(!await hopTo(i, pos, 63)) return; t = 63 - (t - 63); dir = -1; Snd.bump(); if(!await hopTo(i, 63, t)) return; }
+    else if(!await hopTo(i, pos, t)) return;
+    pos = t;
+    // les oies : on rejoue le même nombre, dans le même sens
+    let guard = 0;
+    while(geeseSet().includes(pos) && guard++ < 10){
+      Snd.honk(); say(`${nm} ${V("tombe","tombez")} sur une oie (case ${pos}) : encore ${sum} cases !`);
+      await sleep(D(600)); if(my !== token) return;
+      let t2 = pos + sum * dir;
+      if(t2 > 63){ if(!await hopTo(i, pos, 63)) return; t2 = 63 - (t2 - 63); dir = -1; Snd.bump(); if(!await hopTo(i, 63, t2)) return; }
+      else if(t2 < 0){ t2 = 0; if(!await hopTo(i, pos, 0)) return; }
+      else if(!await hopTo(i, pos, t2)) return;
+      pos = t2;
+    }
+  }
+  p.first = false;
+  // cases spéciales
+  if(pos === 6){ Snd.bridge(); say(`${nm} : le pont mène à la case 12.`); await sleep(D(500)); if(my !== token) return; if(!await jumpTo(i, 12)) return; pos = 12; }
+  else if(pos === 42){ Snd.maze(); say(`${nm} ${V("se perd","vous perdez")} dans le labyrinthe : retour en case 30.`); await sleep(D(600)); if(my !== token) return; if(!await jumpTo(i, 30)) return; pos = 30; }
+  else if(pos === 58){ Snd.death(); say(`${nm} ${V("tombe","tombez")} sur la tête de mort : retour au départ !`); await sleep(D(900)); if(my !== token) return; if(!await jumpTo(i, 0)) return; pos = 0; }
+  else if(pos === 19){ Snd.bell(); p.skip = 2; say(`${nm} ${V("s'arrête","vous arrêtez")} à l'hôtel : 2 tours sans jouer.`); }
+  else if(pos === 31 || pos === 52){
+    pos === 31 ? Snd.splash() : Snd.bars();
+    if(cfg.jail){ p.stuck = true; say(`${nm} ${V("tombe","tombez")} ${pos === 31 ? "dans le puits" : "en prison"} : il faudra qu'un autre joueur vienne ${p.name === "Vous" ? "vous" : "le"} délivrer.`); }
+    else { p.skip = 2; say(`${nm} ${V("tombe","tombez")} ${pos === 31 ? "dans le puits" : "en prison"} : 2 tours sans jouer.`); }
+  }
+  p.pos = pos;
+  // case occupée : l'autre prend la place d'où l'on vient
+  if(pos !== 0 && cfg.swap){
+    const j = S.players.findIndex((q, k) => k !== i && q.pos === pos);
+    if(j >= 0){
+      const q = S.players[j];
+      q.pos = from; q.stuck = false; q.skip = 0;
+      Snd.bump();
+      await sleep(D(500)); if(my !== token) return;
+      say(q.name === "Vous" ? `Vous reculez à la case ${from}, d'où venait ${nm}.` : `${q.name} recule à la case ${from}, d'où ${nm === "Vous" ? "vous veniez" : "venait " + nm}.`);
+      placePawn(j, from);
+    }
+  }
+  S.players.forEach((_, k) => placePawn(k));
+  render();
+  if(pos === 63){ S.over = true; busy = false; render(); return showEnd(i); }
+  await sleep(D(S.msg ? 1300 : 300)); if(my !== token) return;
+  busy = false; nextTurn();
+}
+function nextTurn(){ S.cur = (S.cur + 1) % S.players.length; turnStart(); }
+function showEnd(w){
+  S.msg = ""; render();
+  const rk = S.players.map((p, i) => ({p, i})).sort((x, y) => (x.i === w ? -1 : y.i === w ? 1 : y.p.pos - x.p.pos));
+  $("endt").textContent = S.players[w].name === "Vous" ? "Vous arrivez au jardin de l'oie !" : S.players[w].name + " gagne la partie !";
+  $("rank").innerHTML = rk.map(x => `<li><span><span style="color:${PCOL[x.i]}">●</span> ${x.p.name}</span><span>case ${x.p.pos}</span></li>`).join("");
+  $("endbox").hidden = false;
+  (isLocalHuman(w) && !S.players[w].ai) ? Snd.win() : Snd.lose();
+  if(NET()){ const my = token; Net.next().then(a => { if(my === token && NET() && a && a.t === "new") newGame(); }); }
+}
+$("again").onclick = () => { if(NET()) return Net.send({t: "new"}, null, true); newGame(); };
+$("newg").onclick = () => { if(!NET()) newGame(); };
+document.addEventListener("keydown", e => { if((e.key === " " || e.key === "Enter") && e.target === document.body){ e.preventDefault(); humanRoll(); } });
+
+/* ================= RÉGLAGES ================= */
+let draft = null;
+function paintSettings(){ document.querySelectorAll("#settings .seg").forEach(seg => seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(draft[seg.dataset.k]) === b.dataset.v))); }
+$("setbtn").onclick = () => { if(NET()) return; draft = Object.assign({}, cfg); paintSettings(); $("settings").hidden = false; };
+document.querySelectorAll("#settings .seg").forEach(seg => seg.addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; draft[seg.dataset.k] = seg.dataset.k === "who" ? b.dataset.v : +b.dataset.v; paintSettings(); }));
+$("setcancel").onclick = () => { $("settings").hidden = true; };
+$("setok").onclick = () => { cfg = draft; save("oie_cfg", JSON.stringify(cfg)); $("settings").hidden = true; newGame(); };
+document.addEventListener("keydown", e => { if(e.key === "Escape") $("settings").hidden = true; });
+
+renderDie("d1", 6); renderDie("d2", 3);
+newGame();
+
+/* ================= EN LIGNE (sur le site de la salle de jeux) ================= */
+if(window.Net) Net.setup({
+  game: "jeu-oie", name: "Jeu de l'oie", min: 2, max: 6, bots: true, seats: () => cfg.n,
+  cfg: () => cfg,
+  seatName: k => PNAME[k],
+  current: () => S && !S.over ? S.cur : -1,
+  start(info){ localCfg = Object.assign({}, cfg); cfg = Object.assign({}, cfg, info.cfg, {n: info.n}); NETON = true; newGame(); },
+  leave(){ NETON = false; if(localCfg) cfg = localCfg; newGame(); }
+});
+})();
+</script>

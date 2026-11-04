@@ -622,6 +622,18 @@ ART = {
       <rect x="10" y="8" width="140" height="84" rx="14" fill="#16335c" stroke="#d9b25f" stroke-width="2"/>
       <g transform="rotate(-12 60 52)"><rect x="42" y="18" width="34" height="62" rx="5" fill="#f6ecd0" stroke="#c9b27a"/><circle cx="59" cy="49" r="12" fill="#fffaf0" stroke="#c8202c" stroke-width="4" stroke-dasharray="4 3"/><text x="59" y="54" text-anchor="middle" font-size="13" font-weight="700" fill="#2a3f8f" font-family="Georgia,serif">21</text></g>
       <g transform="rotate(10 100 50)"><rect x="83" y="18" width="34" height="62" rx="5" fill="#f6dca0" stroke="#c9b27a"/><text x="100" y="58" text-anchor="middle" font-size="26" fill="#7a4a0a">&#9733;</text></g>''',
+    "petits-chevaux": '''
+      <rect x="20" y="6" width="120" height="88" rx="12" fill="#f6ead0" stroke="#7a5a3a" stroke-width="2"/>
+      <rect x="66" y="6" width="28" height="88" fill="#fffaf0" stroke="#b89a74"/><rect x="20" y="36" width="120" height="28" fill="#fffaf0" stroke="#b89a74"/>
+      <rect x="26" y="12" width="34" height="18" rx="5" fill="#2a9d4b"/><rect x="100" y="12" width="34" height="18" rx="5" fill="#f2b705"/>
+      <rect x="26" y="70" width="34" height="18" rx="5" fill="#d62828"/><rect x="100" y="70" width="34" height="18" rx="5" fill="#1d6fd6"/>
+      <circle cx="80" cy="50" r="15" fill="#d62828" stroke="#2a1607" stroke-width="1.5"/>
+      <path d="M72 59 L72 53 C72 46 75 42 80 40 L79 36 L83 39 C87 40 90 43 91 47 L92 50 C93 52 91 53 90 52 L86 51 C85 52 84 54 84 59 Z" fill="#fffaf0" stroke="#2a1607" stroke-width="1.3"/>''',
+    "jeu-oie": '''<rect x="22" y="6" width="116" height="88" rx="12" fill="#2d5a4c"/>''' + "".join('<rect x="%d" y="%d" width="18" height="18" rx="4" fill="%s" stroke="#4a3418"/>' % (28 + 21 * (i % 5), 12 + 21 * (i // 5), "#dff0f7" if i in (1, 6, 9, 13) else "#f4e7c6") for i in range(20)) + '''
+      <ellipse cx="86" cy="62" rx="22" ry="13" fill="#fff" stroke="#4a3418" stroke-width="2"/>
+      <path d="M70 58 C66 44 68 34 76 32" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+      <path d="M70 58 C66 44 68 34 76 32" fill="none" stroke="#4a3418" stroke-width="1.6"/>
+      <circle cx="76" cy="31" r="6" fill="#fff" stroke="#4a3418" stroke-width="1.6"/><path d="M81 30 l9 2 l-9 3 z" fill="#f08a1a" stroke="#4a3418"/>''',
 }
 
 GAMES = [
@@ -656,6 +668,10 @@ GAMES = [
      "hook": "Suites et séries de tuiles, la table se réarrange.", "facts": "1–4 joueurs · 30 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "tarot", "file": "tarot.html", "name": "Tarot", "lid": "#16335c",
      "hook": "Petite, garde, garde sans… et le petit au bout.", "facts": "3–4 joueurs · 30 min", "modes": ["En ligne", "Contre l'ordi"]},
+    {"slug": "petits-chevaux", "file": "petits_chevaux.html", "name": "Petits chevaux", "lid": "#d62828",
+     "hook": "Faites un 6 pour sortir de l'écurie, puis grimpez l'escalier.", "facts": "2–4 joueurs · 30 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"], "new": "Nouveau"},
+    {"slug": "jeu-oie", "file": "jeu_oie.html", "name": "Jeu de l'oie", "lid": "#2d5a4c",
+     "hook": "D'oie en oie jusqu'à la case 63, gare au puits et à la tête de mort.", "facts": "2–6 joueurs · 20 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"], "new": "Nouveau"},
 ]
 STATIC_GAMES = {"/" + g["slug"]: g for g in GAMES if g["file"]}
 

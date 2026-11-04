@@ -76,6 +76,8 @@ button:disabled{opacity:.45;cursor:default}
 .tc.at.bout .big{background:radial-gradient(circle,#fffaf0 0 52%,transparent 54%),conic-gradient(from 0deg,#c8202c 0 10%,#d9b25f 0 20%,#c8202c 0 30%,#d9b25f 0 40%,#c8202c 0 50%,#d9b25f 0 60%,#c8202c 0 70%,#d9b25f 0 80%,#c8202c 0 90%,#d9b25f 0)}
 .tc.ex{background:linear-gradient(180deg,#fff7e0,#f6dca0);--sc:#7a4a0a}
 .tc.ex .big{font-size:calc(var(--cw) * .6)}
+.tc.art{background:#fbf4e3;border-color:#8a7a5a}
+.tc svg.art{position:absolute;inset:0;width:100%;height:100%;display:block}
 .tc.back{background:repeating-linear-gradient(45deg,#1d2b63 0 6%,#24357a 6% 12%);border:calc(var(--cw) * .05) solid #fffdf7}
 .tc.back::before{content:"";position:absolute;inset:12%;border:1.5px solid rgba(217,178,95,.7);border-radius:calc(var(--cw) * .08)}
 
@@ -188,10 +190,134 @@ const isBout = c => isEx(c) || (isT(c) && (c.r === 1 || c.r === 21));
 function points(c){ if(isBout(c)) return 4.5; if(isT(c)) return .5; return {14: 4.5, 13: 3.5, 12: 2.5, 11: 1.5}[c.r] || .5; }
 function deck(){ const d = []; let id = 0; for(let s = 0; s < 4; s++) for(let r = 1; r <= 14; r++) d.push({s, r, id: id++}); for(let r = 1; r <= 21; r++) d.push({s: 4, r, id: id++}); d.push({s: 5, r: 0, id: id++}); return d; }
 const cname = c => isEx(c) ? "l'Excuse" : isT(c) ? (c.r === 1 ? "le Petit" : `le ${c.r} d'atout`) : `${FIGN[c.r] || c.r} de ${SN[c.s]}`;
+/* ================= ATOUTS ILLUSTRÉS =================
+   Dans l'esprit du tarot français traditionnel : chaque atout porte deux petites scènes de la vie
+   d'autrefois, tête-bêche, avec son numéro dans les coins. Les dessins sont générés une fois
+   (symboles SVG) puis réutilisés par toutes les cartes. */
+const ART = (() => {
+  const W = 86, H = 79;
+  const C = {ink: "#3a2a1a", red: "#b4483a", blue: "#4f6f9f", green: "#6f9a52", dgreen: "#4d7a3c", ochre: "#d4a24a", brown: "#8a5a32", cream: "#f7efdc", rose: "#d98c7a", grey: "#8c8c8c", sea: "#5f8fb8", skin: "#f0c9a0", night: "#2d3b63", snow: "#f4f6f8", gold: "#d9b25f", purple: "#7c5a8f"};
+  let SKY = "url(#tsky)";
+  const sky = col => `<rect width="${W}" height="${H}" fill="${col && SKY === "url(#tsky)" ? col : SKY}"/>`;
+  const ground = (y, col = C.green, col2) => `<path d="M0 ${y} Q${W * .3} ${y - 5} ${W * .55} ${y - 1} T${W} ${y - 3} V${H} H0 Z" fill="${col}"/>` + (col2 ? `<path d="M0 ${y + 10} Q${W * .4} ${y + 4} ${W} ${y + 9} V${H} H0 Z" fill="${col2}"/>` : "");
+  const hill = (x, y, w, h, col) => `<path d="M${x} ${y} Q${x + w / 2} ${y - h} ${x + w} ${y} Z" fill="${col}"/>`;
+  const tree = (x, y, s = 1, col = C.dgreen) => `<rect x="${x - 1.2 * s}" y="${y - 8 * s}" width="${2.4 * s}" height="${8 * s}" fill="${C.brown}"/><circle cx="${x}" cy="${y - 12 * s}" r="${6.5 * s}" fill="${col}" stroke="${C.ink}" stroke-width=".6"/><circle cx="${x - 4 * s}" cy="${y - 9 * s}" r="${4 * s}" fill="${col}"/>`;
+  const pine = (x, y, s = 1, col = C.dgreen) => `<path d="M${x} ${y - 20 * s} L${x + 7 * s} ${y - 4 * s} H${x - 7 * s} Z" fill="${col}" stroke="${C.ink}" stroke-width=".6"/><rect x="${x - 1 * s}" y="${y - 4 * s}" width="${2 * s}" height="${4 * s}" fill="${C.brown}"/>`;
+  const house = (x, y, w, h, roof = C.red, wall = C.cream) => `<rect x="${x}" y="${y - h}" width="${w}" height="${h}" fill="${wall}" stroke="${C.ink}" stroke-width=".7"/><path d="M${x - 2} ${y - h} L${x + w / 2} ${y - h - w * .55} L${x + w + 2} ${y - h} Z" fill="${roof}" stroke="${C.ink}" stroke-width=".7"/><rect x="${x + w * .38}" y="${y - h * .55}" width="${w * .24}" height="${h * .55}" fill="${C.brown}"/><rect x="${x + w * .1}" y="${y - h * .8}" width="${w * .18}" height="${h * .22}" fill="#9fc0d8"/>`;
+  const church = (x, y) => house(x, y, 16, 14, C.grey) + `<rect x="${x + 12}" y="${y - 30}" width="7" height="30" fill="${C.cream}" stroke="${C.ink}" stroke-width=".7"/><path d="M${x + 11} ${y - 30} L${x + 15.5} ${y - 42} L${x + 20} ${y - 30} Z" fill="${C.grey}" stroke="${C.ink}" stroke-width=".7"/><path d="M${x + 15.5} ${y - 42} v-4 M${x + 13.5} ${y - 44} h4" stroke="${C.ink}" stroke-width=".8"/>`;
+  /* personnage : tête, buste, jupe ou jambes ; pose = bras écartés / levés */
+  const person = (x, y, s = 1, col = C.blue, o = {}) => {
+    const leg = o.skirt ? `<path d="M${x - 4 * s} ${y - 7 * s} L${x + 4 * s} ${y - 7 * s} L${x + 6 * s} ${y} H${x - 6 * s} Z" fill="${o.skirt}" stroke="${C.ink}" stroke-width=".5"/>`
+      : `<path d="M${x - 2 * s} ${y - 8 * s} L${x - 3 * s} ${y} M${x + 2 * s} ${y - 8 * s} L${x + 3 * s} ${y}" stroke="${o.legs || C.ink}" stroke-width="${1.8 * s}" stroke-linecap="round"/>`;
+    const arms = o.up ? `<path d="M${x - 3 * s} ${y - 14 * s} L${x - 7 * s} ${y - 20 * s} M${x + 3 * s} ${y - 14 * s} L${x + 7 * s} ${y - 20 * s}" stroke="${col}" stroke-width="${1.6 * s}" stroke-linecap="round"/>`
+      : `<path d="M${x - 3 * s} ${y - 14 * s} L${x - 6 * s} ${y - 8 * s} M${x + 3 * s} ${y - 14 * s} L${x + 6 * s} ${y - 9 * s}" stroke="${col}" stroke-width="${1.6 * s}" stroke-linecap="round"/>`;
+    const hat = o.hat ? `<path d="M${x - 4 * s} ${y - 19.5 * s} h${8 * s} M${x - 2.4 * s} ${y - 19.5 * s} v${-3 * s} h${4.8 * s} v${3 * s}" stroke="${C.ink}" fill="${C.ink}" stroke-width="${1 * s}"/>` : o.bonnet ? `<path d="M${x - 3.4 * s} ${y - 19 * s} Q${x} ${y - 25 * s} ${x + 3.4 * s} ${y - 19 * s} Z" fill="${o.bonnet}"/>` : "";
+    return leg + arms + `<path d="M${x - 3.5 * s} ${y - 7 * s} L${x - 3 * s} ${y - 15 * s} H${x + 3 * s} L${x + 3.5 * s} ${y - 7 * s} Z" fill="${col}" stroke="${C.ink}" stroke-width=".5"/><circle cx="${x}" cy="${y - 17.5 * s}" r="${2.6 * s}" fill="${C.skin}" stroke="${C.ink}" stroke-width=".5"/>` + hat;
+  };
+  const sun = (x, y, r = 6) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#f2c45a"/><circle cx="${x}" cy="${y}" r="${r + 3}" fill="#f2c45a" opacity=".3"/>`;
+  const cloud = (x, y, s = 1) => `<g fill="#fff" opacity=".85"><ellipse cx="${x}" cy="${y}" rx="${8 * s}" ry="${3.5 * s}"/><ellipse cx="${x + 5 * s}" cy="${y - 2.5 * s}" rx="${5 * s}" ry="${3.5 * s}"/></g>`;
+  const waves = (y, col = C.sea) => `<rect x="0" y="${y}" width="${W}" height="${H - y}" fill="${col}"/>` + [0, 1, 2].map(k => `<path d="M${-5 + k * 9} ${y + 6 + k * 7} q6 -3 12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0" fill="none" stroke="#dbe9f3" stroke-width=".9" opacity=".8"/>`).join("");
+  const birds = (x, y) => `<path d="M${x} ${y} q3 -3 6 0 q3 -3 6 0 M${x + 14} ${y - 6} q2 -2 4 0 q2 -2 4 0" fill="none" stroke="${C.ink}" stroke-width=".8"/>`;
+
+  const SCENES = [
+    // 0 village et église
+    () => sky() + cloud(18, 14) + hill(-10, 60, 70, 18, "#a9c58a") + ground(58) + church(52, 60) + house(12, 62, 18, 12) + house(32, 63, 14, 10, C.ochre) + tree(76, 64, .9) + person(28, 75, .9, C.red, {skirt: C.blue}),
+    // 1 voilier, phare et mouettes
+    () => sky() + sun(70, 16) + waves(48) + `<path d="M22 58 H50 L46 64 H26 Z" fill="${C.brown}" stroke="${C.ink}" stroke-width=".7"/><path d="M36 58 V24 L52 56 Z" fill="${C.cream}" stroke="${C.ink}" stroke-width=".7"/><path d="M34 56 V30 L22 56 Z" fill="#e8dcc0" stroke="${C.ink}" stroke-width=".7"/>` + `<rect x="72" y="26" width="7" height="24" fill="${C.cream}" stroke="${C.ink}" stroke-width=".6"/><rect x="72" y="32" width="7" height="4" fill="${C.red}"/><rect x="72" y="42" width="7" height="4" fill="${C.red}"/><path d="M71 26 h9 l-4.5 -6 z" fill="${C.red}"/>` + birds(8, 20),
+    // 2 moulin dans les blés
+    () => sky() + cloud(64, 12, .9) + ground(56, C.ochre, "#c79a3e") + `<path d="M34 58 L38 30 H48 L52 58 Z" fill="${C.cream}" stroke="${C.ink}" stroke-width=".7"/><path d="M36 30 Q43 22 50 30 Z" fill="${C.red}" stroke="${C.ink}" stroke-width=".7"/><g transform="rotate(20 43 32)" stroke="${C.ink}" stroke-width=".6" fill="#f2ead6"><rect x="41.5" y="8" width="3" height="24"/><rect x="41.5" y="32" width="3" height="24"/><rect x="19" y="30.5" width="24" height="3"/><rect x="43" y="30.5" width="24" height="3"/></g><circle cx="43" cy="32" r="2" fill="${C.ink}"/>` + person(70, 74, .9, C.blue, {hat: 1}) + `<path d="M74 58 l6 -12" stroke="${C.brown}" stroke-width="1.2"/>`,
+    // 3 bal champêtre : deux danseurs sous les lampions
+    () => `<rect width="${W}" height="${H}" fill="${C.night}"/>` + `<path d="M0 14 Q22 24 43 14 T86 14" fill="none" stroke="#c9b37a" stroke-width=".6"/>` + [8, 20, 32, 54, 66, 78].map((x, k) => `<circle cx="${x}" cy="${17 + (k % 3) * 2}" r="2.8" fill="${[C.red, C.ochre, "#7fc1a3"][k % 3]}"/>`).join("") + ground(62, "#5b6e4a") + person(34, 72, 1.1, C.ink, {hat: 1, up: 1, legs: C.ink}) + person(50, 72, 1.1, C.rose, {skirt: C.red, up: 1}) + `<circle cx="72" cy="40" r="1.3" fill="#fff"/><circle cx="14" cy="34" r="1" fill="#fff"/>`,
+    // 4 chasseur et son chien
+    () => sky("#e3e8d6") + hill(40, 52, 60, 20, "#90b077") + ground(54, "#7f9e5e") + pine(12, 60, 1.1) + pine(22, 58, .9) + person(46, 72, 1.1, C.brown, {hat: 1, legs: C.dgreen}) + `<path d="M50 56 L64 48" stroke="${C.ink}" stroke-width="1.4"/>` + `<path d="M58 72 q0 -6 6 -6 h8 q4 0 4 -4 l2 2 q-1 6 -4 6 v4 M62 72 v-3 M72 72 v-3" fill="${C.cream}" stroke="${C.ink}" stroke-width=".9"/><circle cx="77" cy="61" r="1" fill="${C.ink}"/>` + birds(56, 22),
+    // 5 marché : étal à rayures
+    () => sky() + ground(60, "#c9b48a") + `<rect x="10" y="40" width="44" height="22" fill="${C.cream}" stroke="${C.ink}" stroke-width=".7"/>` + [0, 1, 2, 3, 4, 5].map(k => `<path d="M${8 + k * 8} 30 h8 l0 10 h-8 z" fill="${k % 2 ? C.cream : C.red}" stroke="${C.ink}" stroke-width=".5"/>`).join("") + [14, 22, 30, 38, 46].map((x, k) => `<circle cx="${x}" cy="45" r="3" fill="${[C.red, C.ochre, C.green, "#e07b39", C.purple][k]}"/>`).join("") + person(66, 74, 1.1, C.purple, {skirt: C.blue, bonnet: C.cream}) + `<path d="M72 60 q4 6 0 8" fill="none" stroke="${C.brown}" stroke-width="1.4"/>`,
+    // 6 château sur la colline
+    () => sky("#dfe7ef") + cloud(14, 16) + hill(-5, 70, 96, 34, "#94b57a") + `<rect x="30" y="20" width="26" height="22" fill="#d9cfb8" stroke="${C.ink}" stroke-width=".7"/><rect x="24" y="14" width="9" height="28" fill="#e2d8c2" stroke="${C.ink}" stroke-width=".7"/><rect x="53" y="14" width="9" height="28" fill="#e2d8c2" stroke="${C.ink}" stroke-width=".7"/><path d="M23 14 l5.5 -9 l5.5 9 Z M52 14 l5.5 -9 l5.5 9 Z" fill="${C.blue}" stroke="${C.ink}" stroke-width=".6"/><path d="M57.5 5 v-5 l6 2 l-6 2" fill="${C.red}" stroke="${C.ink}" stroke-width=".4"/><path d="M40 42 v-7 a3 3 0 0 1 6 0 v7" fill="${C.brown}"/>` + `<path d="M43 42 Q38 60 30 79" fill="none" stroke="#d9c79a" stroke-width="4"/>` + tree(12, 70) + tree(76, 72, 1.1),
+    // 7 pêcheur en barque sur la rivière
+    () => sky("#e8efe6") + ground(40, C.green) + `<path d="M0 50 Q43 42 86 52 V${H} H0 Z" fill="#79a8c4"/>` + `<path d="M28 62 H58 L54 68 H32 Z" fill="${C.brown}" stroke="${C.ink}" stroke-width=".7"/>` + person(44, 62, 1, C.red, {hat: 1, legs: C.blue}) + `<path d="M47 50 Q62 36 74 40 V58" fill="none" stroke="${C.ink}" stroke-width=".7"/>` + `<path d="M6 54 v-12 M9 55 v-10 M12 54 v-13 M78 60 v-12 M81 60 v-10" stroke="${C.dgreen}" stroke-width="1.2"/>` + tree(70, 42, .8),
+    // 8 moisson : meules et faucheur
+    () => sky("#efe5c6") + sun(18, 16, 7) + ground(48, C.ochre, "#c49434") + [[56, 50], [72, 54]].map(([x, y]) => `<path d="M${x - 9} ${y} Q${x} ${y - 20} ${x + 9} ${y} Z" fill="#e2b85a" stroke="${C.ink}" stroke-width=".7"/>`).join("") + person(30, 74, 1.1, C.cream, {bonnet: C.ochre, legs: C.brown}) + `<path d="M36 58 L40 44 M40 44 q-10 -2 -14 6" fill="none" stroke="${C.ink}" stroke-width="1"/>` + birds(48, 18),
+    // 9 patineurs sur l'étang gelé
+    () => sky("#d9e2ea", "#f1f4f6") + `<rect width="${W}" height="${H}" fill="url(#twinter)"/>` + ground(44, C.snow) + `<ellipse cx="43" cy="64" rx="40" ry="12" fill="#bcd3e2" stroke="#9ab" stroke-width=".6"/>` + `<path d="M10 44 l0 -16 M10 34 l-5 -5 M10 30 l5 -6" stroke="${C.brown}" stroke-width="1.2"/>` + person(34, 70, 1, C.red, {legs: C.ink, up: 1}) + person(52, 72, 1, C.blue, {skirt: C.night, bonnet: C.red}) + pine(78, 46, .9, "#5d7f6e") + [12, 30, 60, 74, 20, 50].map((x, k) => `<circle cx="${x}" cy="${8 + k * 5}" r=".9" fill="#fff"/>`).join(""),
+    // 10 terrasse de café
+    () => sky("#efe0c6") + `<rect x="0" y="22" width="${W}" height="40" fill="#e9d9b9"/>` + `<path d="M0 22 h${W}" stroke="${C.ink}" stroke-width=".6"/>` + [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(k => `<rect x="${k * 8}" y="22" width="4" height="7" fill="${C.red}"/>`).join("") + ground(66, "#b9a27a") + `<ellipse cx="44" cy="58" rx="12" ry="2.6" fill="#f6f1e4" stroke="${C.ink}" stroke-width=".6"/><path d="M44 58 V70" stroke="${C.ink}" stroke-width="1"/>` + person(26, 72, 1.1, C.night, {hat: 1, legs: C.ink}) + person(62, 72, 1.1, C.rose, {skirt: C.purple, bonnet: C.cream}) + `<path d="M40 56 v-3 h3 v3 M47 56 v-4 h3 v4" fill="#fff" stroke="${C.ink}" stroke-width=".4"/>`,
+    // 11 pont de pierre
+    () => sky() + cloud(66, 12) + ground(44, C.green) + `<rect x="0" y="54" width="${W}" height="25" fill="#79a8c4"/>` + `<path d="M8 54 H78 V44 H8 Z" fill="#cfc2a6" stroke="${C.ink}" stroke-width=".7"/><path d="M18 54 a9 8 0 0 1 18 0 Z M50 54 a9 8 0 0 1 18 0 Z" fill="#79a8c4" stroke="${C.ink}" stroke-width=".7"/><path d="M8 44 h70" stroke="${C.ink}" stroke-width="1.2"/>` + person(38, 44, .9, C.red, {skirt: C.blue, bonnet: C.cream}) + person(48, 44, .9, C.night, {hat: 1}) + tree(8, 44, .9) + tree(80, 46, 1),
+    // 12 montgolfière
+    () => sky("#cfe1f0") + cloud(16, 30, 1.2) + cloud(70, 56) + `<path d="M43 8 C28 8 26 30 38 40 L48 40 C60 30 58 8 43 8 Z" fill="${C.red}" stroke="${C.ink}" stroke-width=".7"/><path d="M43 8 C38 14 37 32 40 40 M43 8 C48 14 49 32 46 40" fill="none" stroke="${C.ochre}" stroke-width="1.4"/><path d="M39 40 L40 47 M47 40 L46 47" stroke="${C.ink}" stroke-width=".5"/><rect x="39" y="47" width="8" height="5" fill="${C.brown}" stroke="${C.ink}" stroke-width=".5"/>` + hill(-10, 79, 60, 12, "#94b57a") + hill(30, 79, 70, 10, "#a9c58a") + birds(62, 20),
+    // 13 pique-nique sous l'arbre
+    () => sky() + ground(50, "#9cc07c") + tree(66, 70, 1.6) + `<path d="M14 66 L44 62 L50 70 L18 74 Z" fill="${C.cream}" stroke="${C.ink}" stroke-width=".5"/><path d="M14 66 l30 -4 M20 66 l4 8 M30 64 l4 9 M40 63 l4 8" stroke="${C.red}" stroke-width=".8"/>` + person(24, 64, .9, C.blue, {skirt: C.rose, bonnet: C.ochre}) + person(38, 64, .9, C.brown, {hat: 1}) + `<circle cx="32" cy="66" r="2" fill="${C.red}"/>` + sun(14, 14),
+    // 14 diligence sur la route
+    () => sky("#ece2c8") + hill(30, 46, 70, 16, "#a9c58a") + ground(48, "#9cb578") + `<path d="M0 70 Q43 56 86 62" fill="none" stroke="#d9c79a" stroke-width="7"/>` + `<rect x="34" y="44" width="24" height="14" rx="2" fill="${C.red}" stroke="${C.ink}" stroke-width=".7"/><rect x="38" y="47" width="7" height="5" fill="#9fc0d8"/><circle cx="38" cy="61" r="4" fill="none" stroke="${C.ink}" stroke-width="1.2"/><circle cx="54" cy="61" r="4" fill="none" stroke="${C.ink}" stroke-width="1.2"/>` + `<path d="M14 60 q0 -7 6 -7 h6 q3 0 4 -4 l2 1 q0 6 -3 7 v3 M16 60 v-4 M26 60 v-4" fill="${C.brown}" stroke="${C.ink}" stroke-width=".8"/><path d="M30 50 L34 50" stroke="${C.ink}" stroke-width=".6"/>` + pine(80, 50, .8),
+    // 15 lavandières au lavoir
+    () => sky() + `<path d="M6 30 L80 30 L74 22 L12 22 Z" fill="${C.red}" stroke="${C.ink}" stroke-width=".7"/><path d="M14 30 V52 M72 30 V52" stroke="${C.brown}" stroke-width="2"/>` + `<rect x="8" y="52" width="70" height="12" fill="#79a8c4" stroke="${C.ink}" stroke-width=".6"/>` + ground(64, "#b9b29a") + person(28, 54, .9, C.blue, {skirt: C.cream, bonnet: C.cream}) + person(50, 54, .9, C.rose, {skirt: C.purple, bonnet: C.cream}) + `<rect x="60" y="36" width="10" height="6" fill="#fff" stroke="${C.ink}" stroke-width=".4"/><path d="M58 36 h16" stroke="${C.ink}" stroke-width=".4"/>` + tree(80, 76, .8)
+  ];
+  // deux scènes par atout, choisies pour varier le haut et le bas
+  /* 16 scènes × (miroir ou non) × (jour ou soir) : chaque demi-carte reçoit une variante différente */
+  const VAR = [];
+  for(let k = 0; k < SCENES.length * 4; k++) VAR.push({s: k % SCENES.length, flip: (k >> 4) & 1, dusk: (k >> 5) & 1});
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for(let i = VAR.length - 1; i > 0; i--){ const j = Math.floor(rnd() * (i + 1)); [VAR[i], VAR[j]] = [VAR[j], VAR[i]]; }
+  const PAIRS = [];
+  { const pool = VAR.slice(); for(let n = 0; n < 21; n++){ const a = pool.shift(), k = pool.findIndex(v => v.s !== a.s); PAIRS.push([a, pool.splice(k, 1)[0]]); } }
+  const pair = n => PAIRS[n - 1];
+  const vign = v => { SKY = v.dusk ? "url(#tdusk)" : "url(#tsky)"; const art = SCENES[v.s](); SKY = "url(#tsky)";
+    return `<g transform="translate(7 7)"><g clip-path="url(#tclip)"><g ${v.flip ? `transform="translate(${W} 0) scale(-1 1)"` : ""}>${art}</g>${v.dusk ? `<rect width="${W}" height="${H}" fill="#f0a060" opacity=".12"/>` : ""}</g><rect width="${W}" height="${H}" fill="none" stroke="${C.ink}" stroke-width="1"/></g>`; };
+  const corner = (n, rot) => `<g ${rot ? 'transform="rotate(180 50 89.3)"' : ""}><rect x="3" y="3" width="${n > 9 ? 35 : 24}" height="29" rx="2.5" fill="#fffdf6" stroke="${C.ink}" stroke-width="1.2"/><text x="${n > 9 ? 20.5 : 15}" y="27" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-weight="700" font-size="${n > 9 ? 25 : 26}" letter-spacing="-1" fill="${C.ink}">${n}</text></g>`;
+  const frame = `<rect x=".8" y=".8" width="98.4" height="177" rx="7" fill="#fbf4e3"/><rect x="5" y="5" width="90" height="168.6" fill="none"/>`;
+  function trump(n){
+    const [a, b] = pair(n);
+    return frame + vign(a) + `<g transform="rotate(180 50 89.3)">${vign(b)}</g>` +
+      `<path d="M7 89.3 H93" stroke="${C.ink}" stroke-width=".8"/><rect x="40" y="86.3" width="20" height="6" rx="3" fill="#fbf4e3" stroke="${C.ink}" stroke-width=".6"/><circle cx="50" cy="89.3" r="1.4" fill="${C.red}"/>` +
+      corner(n) + corner(n, true);
+  }
+  // l'Excuse : le musicien bouffon, et l'étoile dans les coins
+  function excuse(){
+    const star = (x, y, r) => { let d = ""; for(let k = 0; k < 10; k++){ const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * .45 : r; d += (k ? "L" : "M") + (x + Math.cos(a) * rr).toFixed(1) + " " + (y + Math.sin(a) * rr).toFixed(1); } return `<path d="${d}Z" fill="${C.ink}"/>`; };
+    return frame + `<g transform="translate(7 7)"><rect width="86" height="164.6" fill="url(#texc)"/>` +
+      `<path d="M0 140 Q43 128 86 140 V164.6 H0 Z" fill="#9cb578"/>` +
+      // le bouffon
+      `<g transform="translate(43 0)">` +
+      `<path d="M-10 136 L-14 160 M10 136 L16 158" stroke="${C.ink}" stroke-width="5" stroke-linecap="round"/><path d="M-10 136 L-14 160" stroke="${C.red}" stroke-width="3.4" stroke-linecap="round"/><path d="M10 136 L16 158" stroke="${C.dgreen}" stroke-width="3.4" stroke-linecap="round"/>` +
+      `<path d="M-18 160 h8 l2 -3 M12 158 h8 l2 -3" stroke="${C.ink}" stroke-width="2" stroke-linecap="round" fill="none"/>` +
+      `<path d="M-16 82 L16 82 L19 138 L-19 138 Z" fill="${C.red}" stroke="${C.ink}" stroke-width="1"/><path d="M0 82 L0 138 L19 138 L16 82 Z" fill="${C.dgreen}" stroke="${C.ink}" stroke-width="1"/>` +
+      [-12, -4, 4, 12].map(x => `<path d="M${x - 4} 138 l4 7 l4 -7 Z" fill="${x < 0 ? C.dgreen : C.red}" stroke="${C.ink}" stroke-width=".7"/>`).join("") +
+      `<path d="M-16 82 Q0 92 16 82 L12 76 Q0 84 -12 76 Z" fill="${C.ochre}" stroke="${C.ink}" stroke-width=".8"/>` +
+      // mandoline
+      `<ellipse cx="-4" cy="110" rx="10" ry="13" transform="rotate(-35 -4 110)" fill="#b8793a" stroke="${C.ink}" stroke-width="1"/><circle cx="-4" cy="110" r="3" fill="${C.ink}"/><path d="M2 102 L22 78" stroke="${C.brown}" stroke-width="3.4" stroke-linecap="round"/><path d="M-8 114 L22 78" stroke="#f6f1e4" stroke-width=".4"/>` +
+      `<path d="M-15 92 Q-24 104 -10 112" fill="none" stroke="${C.red}" stroke-width="5" stroke-linecap="round"/><path d="M15 90 Q22 84 20 80" fill="none" stroke="${C.dgreen}" stroke-width="5" stroke-linecap="round"/><circle cx="-10" cy="112" r="3" fill="${C.skin}" stroke="${C.ink}" stroke-width=".6"/><circle cx="20" cy="79" r="3" fill="${C.skin}" stroke="${C.ink}" stroke-width=".6"/>` +
+      // tête et bonnet à grelots
+      `<circle cx="0" cy="66" r="10" fill="${C.skin}" stroke="${C.ink}" stroke-width="1"/><path d="M-4 64 h2 M3 64 h2" stroke="${C.ink}" stroke-width="1.2" stroke-linecap="round"/><path d="M-4 70 Q0 74 4 70" fill="none" stroke="${C.ink}" stroke-width="1"/><circle cx="-6" cy="68" r="2" fill="${C.rose}" opacity=".7"/><circle cx="6" cy="68" r="2" fill="${C.rose}" opacity=".7"/>` +
+      `<path d="M-11 60 Q-24 40 -30 52 Q-20 48 -9 57 Z" fill="${C.dgreen}" stroke="${C.ink}" stroke-width="1"/><path d="M11 60 Q24 40 30 52 Q20 48 9 57 Z" fill="${C.red}" stroke="${C.ink}" stroke-width="1"/><path d="M-10 58 Q0 44 10 58 Q0 54 -10 58 Z" fill="${C.ochre}" stroke="${C.ink}" stroke-width="1"/>` +
+      `<circle cx="-30" cy="53" r="3" fill="${C.gold}" stroke="${C.ink}" stroke-width=".7"/><circle cx="30" cy="53" r="3" fill="${C.gold}" stroke="${C.ink}" stroke-width=".7"/><circle cx="0" cy="45" r="3" fill="${C.gold}" stroke="${C.ink}" stroke-width=".7"/>` +
+      `</g>` +
+      [[10, 30], [76, 20], [70, 46], [14, 60]].map(([x, y]) => star(x, y, 2.2).replace(C.ink, "#fff6c8")).join("") +
+      `<rect width="86" height="164.6" fill="none" stroke="${C.ink}" stroke-width="1"/></g>` +
+      `<rect x="3.5" y="3.5" width="21" height="22" rx="2" fill="#fffdf6" stroke="${C.ink}" stroke-width="1"/>` + star(14, 14.8, 8) +
+      `<g transform="rotate(180 50 89.3)"><rect x="3.5" y="3.5" width="21" height="22" rx="2" fill="#fffdf6" stroke="${C.ink}" stroke-width="1"/>${star(14, 14.8, 8)}</g>`;
+  }
+  let built = false;
+  function build(){
+    if(built) return; built = true;
+    let h = `<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+      <clipPath id="tclip"><rect width="${W}" height="${H}"/></clipPath>
+      <linearGradient id="tsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfe2ee"/><stop offset="1" stop-color="#f6efdf"/></linearGradient>
+      <linearGradient id="tdusk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9a27a"/><stop offset=".6" stop-color="#f3d3a2"/><stop offset="1" stop-color="#f8ecd2"/></linearGradient>
+      <linearGradient id="twinter" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdd8e2"/><stop offset="1" stop-color="#f1f4f6"/></linearGradient>
+      <linearGradient id="texc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3e4c7c"/><stop offset=".75" stop-color="#8fa6c8"/><stop offset="1" stop-color="#e8dcc0"/></linearGradient>`;
+    for(let n = 1; n <= 21; n++) h += `<symbol id="tr${n}" viewBox="0 0 100 178.6">${trump(n)}</symbol>`;
+    h += `<symbol id="trex" viewBox="0 0 100 178.6">${excuse()}</symbol></defs></svg>`;
+    document.body.insertAdjacentHTML("afterbegin", h);
+  }
+  return {build, use: id => `<svg class="art" viewBox="0 0 100 178.6" aria-hidden="true"><use href="#${id}" width="100" height="178.6"/></svg>`};
+})();
+ART.build();
+
 function cardHTML(c){
   if(!c) return `<span class="tc back"></span>`;
-  if(isEx(c)) return `<span class="tc ex" data-id="${c.id}"><span class="ix">★</span><span class="big">★</span><span class="ix z">★</span></span>`;
-  if(isT(c)) return `<span class="tc at${isBout(c) ? " bout" : ""}" data-id="${c.id}"><span class="ix">${c.r}</span><span class="big">${c.r}</span><span class="ix z">${c.r}</span></span>`;
+  if(isEx(c)) return `<span class="tc ex art" data-id="${c.id}">${ART.use("trex")}</span>`;
+  if(isT(c)) return `<span class="tc at art${isBout(c) ? " bout" : ""}" data-id="${c.id}">${ART.use("tr" + c.r)}</span>`;
   const f = FIG[c.r], col = red(c.s) ? "var(--red)" : "var(--black)";
   return `<span class="tc${f ? " fig" : ""}" data-id="${c.id}" style="--sc:${col}"><span class="ix">${f || c.r}<small>${SUITS[c.s]}</small></span><span class="big">${f ? `${f}<small>${SUITS[c.s]}</small>` : SUITS[c.s]}</span><span class="ix z">${f || c.r}<small>${SUITS[c.s]}</small></span></span>`;
 }
