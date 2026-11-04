@@ -516,7 +516,11 @@ try{ const o = JSON.parse(load("ch_opt") || "null"); if(o) opt = Object.assign(o
 const pieceAt = s => g.b[s];
 const colorOf = p => p & 8 ? 1 : 0;
 const humanTurn = () => !result && (opt.mode === "pvp" || g.side === opt.human);
-const flipped = () => opt.mode === "ai" ? (opt.human === 1) !== opt.flip : opt.flip;
+const flipped = () => opt.mode === "ai" || opt.mode === "net" ? (opt.human === 1) !== opt.flip : opt.flip;
+/* en ligne : les Blancs changent de joueur à chaque partie */
+let netRound = 0, netGen = 0, remoteMove = false;
+const NET = () => opt.mode === "net";
+const seatOf = side => side === 0 ? netRound % 2 : 1 - netRound % 2;
 
 /* ================= PLATEAU ================= */
 const sqEls = {};
@@ -586,7 +590,8 @@ function renderPanel(){
   } else {
     st.className = "";
     let txt;
-    if(thinking) txt = "L'ordinateur réfléchit…";
+    if(NET()) txt = g.side === opt.human ? "À vous de jouer" : Net.names[seatOf(g.side)] + " réfléchit…";
+    else if(thinking) txt = "L'ordinateur réfléchit…";
     else if(opt.mode === "ai") txt = g.side === opt.human ? "À vous de jouer" : "Tour de l'ordinateur";
     else txt = "Aux " + side + " de jouer";
     if(E.inCheck(g)) txt += " — échec !";
@@ -613,6 +618,10 @@ function renderPanel(){
   }
   // réglages
   $("aiopts").hidden = opt.mode !== "ai";
+  $("mode").parentNode.hidden = NET(); $("undo").hidden = NET();
+  if(NET()){ $("newg").textContent = result ? "Nouvelle partie" : "Abandonner"; $("newg").disabled = !result && g.side !== opt.human; }
+  else { $("newg").textContent = "Nouvelle partie"; $("newg").disabled = false; }
+  if(window.Net) Net.refresh();
   [["mode", opt.mode], ["color", String(opt.human)], ["level", String(opt.level)]].forEach(([id, v]) =>
     $(id).querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === v)));
   $("undo").disabled = thinking || !hist.length;
@@ -620,6 +629,7 @@ function renderPanel(){
 
 /* ================= COUPS ================= */
 function doMove(m, animate = true){
+  if(NET() && !remoteMove) Net.send({f: m.f, t: m.t, pr: m.pr || 0});
   const sanTxt = E.san(g, m, legalNow);
   E.make(g, m);
   hist.push({m, san: sanTxt});
@@ -631,7 +641,7 @@ function doMove(m, animate = true){
   // sons
   if(m.fl === 2) Snd.castle(); else if(m.c) Snd.capture(); else Snd.place();
   if(m.pr) Snd.promo();
-  if(result){ result.type === "mate" ? Snd.mate(opt.mode === "pvp" || result.winner === opt.human) : Snd.draw(); }
+  if(result){ result.type === "mate" || result.type === "resign" ? Snd.mate(opt.mode === "pvp" || result.winner === opt.human) : Snd.draw(); }
   else if(E.inCheck(g)) Snd.check();
   snapshot();
   maybeAI();
@@ -641,13 +651,37 @@ function checkEnd(){
   if(!legalNow.length){
     if(E.inCheck(g)){
       const w = g.side ^ 1;
-      result = {type: "mate", winner: w, text: "Échec et mat ! " + (opt.mode === "ai" ? (w === opt.human ? "Vous gagnez." : "L'ordinateur gagne.") : (w ? "Les Noirs" : "Les Blancs") + " gagnent.")};
+      result = {type: "mate", winner: w, text: "Échec et mat ! " + (opt.mode === "ai" ? (w === opt.human ? "Vous gagnez." : "L'ordinateur gagne.") : NET() ? (w === opt.human ? "Vous gagnez." : Net.names[seatOf(w)] + " gagne.") : (w ? "Les Noirs" : "Les Blancs") + " gagnent.")};
     } else result = {type: "draw", text: "Pat : partie nulle."};
   } else if(g.half >= 100) result = {type: "draw", text: "Nulle : 50 coups sans prise ni coup de pion."};
   else if(E.insufficient(g)) result = {type: "draw", text: "Nulle : plus assez de matériel pour mater."};
   else if(keys.filter(k => k === keys[keys.length - 1]).length >= 3) result = {type: "draw", text: "Nulle par triple répétition."};
 }
+function netStep(){
+  const my = netGen, ok = () => my === netGen && NET();
+  if(result){ Net.next().then(a => { if(ok() && a && a.t === "new") netNew(); }); return; }
+  const apply = a => {
+    if(!ok()) return;
+    if(a.t === "new") return netNew();
+    if(a.resign){ result = {type: "resign", winner: g.side ^ 1, text: (g.side === opt.human ? "Vous abandonnez." : Net.names[seatOf(g.side)] + " abandonne : vous gagnez.")}; Snd.mate(result.winner === opt.human); render(); return netStep(); }
+    const m = legalNow.find(x => x.f === a.f && x.t === a.t && (x.pr || 0) === (a.pr || 0));
+    if(!m) return;
+    remoteMove = true; doMove(m); remoteMove = false;
+  };
+  if(g.side !== opt.human) Net.turn(seatOf(g.side), async () => { const r = await askEngine(E.toFen(g), 2); return r.m ? {f: r.m.f, t: r.m.t, pr: r.m.pr || 0} : {resign: 1}; }).then(apply);
+  else Net.mine(apply);
+}
+function netNew(){
+  Net.cancel(); netGen++; netRound++;
+  opt.human = seatOf(0) === Net.me ? 0 : 1;
+  token++; thinking = false; pendingPromo = null; $("promo").hidden = true;
+  g = E.create(); hist = []; keys = [E.posKey(g)]; legalNow = E.legal(g); result = null; sel = -1; opt.flip = false;
+  layout(); render();
+  Snd.place(0, .6); Snd.place(.12, .5);
+  netStep();
+}
 async function maybeAI(){
+  if(NET()) return netStep();
   if(result || opt.mode !== "ai" || g.side === opt.human) return;
   thinking = true; render();
   const my = ++token, t = performance.now();
@@ -754,7 +788,15 @@ function newGame(){
   maybeAI();
 }
 function saveOpt(){ save("ch_opt", JSON.stringify({mode: opt.mode, human: opt.human, level: opt.level})); }
-$("newg").onclick = newGame;
+$("newg").onclick = () => {
+  if(NET()){
+    if(result){ Net.send({t: "new"}, null, true); return; }
+    if(g.side !== opt.human || thinking) return;
+    Net.send({resign: 1});
+    result = {type: "resign", winner: g.side ^ 1, text: "Vous abandonnez."}; Snd.mate(false); render(); netStep(); return;
+  }
+  newGame();
+};
 $("flip").onclick = () => { opt.flip = !opt.flip; layout(); render(); };
 $("undo").onclick = () => {
   if(thinking || !hist.length) return;
@@ -784,5 +826,13 @@ function start(data){
   } else newGame();
 }
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+
+if(window.Net) Net.setup({
+  game: "echecs", name: "Échecs", min: 2, max: 2, bots: false,
+  seatName: k => k === 0 ? "Blancs (1re partie)" : "Noirs (1re partie)",
+  current: () => !NET() || result ? -1 : seatOf(g.side),
+  start(){ opt.mode = "net"; netRound = -1; netNew(); },
+  leave(){ netGen++; opt.mode = "ai"; opt.human = 0; newGame(); }
+});
 })();
 </script>

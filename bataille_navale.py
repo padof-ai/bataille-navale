@@ -27,6 +27,10 @@ try:   # belote en ligne (fichier belote_en_ligne.py posé à côté)
     import belote_en_ligne
 except ImportError:
     belote_en_ligne = None
+try:   # tables en ligne des autres jeux (salons.py et net.js posés à côté)
+    import salons
+except ImportError:
+    salons = None
 
 PORT = int(os.environ.get("PORT", "8000"))
 ONLINE = "PORT" in os.environ         # True chez l'hébergeur
@@ -418,6 +422,15 @@ class Handler(BaseHTTPRequestHandler):
             self.send_body(200, SERVICE_WORKER, "text/javascript")
         elif p in ICONS:
             self.send_raw(200, ICONS[p], "image/png", cache=True)
+        elif p == "/api/net/state" and salons:
+            st, obj = salons.get_state(parse_qs(url.query))
+            self.send_json(st, obj)
+        elif p == "/net.js":
+            try:
+                with open(os.path.join(BASE_DIR, "net.js"), "rb") as f:
+                    self.send_raw(200, f.read(), "text/javascript; charset=utf-8")
+            except OSError:
+                self.send_raw(200, b"", "text/javascript")
         elif p == "/api/belote/state" and belote_en_ligne:
             st, obj = belote_en_ligne.get_state(parse_qs(url.query))
             self.send_json(st, obj)
@@ -449,6 +462,9 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError
         except Exception:
             return self.send_json(400, {"error": "Requête invalide."})
+        if url.path.startswith("/api/net/") and salons:
+            st, obj = salons.post(url.path[len("/api/net/"):], body)
+            return self.send_json(st, obj)
         if url.path.startswith("/api/belote/") and belote_en_ligne:
             st, obj = belote_en_ligne.post(url.path[len("/api/belote/"):], body)
             return self.send_json(st, obj)
@@ -611,35 +627,35 @@ ART = {
 GAMES = [
     {"slug": "bataille-navale", "file": None, "name": "Bataille navale", "lid": "#0e2a4a",
      "hook": "Coulez la flotte adverse sur deux téléphones, chacun chez soi, ou affrontez l'amiral de l'ordinateur.",
-     "facts": "1–2 joueurs · 15 min", "modes": ["En ligne à deux", "Contre l'ordi"], "new": "Nouveau : contre l'ordinateur"},
+     "facts": "1–2 joueurs · 15 min", "modes": ["En ligne à deux", "Contre l'ordi"]},
     {"slug": "puissance-4", "file": "puissance4.html", "name": "Puissance 4", "lid": "#f7c600",
-     "hook": "Alignez quatre pions avant l'autre.", "facts": "1–2 joueurs · 5 min", "modes": ["Contre l'ordi", "Même écran"]},
+     "hook": "Alignez quatre pions avant l'autre.", "facts": "1–2 joueurs · 5 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "dix-de-chute", "file": "dix_de_chute.html", "name": "Dix de Chute", "lid": "#19a7b8",
-     "hook": "Tournez les roues, faites tomber vos jetons.", "facts": "1–2 joueurs · 10 min", "modes": ["Contre l'ordi", "Même écran"]},
+     "hook": "Tournez les roues, faites tomber vos jetons.", "facts": "1–2 joueurs · 10 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "morpion", "file": "morpion.html", "name": "Morpion", "lid": "#fdfcf6",
-     "hook": "Le classique du cahier d'écolier.", "facts": "1–2 joueurs · 2 min", "modes": ["Contre l'ordi", "Même écran"]},
+     "hook": "Le classique du cahier d'écolier.", "facts": "1–2 joueurs · 2 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "yams", "file": "yams.html", "name": "Yam's", "lid": "#1e6b45",
-     "hook": "Trois lancers pour remplir la feuille.", "facts": "1–2 joueurs · 15 min", "modes": ["Solo", "Contre l'ordi", "Même écran"]},
+     "hook": "Trois lancers pour remplir la feuille.", "facts": "1–2 joueurs · 15 min", "modes": ["En ligne", "Solo", "Contre l'ordi", "Même écran"]},
     {"slug": "mastermind", "file": "mastermind.html", "name": "Mastermind", "lid": "#5a4636",
-     "hook": "Percez le code secret en dix essais.", "facts": "1–2 joueurs · 10 min", "modes": ["Contre l'ordi", "Même écran"]},
+     "hook": "Percez le code secret en dix essais.", "facts": "1–2 joueurs · 10 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "echecs", "file": "echecs.html", "name": "Échecs", "lid": "#2e5a45",
-     "hook": "Toutes les règles, trois niveaux d'ordinateur.", "facts": "1–2 joueurs · 30 min", "modes": ["Contre l'ordi", "Même écran"]},
+     "hook": "Toutes les règles, trois niveaux d'ordinateur.", "facts": "1–2 joueurs · 30 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "dames", "file": "dames.html", "name": "Dames", "lid": "#8c2626",
-     "hook": "Damier de 10 × 10, règles françaises.", "facts": "1–2 joueurs · 30 min", "modes": ["Contre l'ordi", "Même écran"]},
+     "hook": "Damier de 10 × 10, règles françaises.", "facts": "1–2 joueurs · 30 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "decal", "file": "decal.html", "name": "Décal", "lid": "#e2572c",
-     "hook": "Glissez vos cartes, formez des paires.", "facts": "1–4 joueurs · 15 min", "modes": ["Contre l'ordi", "Même écran"]},
+     "hook": "Glissez vos cartes, formez des paires.", "facts": "1–4 joueurs · 15 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "skyjo", "file": "skyjo.html", "name": "Skyjo", "lid": "#2fa84f",
-     "hook": "Retournez, échangez, faites le plus petit total.", "facts": "1–4 joueurs · 20 min", "modes": ["Contre l'ordi", "Même écran"], "new": "Nouveau"},
+     "hook": "Retournez, échangez, faites le plus petit total.", "facts": "1–4 joueurs · 20 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "uno", "file": "uno.html", "name": "Uno", "lid": "#e3242b",
-     "hook": "Couleur ou chiffre, et n'oubliez pas de dire Uno !", "facts": "1–4 joueurs · 15 min", "modes": ["Contre l'ordi", "Même écran"], "new": "Nouveau"},
+     "hook": "Couleur ou chiffre, et n'oubliez pas de dire Uno !", "facts": "1–4 joueurs · 15 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "mille-bornes", "file": "mille_bornes.html", "name": "1000 Bornes", "lid": "#c4142c",
-     "hook": "Feux rouges, crevaisons et as du volant.", "facts": "1–4 joueurs · 25 min", "modes": ["Contre l'ordi", "Même écran"], "new": "Nouveau"},
+     "hook": "Feux rouges, crevaisons et as du volant.", "facts": "1–4 joueurs · 25 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "belote", "file": "belote.html", "name": "Belote", "lid": "#145a3a",
-     "hook": "Belote, rebelote et dix de der, à quatre en ligne ou avec l'ordinateur.", "facts": "1–4 joueurs · 30 min", "modes": ["En ligne", "Contre l'ordi"], "new": "Nouveau : en ligne"},
+     "hook": "Belote, rebelote et dix de der, à quatre en ligne ou avec l'ordinateur.", "facts": "1–4 joueurs · 30 min", "modes": ["En ligne", "Contre l'ordi"]},
     {"slug": "rummikub", "file": "rummikub.html", "name": "Rummikub", "lid": "#b88a4a",
-     "hook": "Suites et séries de tuiles, la table se réarrange.", "facts": "1–4 joueurs · 30 min", "modes": ["Contre l'ordi", "Même écran"], "new": "Nouveau"},
+     "hook": "Suites et séries de tuiles, la table se réarrange.", "facts": "1–4 joueurs · 30 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "tarot", "file": "tarot.html", "name": "Tarot", "lid": "#16335c",
-     "hook": "Petite, garde, garde sans… et le petit au bout.", "facts": "3–4 joueurs · 30 min", "modes": ["Contre l'ordi"], "new": "Nouveau"},
+     "hook": "Petite, garde, garde sans… et le petit au bout.", "facts": "3–4 joueurs · 30 min", "modes": ["En ligne", "Contre l'ordi"]},
 ]
 STATIC_GAMES = {"/" + g["slug"]: g for g in GAMES if g["file"]}
 
@@ -797,7 +813,7 @@ GAME_HEAD = ('<!doctype html><html lang="fr"><head><meta charset="utf-8">'
              '<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">'
              '<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}'
              'body{margin:0;font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}img{max-width:100%}'
-             '[hidden]{display:none!important}</style></head><body>')
+             '[hidden]{display:none!important}</style><script src="/net.js"></script></head><body>')
 
 
 def game_page(g):

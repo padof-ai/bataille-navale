@@ -267,17 +267,20 @@ function tileHTML(id, cls = ""){
 }
 
 /* ================= ÉTAT ================= */
-let S = null, token = 0, busy = false, sel = new Set(), timerInt = null;
-function shuffle(a){ for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+let S = null, token = 0, busy = false, sel = new Set(), timerInt = null, NETON = false, localCfg = null;
+const NET = () => NETON;
+const RND = () => NETON ? Net.rand() : Math.random();   // hasard partagé en ligne
+function shuffle(a){ for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(RND() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 const P = () => S.players[S.cur];
 function newGame(){
   token++;
-  const names = Array.from({length: cfg.n}, (_, i) => cfg.who === "ai" ? (i === 0 ? "Vous" : (cfg.n === 2 ? "L'ordinateur" : "Ordi " + i)) : "Joueur " + (i + 1));
-  S = {players: names.map((name, i) => ({name, ai: cfg.who === "ai" && i > 0, total: 0})), round: 0, starter: Math.floor(Math.random() * cfg.n) - 1};
+  const names = NET() ? Net.names.map((n, i) => i === Net.me ? "Vous" : n) : Array.from({length: cfg.n}, (_, i) => cfg.who === "ai" ? (i === 0 ? "Vous" : (cfg.n === 2 ? "L'ordinateur" : "Ordi " + i)) : "Joueur " + (i + 1));
+  S = {players: names.map((name, i) => ({name, ai: NET() ? i !== Net.me : cfg.who === "ai" && i > 0, total: 0})), round: 0, starter: Math.floor(RND() * names.length) - 1};
   newRound();
 }
 function newRound(){
   token++; busy = false; sel.clear();
+  if(NET()) Net.cancel();
   $("scores").hidden = true; $("curtain").hidden = true;
   S.round++;
   S.pool = shuffle(buildTiles()); S.table = []; S.passes = 0; S.msg = "";
@@ -286,7 +289,7 @@ function newRound(){
   Snd.rattle();
   startTurn();
 }
-const mainIdx = () => cfg.who === "ai" ? 0 : S.view;
+const mainIdx = () => NET() ? Net.me : cfg.who === "ai" ? 0 : S.view;
 const humanTurn = () => S && !P().ai && !busy && $("curtain").hidden && S.phase === "turn";
 
 /* ----- tour humain : on travaille sur une copie, qu'on peut annuler ----- */
@@ -399,11 +402,12 @@ $("sortbtn").onclick = () => { if(!S) return; const p = S.players[mainIdx()]; p.
 $("newbar").onclick = () => moveTo(-1);
 $("undo").onclick = () => { if(!humanTurn()) return; restore(); Snd.pick(); render(); };
 $("validate").onclick = () => { if(!humanTurn()) return; const st = turnState(); if(!st.canEnd){ Snd.nope(); return; } endHumanTurn(); };
-$("drawbtn").onclick = () => { if(!humanTurn()) return; restore(); drawAndPass(1); };
+$("drawbtn").onclick = () => { if(!humanTurn()) return; restore(); if(NET()) Net.send({draw: 1}); drawAndPass(1); };
 
 async function endHumanTurn(){
   stopTimer();
   const me = P();
+  if(NET()) Net.send({end: S.table.map(x => x.slice()), rack: me.rack.slice(), played: [...S.fromRack]});
   if(!me.melded) me.melded = true;
   S.lastPlay = new Set(S.fromRack); S.fromRack = new Set();
   S.passes = 0; Snd.done();
@@ -439,6 +443,23 @@ async function startTurn(){
     await new Promise(res => { $("ready").onclick = () => { $("curtain").hidden = true; res(); }; });
     if(my !== token) return;
   }
+  if(NET()){
+    const apply = async a => {
+      if(my !== token) return;
+      if(a.draw) return drawAndPass(a.draw, a.why ? `Temps écoulé : ${P().name} pioche 3 tuiles de pénalité.` : undefined);
+      const q = P();
+      S.table = a.end.map(x => x.slice()); q.rack = a.rack.slice(); q.melded = true; S.fromRack = new Set();
+      S.lastPlay = new Set(a.played); sel.clear();
+      a.played.forEach((_, k) => Snd.clack(k * .07, .8));
+      S.msg = `${q.name} pose ${a.played.length} tuile${a.played.length > 1 ? "s" : ""}.`; S.passes = 0; busy = true; render();
+      await sleep(1400); if(my !== token) return;
+      S.msg = ""; busy = false; afterTurn();
+    };
+    if(S.cur === Net.me){ snapshot(); busy = false; render(); startTimer(); Net.mine(a => { stopTimer(); restore(); apply(a); }); return; }
+    busy = true; render();
+    const a = await Net.turn(S.cur, () => { const plan = aiPlan(S.cur); return plan ? {end: plan.table, rack: plan.rack, played: plan.played} : {draw: 1}; });
+    return apply(a);
+  }
   if(p.ai){ busy = true; render(); await sleep(900); if(my !== token) return; return aiTurn(); }
   S.view = S.cur; snapshot(); busy = false; render(); startTimer();
 }
@@ -458,8 +479,8 @@ function startTimer(){
       stopTimer();
       const st = turnState();
       if(st.canEnd) endHumanTurn();
-      else if(st.played || !sameTable()){ restore(); drawAndPass(3, "Temps écoulé ! Tout revient en place et vous piochez 3 tuiles de pénalité."); }
-      else { restore(); drawAndPass(1, "Temps écoulé : vous piochez une tuile."); }
+      else if(st.played || !sameTable()){ restore(); if(NET()) Net.send({draw: 3, why: 1}); drawAndPass(3, "Temps écoulé ! Tout revient en place et vous piochez 3 tuiles de pénalité."); }
+      else { restore(); if(NET()) Net.send({draw: 1}); drawAndPass(1, "Temps écoulé : vous piochez une tuile."); }
     }
   }, 250);
 }
@@ -647,11 +668,13 @@ function endRound(w){
     ranked.map(({p, i}) => `<tr class="${i === winner ? "best" : ""}"><td><span style="color:${PCOL[i]};font-weight:800">●</span> ${p.name}</td><td>${p.rack.length} (${sums[i]})</td><td>${res[i] > 0 ? "+" : ""}${res[i]}</td><td>${p.total}</td></tr>`).join("");
   const b = $("scbtns"); b.innerHTML = "";
   const mk = (t, fn, cls) => { const x = document.createElement("button"); x.textContent = t; if(cls) x.className = cls; x.onclick = fn; b.appendChild(x); };
-  if(over) mk("Nouvelle partie", () => newGame(), "primary"); else mk(`Manche suivante (${S.round + 1}/${cfg.rounds})`, () => newRound(), "primary");
+  if(NET()) mk(over ? "Nouvelle partie" : `Manche suivante (${S.round + 1}/${cfg.rounds})`, () => Net.send({t: "next"}, null, true), "primary");
+  else if(over) mk("Nouvelle partie", () => newGame(), "primary"); else mk(`Manche suivante (${S.round + 1}/${cfg.rounds})`, () => newRound(), "primary");
   $("scores").hidden = false;
+  if(NET()){ const my = token; Net.next().then(a => { if(my === token && NET() && a && a.t === "next") (over ? newGame() : newRound()); }); }
   (!S.players[winner].ai ? Snd.win : Snd.meh).call(Snd);
 }
-$("newg").onclick = () => newGame();
+$("newg").onclick = () => { if(!NET()) newGame(); };
 
 /* ================= RÉGLAGES ================= */
 let draft = null;
@@ -659,12 +682,22 @@ function paintSettings(){
   document.querySelectorAll("#settings .seg").forEach(seg => seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(draft[seg.dataset.k]) === b.dataset.v)));
   $("optlvl").hidden = draft.who !== "ai";
 }
-$("setbtn").onclick = () => { draft = Object.assign({}, cfg); paintSettings(); $("settings").hidden = false; };
+$("setbtn").onclick = () => { if(NET()) return; draft = Object.assign({}, cfg); paintSettings(); $("settings").hidden = false; };
 document.querySelectorAll("#settings .seg").forEach(seg => seg.addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; draft[seg.dataset.k] = seg.dataset.k === "who" ? b.dataset.v : +b.dataset.v; paintSettings(); }));
 $("setcancel").onclick = () => { $("settings").hidden = true; };
 $("setok").onclick = () => { cfg = draft; save("rk_cfg", JSON.stringify(cfg)); $("settings").hidden = true; newGame(); };
 document.addEventListener("keydown", e => { if(e.key === "Escape"){ $("settings").hidden = true; if(sel.size){ sel.clear(); render(); } } });
 
+const _render = render;
+render = function(){ _render(); $("newg").hidden = NET(); $("setbtn").disabled = NET(); if(window.Net) Net.refresh(); };
 newGame();
+
+if(window.Net) Net.setup({
+  game: "rummikub", name: "Rummikub", min: 2, max: 4, bots: true, seats: () => cfg.n,
+  cfg: () => cfg,
+  current: () => S && S.phase === "turn" ? S.cur : -1,
+  start(info){ localCfg = Object.assign({}, cfg); cfg = Object.assign({}, cfg, info.cfg, {n: info.n, who: "ai"}); NETON = true; newGame(); },
+  leave(){ NETON = false; stopTimer(); if(localCfg) cfg = localCfg; newGame(); }
+});
 })();
 </script>

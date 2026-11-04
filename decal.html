@@ -237,21 +237,24 @@ function scoreOf(grid){
 /* ================= ÉTAT ================= */
 let C = [];      // cartes {v, up}
 let S = null;    // partie
-let busy = false, token = 0;
+let busy = false, token = 0, NETON = false, localCfg = null;
+const NET = () => NETON;
+const RND = () => NETON ? Net.rand() : Math.random();   // hasard partagé en ligne
 let cfg = {n: 2, who: "ai"};
 try{ const o = JSON.parse(load("dk_cfg") || "null"); if(o) cfg = Object.assign(cfg, o); }catch(e){}
 
-function namesFor(){ return Array.from({length: cfg.n}, (_, i) => cfg.who === "ai" ? (i === 0 ? "Vous" : (cfg.n === 2 ? "L'ordinateur" : "Ordi " + i)) : "Joueur " + (i + 1)); }
+function namesFor(){ if(NET()) return Net.names.map((n, i) => i === Net.me ? "Vous" : n); return Array.from({length: cfg.n}, (_, i) => cfg.who === "ai" ? (i === 0 ? "Vous" : (cfg.n === 2 ? "L'ordinateur" : "Ordi " + i)) : "Joueur " + (i + 1)); }
 function newGame(){
   token++;
-  S = {players: namesFor().map((name, i) => ({name, ai: cfg.who === "ai" && i > 0, grid: [], total: 0, last: 0})), round: 0};
+  S = {players: namesFor().map((name, i) => ({name, ai: NET() ? i !== Net.me : cfg.who === "ai" && i > 0, grid: [], total: 0, last: 0})), round: 0};
   newRound();
 }
 function newRound(){
   token++; busy = false;
+  if(NET()) Net.cancel();
   S.round++;
   C = []; for(let v = 1; v <= 10; v++) for(let k = 0; k < 10; k++) C.push({v, up: false});
-  const deck = C.map((_, i) => i); for(let i = deck.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; }
+  const deck = C.map((_, i) => i); for(let i = deck.length - 1; i > 0; i--){ const j = Math.floor(RND() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; }
   S.players.forEach(p => { p.grid = deck.splice(0, 16); });
   S.spare = deck;
   S.pool = []; S.turn = 1; S.first = -1; S.phase = "reveal"; S.picks = {}; S.order = []; S.opos = 0; S.sel = null;
@@ -278,6 +281,7 @@ function buildTable(){
   render();
 }
 function mainIdx(){
+  if(NET()) return Net.me;
   if(cfg.who === "ai") return 0;
   if(S.phase === "take") return S.order[S.opos];
   if(S.phase === "reveal") return S.revealer ?? 0;
@@ -366,6 +370,7 @@ window.addEventListener("resize", () => { if(S) place(); });
 /* ================= DÉROULEMENT ================= */
 async function step(){
   const my = token;
+  if(NET()) return netStep();
   if(S.phase === "reveal"){
     // les ordinateurs choisissent, puis chaque humain à son tour
     S.players.forEach((p, i) => { if(p.ai) S.picks[i] = aiReveal(p.grid); });
@@ -406,6 +411,7 @@ function onCard(id){
     const k = S.players[r].grid.indexOf(id);
     if(k < 0 || C[id].up) return;
     S.picks[r] = k; Snd.tap();
+    if(NET()){ S.revealer = undefined; Net.send({rev: k, p: r}, r, "free"); render(); return; }
     // en mode même écran, le joueur suivant choisit à son tour
     step(); return;
   }
@@ -418,6 +424,7 @@ function onCard(id){
 function humanInsert(d){
   if(busy || S.sel === null) return;
   const a = S.order[S.opos];
+  if(NET()){ if(a !== Net.me) return; Net.send({take: S.sel, d}); }
   doInsert(a, S.sel, d, token);
 }
 async function doInsert(a, id, d, my){
@@ -453,6 +460,53 @@ function edgeSlot(a, k, d){
   if(!slot) return null;
   const r = slot.getBoundingClientRect(), dx = d === "L" ? -1 : d === "R" ? 1 : 0, dy = d === "T" ? -1 : d === "B" ? 1 : 0;
   return {getBoundingClientRect: () => ({left: r.left + dx * r.width * .75, top: r.top + dy * r.height * .75, width: r.width, height: r.height})};
+}
+
+/* ================= EN LIGNE ================= */
+async function netReveal(my){
+  S.revealer = undefined; busy = true; render();
+  await sleep(250); if(my !== token) return;
+  S.players.forEach((p, i) => { const k = S.picks[i], id = p.grid[k]; p.grid[k] = null; C[id].up = true; S.pool.push(id); });
+  S.players.forEach((_, i) => { Snd.slide(i * .06, .2); Snd.flip(.25 + i * .06); });
+  S.picks = {}; render();
+  await sleep(reduced ? 100 : 650); if(my !== token) return;
+  if(S.turn === 1){
+    const vals = S.pool.map(id => C[id].v), min = Math.min(...vals);
+    const cands = vals.map((v, i) => v === min ? i : -1).filter(i => i >= 0);
+    S.first = cands[Math.floor(RND() * cands.length)];
+  }
+  S.order = S.players.map((_, k) => (S.first + k) % S.players.length); S.opos = 0;
+  S.phase = "take"; S.sel = null; busy = false; render();
+  netStep();
+}
+function netStep(){
+  const my = token;
+  if(S.phase === "reveal"){
+    const seen = {}, sent = {};
+    if(Net.isHost()) S.players.forEach((p, i) => { if(Net.bots[i]){ sent[i] = 1; Net.send({rev: aiReveal(p.grid), p: i}, i, "free"); } });
+    S.revealer = S.picks[Net.me] === undefined ? Net.me : undefined; busy = false; render();
+    const watch = setInterval(() => {
+      if(my !== token || S.phase !== "reveal"){ clearInterval(watch); return; }
+      if(Net.isHost() && Net._v) S.players.forEach((p, i) => { if(i !== Net.me && !Net.bots[i] && Net._v.away[i] && !seen[i] && !sent[i]){ sent[i] = 1; Net.send({rev: aiReveal(p.grid), p: i}, i, "free"); } });
+    }, 2000);
+    const loop = () => {
+      if(my !== token) return;
+      if(S.players.every((_, i) => seen[i])){ clearInterval(watch); return netReveal(my); }
+      Net.next().then(a => { if(my !== token || !a || a.rev === undefined) return; seen[a.p] = true; S.picks[a.p] = a.rev; if(a.p === Net.me) S.revealer = undefined; render(); loop(); });
+    };
+    loop(); return;
+  }
+  if(S.phase === "take"){
+    const a = S.order[S.opos];
+    const apply = async mv => {
+      if(my !== token) return;
+      S.sel = mv.take; Snd.pick(); render();
+      if(a !== Net.me){ await sleep(450); if(my !== token) return; }
+      doInsert(a, mv.take, mv.d, my);
+    };
+    if(a === Net.me){ busy = false; render(); Net.mine(apply); }
+    else { busy = true; render(); Net.turn(a, () => { const mv = aiTake(S.players[a].grid); return {take: mv.id, d: mv.d}; }).then(apply); }
+  }
 }
 
 /* ================= ORDINATEUR ================= */
@@ -511,12 +565,13 @@ function showEnd(){
     rk.map(p => `<tr class="${tieBest.includes(p) ? "best" : ""}"><td><span style="color:${PCOL[p.i]};font-weight:800">●</span> ${p.name}</td><td class="n">${p.last} <small style="color:var(--muted);font-weight:600">(${p.left} cartes)</small></td><td class="n">${p.total}</td></tr>`).join("");
   $("nextr").hidden = over;
   $("end").hidden = false;
+  if(NET()){ const my = token; S.over = over; Net.next().then(a => { if(my === token && NET() && a && a.t === "next") (S.over ? newGame() : newRound()); }); }
   (tieBest.some(p => !p.ai) && (cfg.who === "hot" || best.i === 0)) ? Snd.win() : Snd.meh();
   for(let i = 0; i < 6; i++) Snd.tick(.05 + i * .06);
 }
-$("nextr").onclick = () => newRound();
-$("again").onclick = () => newGame();
-$("newg").onclick = () => newGame();
+$("nextr").onclick = () => { if(NET()) return Net.send({t: "next"}, null, true); newRound(); };
+$("again").onclick = () => { if(NET()) return Net.send({t: "next"}, null, true); newGame(); };
+$("newg").onclick = () => { if(!NET()) newGame(); };
 $("np").onclick = e => { const b = e.target.closest("button"); if(!b || +b.dataset.v === cfg.n) return; cfg.n = +b.dataset.v; save("dk_cfg", JSON.stringify(cfg)); newGame(); };
 $("who").onclick = e => { const b = e.target.closest("button"); if(!b || b.dataset.v === cfg.who) return; cfg.who = b.dataset.v; save("dk_cfg", JSON.stringify(cfg)); newGame(); };
 document.addEventListener("keydown", e => {
@@ -525,6 +580,16 @@ document.addEventListener("keydown", e => {
   if(d && entries(S.players[S.order[S.opos]].grid).some(x => x.d === d)){ e.preventDefault(); humanInsert(d); }
 });
 
+const _render = render;
+render = function(){ _render(); $("np").hidden = NET(); $("who").hidden = NET(); $("newg").hidden = NET(); if(window.Net) Net.refresh(); };
 newGame();
+
+if(window.Net) Net.setup({
+  game: "decal", name: "Décal", min: 2, max: 4, bots: true, seats: () => cfg.n,
+  cfg: () => cfg,
+  current: () => S && S.phase === "take" ? S.order[S.opos] : -1,
+  start(info){ localCfg = Object.assign({}, cfg); cfg = {n: info.n, who: "ai"}; NETON = true; newGame(); },
+  leave(){ NETON = false; if(localCfg) cfg = localCfg; newGame(); }
+});
 })();
 </script>

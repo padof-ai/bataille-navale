@@ -252,14 +252,21 @@ const TARGET = [56, 51, 41, 36];
 
 /* ================= ÉTAT ================= */
 let S = null, token = 0, busy = false, picks = new Set();
-function shuffle(a){ for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+let NETON = false, localCfg = null;
+const NET = () => NETON;
+const RND = () => NETON ? Net.rand() : Math.random();   // hasard partagé en ligne
+/* en ligne, chaque navigateur se place en 0 (en bas) : G() donne la place commune */
+const G = l => (l + Net.me) % N();
+function shuffle(a){ for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(RND() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 const N = () => S.n;
 const nextSeat = i => (i + 1) % N();            // sens inverse des aiguilles d'une montre
 const viewPos = i => N() === 4 ? ["s", "e", "n", "w"][i] : ["s", "e", "w"][i];
 function newGame(){
   token++;
-  const names = cfg.n === 4 ? ["Vous", "Est", "Nord", "Ouest"] : ["Vous", "Est", "Ouest"];
-  S = {n: cfg.n, names, total: names.map(() => 0), hist: [], dealer: Math.floor(Math.random() * cfg.n), donne: 0, over: false};
+  const names = NET() ? Array.from({length: cfg.n}, (_, l) => l === 0 ? "Vous" : Net.names[(l + Net.me) % cfg.n]) : cfg.n === 4 ? ["Vous", "Est", "Nord", "Ouest"] : ["Vous", "Est", "Ouest"];
+  const d0 = Math.floor(RND() * cfg.n);
+  S = {n: cfg.n, names, total: names.map(() => 0), hist: [], dealer: NET() ? (d0 - Net.me + cfg.n) % cfg.n : d0, donne: 0, over: false};
+  if(NET()) Net.cancel();
   newDeal();
 }
 
@@ -383,6 +390,7 @@ async function fly(html, from, to, dur = 280){
 /* ================= DONNE ET ENCHÈRES ================= */
 async function newDeal(){
   const my = ++token; busy = true; picks.clear();
+  if(NET()) Net.cancel();
   ["scorebox", "lastbox", "poignee"].forEach(id => $(id).hidden = true);
   S.donne++; S.dealer = nextSeat(S.dealer);
   const d = shuffle(deck());
@@ -409,12 +417,13 @@ async function newDeal(){
 }
 async function bidStep(){
   const my = token;
-  if(S.cur === 0){ busy = false; render(); return; }
+  if(S.cur === 0){ busy = false; render(); if(NET()) Net.mine(a => { if(my === token) applyBid(0, a.b); }); return; }
   busy = true; render();
+  if(NET()){ const i = S.cur, a = await Net.turn(G(i), () => ({b: aiBid(i)})); if(my !== token) return; await sleep(D(400)); if(my !== token) return; return applyBid(i, a.b); }
   await sleep(D(900)); if(my !== token) return;
   applyBid(S.cur, aiBid(S.cur));
 }
-function humanBid(k){ if(busy || S.cur !== 0 || S.phase !== "bid") return; if(k && k <= S.bid) return; applyBid(0, k); }
+function humanBid(k){ if(busy || S.cur !== 0 || S.phase !== "bid") return; if(k && k <= S.bid) return; if(NET()) Net.send({b: k}); applyBid(0, k); }
 async function applyBid(i, k){
   const my = token; busy = true;
   if(k > S.bid){ S.bid = k; S.taker = i; bubble(i, BIDS[k] + " !", true); Snd.bid(k); }
@@ -433,13 +442,19 @@ async function applyBid(i, k){
     S.phase = "ecart"; S.msg = ""; render();
     if(S.taker !== 0){
       await sleep(D(1000)); if(my !== token) return;
-      S.ecart = aiEcart(S.taker); S.ecart.forEach(c => S.hands[S.taker].splice(S.hands[S.taker].indexOf(c), 1));
+      if(NET()){
+        const tk = S.taker, a = await Net.turn(G(tk), () => ({e: aiEcart(tk).map(c => c.id)})); if(my !== token) return;
+        S.ecart = a.e.map(id => S.hands[tk].find(c => c.id === id));
+      } else S.ecart = aiEcart(S.taker);
+      S.ecart.forEach(c => S.hands[S.taker].splice(S.hands[S.taker].indexOf(c), 1));
       const shown = S.ecart.filter(isT);
       S.msg = `${S.names[S.taker]} a fait son écart${shown.length ? ` (atouts écartés : ${shown.map(c => c.r).join(", ")})` : ""}.`; render();
       await sleep(D(1200)); if(my !== token) return;
       return startPlay();
     }
-    busy = false; render(); return;
+    busy = false; render();
+    if(NET()) Net.mine(a => { if(my !== token) return; picks = new Set(a.e.map(id => S.hands[0].find(c => c.id === id))); humanEcart(true); });
+    return;
   }
   S.msg = S.bid === 3 ? "Garde sans le chien : il reviendra au preneur sans être montré." : "Garde contre le chien : il ira à la défense sans être montré.";
   render(); await sleep(D(1600)); if(my !== token) return;
@@ -450,8 +465,9 @@ function togglePick(c){
   if(picks.has(c)) picks.delete(c); else if(picks.size < 6) picks.add(c);
   Snd.snap(.5); render();
 }
-async function humanEcart(){
+async function humanEcart(remote){
   if(picks.size !== 6) return;
+  if(NET() && !remote) Net.send({e: [...picks].map(c => c.id)});
   busy = true;
   S.ecart = [...picks]; picks.clear();
   S.ecart.forEach(c => S.hands[0].splice(S.hands[0].indexOf(c), 1));
@@ -475,13 +491,22 @@ async function playStep(){
     const t = trumpsForPoignee(S.hands[S.cur]), sz = poigneeSizes();
     const level = t.length >= sz[2] ? 3 : t.length >= sz[1] ? 2 : t.length >= sz[0] ? 1 : 0;
     if(level){
-      const yes = S.cur === 0 ? await askPoignee(level, t) : (cfg.lvl > 1 || Math.random() < .6);
+      let yes;
+      if(NET()){
+        if(S.cur === 0){ yes = await askPoignee(level, t); }
+        else { const i = S.cur; yes = !!(await Net.turn(G(i), () => ({pg: cfg.lvl > 1 || Math.random() < .6}))).pg; }
+      } else yes = S.cur === 0 ? await askPoignee(level, t) : (cfg.lvl > 1 || Math.random() < .6);
       if(my !== token) return;
       if(yes){ S.poignee[S.cur] = level; bubble(S.cur, ["", "Poignée !", "Double poignée !", "Triple poignée !"][level], true); Snd.fanfare(); await sleep(D(1100)); if(my !== token) return; }
     }
   }
-  if(S.cur === 0){ busy = false; render(); return; }
+  if(S.cur === 0){ busy = false; render(); if(NET()) Net.mine(a => { if(my === token){ const c = S.hands[0].find(x => x.id === a.c); if(c) playCard(0, c); } }); return; }
   busy = true; render();
+  if(NET()){
+    const i = S.cur, a = await Net.turn(G(i), () => ({c: aiCard(i).id})); if(my !== token) return;
+    await sleep(D(300)); if(my !== token) return;
+    return playCard(i, S.hands[i].find(x => x.id === a.c));
+  }
   await sleep(D(700)); if(my !== token) return;
   playCard(S.cur, aiCard(S.cur));
 }
@@ -492,11 +517,14 @@ function askPoignee(level, t){
     $("pgtxt").textContent = `Vous avez ${t.length} atouts. Montrer ${sz} atouts rapporte ${[0, 20, 30, 40][level]} points au camp qui gagnera la donne, mais révèle votre jeu.`;
     $("pgcards").innerHTML = t.slice().sort((a, b) => order(a) - order(b)).map(cardHTML).join("");
     $("poignee").hidden = false;
-    $("pgyes").onclick = () => { $("poignee").hidden = true; res(true); };
-    $("pgno").onclick = () => { $("poignee").hidden = true; res(false); };
+    let done = false;
+    const fin = (v, remote) => { if(done) return; done = true; $("poignee").hidden = true; if(NET() && !remote) Net.send({pg: v}); res(v); };
+    $("pgyes").onclick = () => fin(true);
+    $("pgno").onclick = () => fin(false);
+    if(NET()) Net.mine(a => fin(!!a.pg, true));
   });
 }
-function humanPlay(c){ if(busy || S.cur !== 0 || S.phase !== "play" || !legal(0).includes(c)) return; playCard(0, c); }
+function humanPlay(c){ if(busy || S.cur !== 0 || S.phase !== "play" || !legal(0).includes(c)) return; if(NET()) Net.send({c: c.id}); playCard(0, c); }
 const camp = i => i === S.taker ? 0 : 1;   // 0 : preneur, 1 : défense
 async function playCard(i, c){
   const my = token; busy = true;
@@ -600,8 +628,10 @@ function showScores(end){
   const b = $("scbtns"); b.innerHTML = "";
   const mk = (t, fn, cls) => { const x = document.createElement("button"); x.textContent = t; if(cls) x.className = cls; x.onclick = fn; b.appendChild(x); };
   if(!end) mk("Fermer", () => $("scorebox").hidden = true, "primary");
+  else if(NET()) mk(S.over ? "Nouvelle partie" : "Donne suivante", () => Net.send({t: "next"}, null, true), "primary");
   else if(S.over) mk("Nouvelle partie", () => newGame(), "primary");
   else mk("Donne suivante", () => newDeal(), "primary");
+  if(end && NET()){ const my = token; Net.next().then(a => { if(my === token && NET() && a && a.t === "next") (S.over ? newGame() : newDeal()); }); }
   $("scorebox").hidden = false;
 }
 $("board").onclick = () => { if(S && S.phase !== "end") showScores(false); };
@@ -613,7 +643,7 @@ $("lastbtn").onclick = () => {
   $("lastbox").hidden = false;
 };
 $("lastclose").onclick = () => $("lastbox").hidden = true;
-$("newg").onclick = () => newGame();
+$("newg").onclick = () => { if(!NET()) newGame(); };
 
 /* ================= ORDINATEURS ================= */
 function handScore(h){
@@ -717,12 +747,22 @@ function aiCard(i){
 /* ================= RÉGLAGES ================= */
 let draft = null;
 function paintSettings(){ document.querySelectorAll("#settings .seg").forEach(seg => seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(draft[seg.dataset.k]) === b.dataset.v))); }
-$("setbtn").onclick = () => { draft = Object.assign({}, cfg); paintSettings(); $("settings").hidden = false; };
+$("setbtn").onclick = () => { if(NET()) return; draft = Object.assign({}, cfg); paintSettings(); $("settings").hidden = false; };
 document.querySelectorAll("#settings .seg").forEach(seg => seg.addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; draft[seg.dataset.k] = +b.dataset.v; paintSettings(); }));
 $("setcancel").onclick = () => { $("settings").hidden = true; };
 $("setok").onclick = () => { cfg = draft; save("tar_cfg", JSON.stringify(cfg)); $("settings").hidden = true; newGame(); };
 document.addEventListener("keydown", e => { if(e.key === "Escape"){ $("settings").hidden = true; $("lastbox").hidden = true; if(S && S.phase !== "end") $("scorebox").hidden = true; } });
 
+const _render = render;
+render = function(){ _render(); $("newg").hidden = NET(); $("setbtn").disabled = NET(); if(window.Net) Net.refresh(); };
 newGame();
+
+if(window.Net) Net.setup({
+  game: "tarot", name: "Tarot", min: 3, max: 4, bots: true, seats: () => cfg.n,
+  cfg: () => cfg,
+  current: () => S && S.cur >= 0 && (S.phase === "play" || S.phase === "bid") ? G(S.cur) : -1,
+  start(info){ localCfg = Object.assign({}, cfg); cfg = Object.assign({}, cfg, info.cfg, {n: info.n}); NETON = true; newGame(); },
+  leave(){ NETON = false; if(localCfg) cfg = localCfg; newGame(); }
+});
 })();
 </script>

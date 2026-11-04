@@ -304,22 +304,26 @@ function cardNode(k, opts){ const t = document.createElement("template"); t.inne
 const backNode = () => cardNode(null, {back: true});
 
 /* ================= ÉTAT ================= */
-let S = null, token = 0, busy = false;
-function shuffle(a){ for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+let S = null, token = 0, busy = false, NETON = false, localCfg = null;
+const NET = () => NETON;
+const RND = () => NETON ? Net.rand() : Math.random();   // hasard partagé en ligne
+function shuffle(a){ for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(RND() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 const N = () => S.players.length;
 const nextOf = (i, k = 1) => ((i + S.dir * k) % N() + N()) % N();
 const P = () => S.players[S.cur];
 const top = () => S.discard[S.discard.length - 1];
 const humans = () => S.players.filter(p => !p.ai).length;
 function mainIdx(){
+  if(NET()) return Net.me;
   if(cfg.who === "ai") return 0;
   if(S.view !== undefined) return S.view;
   return 0;
 }
 function newGame(){
   token++;
-  const names = Array.from({length: cfg.n}, (_, i) => cfg.who === "ai" ? (i === 0 ? "Vous" : (cfg.n === 2 ? "L'ordinateur" : "Ordi " + i)) : "Joueur " + (i + 1));
-  S = {players: names.map((name, i) => ({name, ai: cfg.who === "ai" && i > 0, hand: [], score: 0, called: false})), round: 0, dealer: Math.floor(Math.random() * cfg.n), view: 0};
+  const names = NET() ? Net.names.map((n, i) => i === Net.me ? "Vous" : n) : Array.from({length: cfg.n}, (_, i) => cfg.who === "ai" ? (i === 0 ? "Vous" : (cfg.n === 2 ? "L'ordinateur" : "Ordi " + i)) : "Joueur " + (i + 1));
+  S = {players: names.map((name, i) => ({name, ai: NET() ? i !== Net.me : cfg.who === "ai" && i > 0, hand: [], score: 0, called: false})), round: 0, dealer: Math.floor(RND() * names.length), view: NET() ? Net.me : 0};
+  if(NET()) Net.cancel();
   newRound();
 }
 function canPlay(k, hand){
@@ -472,7 +476,7 @@ async function giveCards(i, n, my){
 
 /* ================= MANCHE ================= */
 async function newRound(){
-  const my = ++token; busy = false;
+  const my = ++token; busy = true;   // personne ne joue pendant la distribution
   ["scores", "colorbox", "challenge"].forEach(id => $(id).hidden = true);
   $("curtain").hidden = true;
   S.round++;
@@ -480,7 +484,7 @@ async function newRound(){
   S.unoWindow = undefined; S.catchable = undefined; S.phase = "deal";
   S.players.forEach(p => { p.hand = []; p.called = false; });
   S.dealer = (S.dealer + 1) % N();
-  S.cur = -1; S.view = cfg.who === "ai" ? 0 : (S.dealer + 1) % N();
+  S.cur = -1; S.view = NET() ? Net.me : cfg.who === "ai" ? 0 : (S.dealer + 1) % N();
   render(); Snd.shuffle();
   await sleep(D(400)); if(my !== token) return;
   for(let r = 0; r < 7; r++){
@@ -490,7 +494,7 @@ async function newRound(){
   }
   // première carte (un +4 retourne dans la pioche)
   let first = S.deck.pop();
-  while(first.t === "w4"){ S.deck.splice(Math.floor(Math.random() * S.deck.length), 0, first); first = S.deck.pop(); }
+  while(first.t === "w4"){ S.deck.splice(Math.floor(RND() * S.deck.length), 0, first); first = S.deck.pop(); }
   S.discard.push(first); S.rot[first.id] = (Math.random() - .5) * 16; S.color = first.c;
   Snd.play(); render();
   await sleep(D(600)); if(my !== token) return;
@@ -499,16 +503,18 @@ async function newRound(){
   if(first.t === "d2"){ S.msg = `Première carte +2 : ${S.players[left].name} pioche 2 cartes et passe son tour.`; render(); await giveCards(left, 2, my); S.cur = nextOf(left); }
   else if(first.t === "skip"){ S.msg = `Première carte Passe : ${S.players[left].name} passe son tour.`; S.cur = nextOf(left); Snd.skip(); }
   else if(first.t === "rev"){ S.dir = -1; S.cur = S.dealer; S.msg = "Première carte Inversion : le sens du jeu change."; Snd.rev(); }
-  else if(isWild(first)){ S.msg = `Première carte joker : ${S.players[left].name} choisit la couleur.`; render(); S.color = await chooseColor(left); if(my !== token) return; }
+  else if(isWild(first)){ S.msg = `Première carte joker : ${S.players[left].name} choisit la couleur.`; render(); S.color = await chooseColor(left, true); if(my !== token) return; }
   render();
   await sleep(D(S.msg ? 1400 : 200)); if(my !== token) return;
   S.msg = "";
+  busy = false;
   startTurn();
 }
 async function startTurn(){
   const my = token;
   S.drawn = null; S.phase = "play";
   const p = P();
+  if(NET()){ render(); return netTurn(); }
   if(!p.ai && cfg.who === "hot" && humans() > 1 && S.view !== S.cur){
     S.view = S.cur; render();
     $("ctitle").textContent = "Au tour de " + p.name; $("curtain").hidden = false;
@@ -529,14 +535,49 @@ async function humanPlay(k){
   busy = true;
   let color = k.c;
   if(isWild(k)){ render(); color = await chooseColor(S.cur); }
+  if(NET()) Net.send({play: k.id, color, uno: !!p.called});
   await playCard(S.cur, k, color);
 }
 $("deck").onclick = async () => {
   if(!humanTurn() || S.phase !== "play") return;
   busy = true;
+  if(NET()) Net.send({draw: 1});
   await drawTurn(S.cur);
 };
-$("keep").onclick = () => { if(!humanTurn() || S.phase !== "drawn") return; busy = true; S.drawn = null; endTurn(1); };
+$("keep").onclick = () => { if(!humanTurn() || S.phase !== "drawn") return; busy = true; if(NET()) Net.send({keep: 1}); S.drawn = null; endTurn(1); };
+
+/* ================= EN LIGNE : chaque coup passe par le journal commun ================= */
+function netAI(){
+  const i = S.cur, p = P();
+  if(S.phase === "drawn"){
+    const k = S.drawn;
+    if((isWild(k) && cfg.lvl >= 2 && p.hand.length > 4 && Math.random() < .5) || (k.t === "w4" && !w4legal(p.hand, k) && cfg.lvl < 3)) return {keep: 1};
+    return {play: k.id, color: isWild(k) ? aiColor({hand: p.hand.filter(x => x !== k)}) : k.c, uno: p.hand.length === 2 && Math.random() < [0, .7, .88, .97][cfg.lvl]};
+  }
+  const k = aiPick(i);
+  if(!k) return {draw: 1};
+  return {play: k.id, color: isWild(k) ? aiColor({hand: p.hand.filter(x => x !== k)}) : k.c, uno: p.hand.length === 2 && Math.random() < [0, .7, .88, .97][cfg.lvl]};
+}
+async function netApply(a){
+  const i = S.cur, p = P();
+  busy = true;
+  if(a.draw){ await drawTurn(i); return; }
+  if(a.keep){ S.drawn = null; return endTurn(1); }
+  if(a.play !== undefined){
+    const k = p.hand.find(x => x.id === a.play);
+    if(!k){ console.warn("carte introuvable", a); return; }
+    if(i !== Net.me) await sleep(D(300));
+    p.called = !!a.uno && p.hand.length === 2;
+    if(isWild(k) && i !== Net.me) Snd.wild();
+    return playCard(i, k, a.color);
+  }
+}
+function netTurn(){
+  const my = token;
+  if(S.cur === Net.me){ busy = false; render(); Net.mine(a => { if(my === token) netApply(a); }); return; }
+  busy = true; render();
+  Net.turn(S.cur, netAI).then(a => { if(my === token) netApply(a); });
+}
 $("unobtn").onclick = () => {
   const m = mainIdx(), p = S.players[m];
   if(p.ai) return;
@@ -560,13 +601,25 @@ async function drawTurn(i){
   }
   if(c && canPlay(c, p.hand)){
     S.drawn = c; S.phase = "drawn";
+    if(NET()) return netTurn();
     if(p.ai) return;
     busy = false; render(); return;
   }
   endTurn(1);
 }
-async function chooseColor(i){
+async function chooseColor(i, first){
   const p = S.players[i];
+  if(NET() && first){
+    // couleur de la première carte joker : choisie par le joueur concerné
+    if(i === Net.me){
+      // si l'ordinateur a déjà choisi pour nous (absence, retour sur la page), on reprend son choix
+      let fromLog = null;
+      const c = await new Promise(res => { Net.mine(a => { fromLog = a.color; $("colorbox").hidden = true; res(a.color); }); chooseColor(i).then(res); });
+      if(fromLog === null) Net.send({color: c});
+      return c;
+    }
+    const a = await Net.turn(i, () => ({color: aiColor(p)})); return a.color;
+  }
   if(p.ai) return aiColor(p);
   return new Promise(res => {
     const box = $("colors"); box.innerHTML = "";
@@ -649,6 +702,13 @@ function endTurn(steps){
 /* ----- « Uno ! » et « Contre-Uno ! » ----- */
 async function unoCheck(i){
   const my = token, p = S.players[i];
+  if(NET()){
+    // en ligne : il faut toucher « Uno ! » avant de poser l'avant-dernière carte, sinon on pioche 2 cartes
+    if(p.called || !cfg.unopen){ if(p.called){ Snd.uno(); S.msg = `${p.name} : « Uno ! »`; render(); await sleep(D(700)); S.msg = ""; } render(); return; }
+    S.msg = `${p.name} a oublié de dire Uno ! Contre-Uno : 2 cartes.`; Snd.oops(); render();
+    await giveCards(i, 2, my); if(my !== token) return;
+    await sleep(D(700)); S.msg = ""; render(); return;
+  }
   if(p.ai){
     const pr = [0, .7, .88, .97][cfg.lvl];
     if(Math.random() < pr){ p.called = true; Snd.uno(); render(); await sleep(D(600)); return; }
@@ -684,6 +744,22 @@ async function unoCheck(i){
 /* ----- contestation du +4 ----- */
 function askChallenge(target, by, prevColor){
   const t = S.players[target];
+  if(NET() && target !== Net.me){
+    return Net.turn(target, () => { const off = S.players[by].hand.length; const pr = cfg.lvl === 1 ? .1 : cfg.lvl === 2 ? .25 : (off >= 4 ? .45 : .2); return {ch: Math.random() < pr}; })
+      .then(async a => { if(a.ch){ S.msg = `${t.name} conteste le +4 !`; render(); } await sleep(D(a.ch ? 900 : 300)); return !!a.ch; });
+  }
+  if(NET() && target === Net.me){
+    return new Promise(res => {
+      $("chtitle").textContent = `${S.players[by].name} vous met un +4`;
+      $("chtext").textContent = `Le +4 n'est permis que si ${S.players[by].name} n'avait aucune carte ${CNAME[prevColor].toLowerCase()} quand il l'a joué. Si vous contestez et qu'il en avait, c'est lui qui pioche 4 cartes. Sinon, vous en piochez 6.`;
+      $("challenge").hidden = false;
+      let done = false;
+      const fin = (v, remote) => { if(done) return; done = true; $("challenge").hidden = true; if(!remote) Net.send({ch: v}); res(v); };
+      $("chyes").onclick = () => fin(true);
+      $("chno").onclick = () => fin(false);
+      Net.mine(a => fin(!!a.ch, true));
+    });
+  }
   if(t.ai){
     const off = S.players[by].hand.length;
     const pr = cfg.lvl === 1 ? .1 : cfg.lvl === 2 ? .25 : (off >= 4 ? .45 : .2);
@@ -781,13 +857,15 @@ function showScores(end){
   const btns = $("scbtns"); btns.innerHTML = "";
   const mk = (t, fn, cls) => { const b = document.createElement("button"); b.textContent = t; if(cls) b.className = cls; b.onclick = fn; btns.appendChild(b); };
   if(!end) mk("Fermer", () => $("scores").hidden = true, "primary");
+  else if(NET()) mk(S.over ? "Nouvelle partie" : "Manche suivante", () => Net.send({t: "next"}, null, true), "primary");
   else if(S.over) mk("Nouvelle partie", () => newGame(), "primary");
   else mk("Manche suivante", () => newRound(), "primary");
   $("scores").hidden = false;
+  if(end && NET()){ const my = token; Net.next().then(a => { if(my === token && NET() && a && a.t === "next") (S.over ? newGame() : newRound()); }); }
   if(end){ const human = !S.players[L.w].ai; (human ? Snd.win : Snd.meh).call(Snd); }
 }
 $("scorebtn").onclick = () => { if(S && S.phase !== "end") showScores(false); };
-$("newg").onclick = () => newGame();
+$("newg").onclick = () => { if(!NET()) newGame(); };
 
 /* ================= RÉGLAGES ================= */
 let draft = null;
@@ -795,7 +873,7 @@ function paintSettings(){
   document.querySelectorAll("#settings .seg").forEach(seg => seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(draft[seg.dataset.k]) === b.dataset.v)));
   $("optlvl").hidden = draft.who !== "ai";
 }
-$("setbtn").onclick = () => { draft = Object.assign({}, cfg); paintSettings(); $("settings").hidden = false; };
+$("setbtn").onclick = () => { if(NET()) return; draft = Object.assign({}, cfg); paintSettings(); $("settings").hidden = false; };
 document.querySelectorAll("#settings .seg").forEach(seg => seg.addEventListener("click", e => {
   const b = e.target.closest("button"); if(!b) return;
   draft[seg.dataset.k] = seg.dataset.k === "who" ? b.dataset.v : +b.dataset.v; paintSettings();
@@ -804,6 +882,17 @@ $("setcancel").onclick = () => { $("settings").hidden = true; };
 $("setok").onclick = () => { cfg = draft; save("uno_cfg", JSON.stringify(cfg)); $("settings").hidden = true; newGame(); };
 document.addEventListener("keydown", e => { if(e.key === "Escape"){ $("settings").hidden = true; if(S && S.phase !== "end") $("scores").hidden = true; } });
 
+function netUI(){ $("newg").hidden = NET(); $("setbtn").disabled = NET(); if(window.Net) Net.refresh(); }
+const _render = render;
+render = function(){ _render(); netUI(); };
 newGame();
+
+if(window.Net) Net.setup({
+  game: "uno", name: "Uno", min: 2, max: 6, bots: true, seats: () => cfg.n,
+  cfg: () => cfg,
+  current: () => S && S.cur >= 0 && S.phase !== "end" ? S.cur : -1,
+  start(info){ localCfg = Object.assign({}, cfg); cfg = Object.assign({}, cfg, info.cfg, {n: info.n, who: "ai"}); NETON = true; newGame(); },
+  leave(){ NETON = false; if(localCfg) cfg = localCfg; newGame(); }
+});
 })();
 </script>

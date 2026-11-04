@@ -313,7 +313,9 @@ function aiChoice(){
 }
 
 /* ---------- Partie ---------- */
-const names = () => mode === "ai" ? {1: "Vous", 2: "Ordi"} : {1: "Rouge", 2: "Jaune"};
+let NETC = 0;   // couleur jouée par ce navigateur en ligne (1 rouge, 2 jaune)
+const names = () => mode === "net" ? {1: Net.names[0], 2: Net.names[1]} : mode === "ai" ? {1: "Vous", 2: "Ordi"} : {1: "Rouge", 2: "Jaune"};
+const notMine = () => mode === "net" && turn !== NETC;
 const aiTurn = () => mode === "ai" && turn === 2 && !over;
 
 function setHover(c, silent){
@@ -324,7 +326,7 @@ function setHover(c, silent){
 function updateGhost(){
   const g = $("ghost");
   g.setAttribute("x", X(hoverCol)); g.setAttribute("href", "#disc" + turn);
-  g.style.visibility = (busy || over || aiTurn() || dropRow(board, hoverCol) < 0) ? "hidden" : "visible";
+  g.style.visibility = (busy || over || aiTurn() || notMine() || dropRow(board, hoverCol) < 0) ? "hidden" : "visible";
 }
 function updateUI(){
   const n = names();
@@ -334,12 +336,15 @@ function updateUI(){
   const st = $("status");
   if(over){
     st.className = "win";
-    st.textContent = winCells ? (mode === "ai" ? (turn === 1 ? "Gagné !" : "Perdu…") : n[turn] + " gagne !") : "Match nul";
+    st.textContent = winCells ? (mode === "ai" ? (turn === 1 ? "Gagné !" : "Perdu…") : mode === "net" ? (turn === NETC ? "Gagné !" : Net.names[turn - 1] + " gagne !") : n[turn] + " gagne !") : "Match nul";
   } else {
     st.className = "";
-    st.textContent = aiTurn() ? "L'ordinateur réfléchit…" : (mode === "ai" ? "À vous de jouer" : "Au tour de " + n[turn]);
+    st.textContent = aiTurn() ? "L'ordinateur réfléchit…" : mode === "net" ? (turn === NETC ? "À vous de jouer" : Net.names[turn - 1] + " réfléchit…") : (mode === "ai" ? "À vous de jouer" : "Au tour de " + n[turn]);
   }
   $("undo").disabled = busy || thinking || over || moves.length === 0;
+  $("undo").hidden = mode === "net"; $("m-pvp").parentNode.hidden = mode === "net"; if(mode === "net") $("lv").hidden = true;
+  $("newg").disabled = mode === "net" && !over;
+  if(window.Net) Net.refresh();
   updateGhost();
 }
 function addPiece(r, c, p, y){
@@ -347,8 +352,10 @@ function addPiece(r, c, p, y){
   $("pieces").appendChild(el); pieceEls[r + "," + c] = el; return el;
 }
 function humanPlay(c){
-  if(busy || thinking || over || aiTurn()) return;
+  if(busy || thinking || over || aiTurn() || notMine()) return;
+  if(dropRow(board, c) < 0){ Snd.bump(); return; }
   play(c);
+  if(mode === "net") Net.send({c});
 }
 function play(c){
   const r = dropRow(board, c);
@@ -370,10 +377,21 @@ function afterMove(r, c){
   } else turn = 3 - turn;
   updateUI(); snapshot();
   if(aiTurn()) scheduleAI();
+  if(mode === "net") netStep();
 }
+/* en ligne : on attend le coup de l'autre joueur (ou de l'ordinateur s'il s'est absenté) */
+function netStep(){
+  const my = netGen;
+  if(over){ Net.next().then(a => { if(my === netGen && mode === "net" && a && a.t === "new") newGame(); }); return; }
+  if(turn !== NETC){
+    Net.turn(turn - 1, () => aiChoice()).then(a => { if(my !== netGen || mode !== "net") return; setHover(a.c, true); play(a.c); });
+  } else Net.mine(a => { if(my === netGen && mode === "net"){ setHover(a.c, true); play(a.c); } });
+}
+let netGen = 0;
 function scheduleAI(){
   thinking = true; updateUI();
   setTimeout(() => {
+    if(mode !== "ai"){ thinking = false; return; }
     const c = aiChoice();
     thinking = false; setHover(c, true); play(c);
   }, 450 + Math.random() * 300);
@@ -396,6 +414,7 @@ function reset(){
   for(const k in pieceEls) delete pieceEls[k];
   updateUI(); snapshot();
   if(aiTurn()) scheduleAI();
+  if(mode === "net") netStep();
 }
 function newGame(){
   if(busy || thinking) return;
@@ -410,7 +429,10 @@ function newGame(){
     setTimeout(() => animate({el, y, vy: 0, g: 5200 + Math.random() * 1500, limit: 820, done: () => { if(--left === 0){ busy = false; reset(); } }}), Math.random() * 90);
   });
 }
-$("newg").onclick = newGame;
+$("newg").onclick = () => {
+  if(mode === "net"){ if(over && !busy) Net.send({t: "new"}, null, true); return; }
+  newGame();
+};
 
 function setMode(m){
   if(busy || thinking || m === mode) return;
@@ -452,5 +474,22 @@ function start(data){
   } else reset();
 }
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+
+/* ---------- En ligne (sur le site de la salle de jeux) ---------- */
+function hardReset(){
+  netGen++; thinking = false;
+  board = emptyBoard(); moves = []; over = false; winCells = null;
+  $("pieces").innerHTML = ""; $("rings").innerHTML = "";
+  for(const k in pieceEls) delete pieceEls[k];
+  anims.clear(); busy = false;
+}
+if(window.Net) Net.setup({
+  game: "puissance-4", name: "Puissance 4", min: 2, max: 2, bots: false,
+  seatName: k => ["Rouge", "Jaune"][k],
+  current: () => over ? -1 : turn - 1,
+  start(info){ hardReset(); mode = "net"; NETC = info.me + 1; scores = {1: 0, 2: 0}; starter = 1; reset(); },
+  leave(){ hardReset(); mode = "pvp"; scores = {1: 0, 2: 0}; starter = 1;
+    $("m-pvp").setAttribute("aria-pressed", true); $("m-ai").setAttribute("aria-pressed", false); reset(); }
+});
 })();
 </script>

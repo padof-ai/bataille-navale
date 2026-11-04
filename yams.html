@@ -273,7 +273,11 @@ const totalOf = p => CATS.reduce((a, c) => a + (p.s[c.id] || 0), 0) + bonusOf(p)
 let mode = "ai";
 let G = null;
 let busy = false;
+let netGen = 0;
+const NET = () => mode === "net";
 function newState(){
+  if(NET()) return {players: Net.names.map((n, i) => ({name: i === Net.me ? "Vous" : n, ai: i !== Net.me, s: {}})),
+          cur: 0, dice: [1, 2, 3, 4, 5], held: [false, false, false, false, false], left: 3, rolled: false, last: null};
   const names = mode === "solo" ? ["Vous"] : mode === "duo" ? ["Joueur 1", "Joueur 2"] : ["Vous", "Ordinateur"];
   return {players: names.map((n, i) => ({name: n, ai: mode === "ai" && i === 1, s: {}})),
           cur: 0, dice: [1, 2, 3, 4, 5], held: [false, false, false, false, false], left: 3, rolled: false, last: null};
@@ -338,7 +342,7 @@ async function roll(){
   Snd.shake(520, idx.length);
   await sleep(reduced ? 80 : 540);
   cup.classList.remove("shake");
-  idx.forEach(i => { G.dice[i] = 1 + rnd(6); });
+  idx.forEach(i => { G.dice[i] = 1 + Math.floor((NET() ? Net.rand() : Math.random()) * 6); });
   G.left--; G.rolled = true;
   scatter(idx); renderDice();
   const felt = $("felt");
@@ -365,14 +369,20 @@ async function roll(){
   const d = G.dice;
   if(d.every(v => v === d[0])){ stamp("Yam's !"); Snd.yams(); dieEls.forEach(e => { e.classList.remove("flash"); void e.offsetWidth; e.classList.add("flash"); }); }
   renderDice(); renderUI(); snapshot();
+  if(NET()) netStep();
 }
 function stamp(t){
   $("stamptxt").textContent = t; const s = $("stamp"); s.hidden = false;
   const sp = $("stamptxt"); sp.style.animation = "none"; void sp.offsetWidth; sp.style.animation = "";
   setTimeout(() => { s.hidden = true; }, 1000);
 }
-$("rollbtn").onclick = () => { if(!P().ai) roll(); };
-$("cup").onclick = () => { if(!P().ai) roll(); };
+function myRoll(){
+  if(P().ai || busy || G.left === 0 || (G.rolled && G.held.every(h => h))) return;
+  if(NET()) Net.send({r: G.rolled ? G.held.slice() : [false, false, false, false, false]});
+  roll();
+}
+$("rollbtn").onclick = myRoll;
+$("cup").onclick = myRoll;
 
 /* ================= FEUILLE ================= */
 function renderSheet(){
@@ -397,7 +407,7 @@ function renderSheet(){
   });
   h += `<tr class="total"><th>Total</th>${ps.map((p, i) => `<td class="sc${i === G.cur ? " cur" : ""}">${totalOf(p)}</td>`).join("")}</tr></tbody>`;
   t.innerHTML = h;
-  t.querySelectorAll("button[data-c]").forEach(b => b.onclick = () => choose(b.dataset.c));
+  t.querySelectorAll("button[data-c]").forEach(b => b.onclick = () => { if(busy || P().ai) return; if(NET()) Net.send({c: b.dataset.c}); choose(b.dataset.c); });
 }
 function choose(id){
   if(busy || !G.rolled || P().s[id] !== undefined) return;
@@ -411,7 +421,8 @@ function nextTurn(){
   G.cur = (G.cur + 1) % G.players.length;
   G.held = [false, false, false, false, false]; G.left = 3; G.rolled = false;
   renderDice(); renderUI(); snapshot();
-  if(G.players.every(p => CATS.every(c => p.s[c.id] !== undefined))){ setTimeout(finish, 700); return; }
+  if(G.players.every(p => CATS.every(c => p.s[c.id] !== undefined))){ setTimeout(finish, 700); if(NET()) netStep(); return; }
+  if(NET()){ netStep(); return; }
   if(P().ai){ const g = G; setTimeout(() => { if(G === g) aiTurn(); }, 700); }
 }
 function finish(){
@@ -425,7 +436,35 @@ function finish(){
   }
   $("end").hidden = false; Snd.end();
 }
-$("again").onclick = () => { $("end").hidden = true; start({}); };
+$("again").onclick = () => { if(NET()){ Net.send({t: "new"}, null, true); return; } $("end").hidden = true; start({}); };
+
+/* ================= EN LIGNE ================= */
+function netAI(){
+  const p = P();
+  if(!G.rolled) return {r: [false, false, false, false, false]};
+  if(G.left > 0){ const h = bestHold(G.dice, p, G.left); if(!h.keep.every(k => k)) return {r: h.keep.map(Boolean)}; }
+  return {c: bestCat(G.dice, p).id};
+}
+function netStep(){
+  const my = netGen, g = G, ok = () => my === netGen && NET() && G === g;
+  if(G.players.every(p => CATS.every(c => p.s[c.id] !== undefined))){
+    Net.next().then(a => { if(my === netGen && NET() && a && a.t === "new"){ $("end").hidden = true; start({}); } });
+    return;
+  }
+  const apply = async a => {
+    if(!ok()) return;
+    if(a.c){ await sleep(400); if(ok()) choose(a.c); return; }
+    if(a.r){
+      if(G.rolled){
+        for(let i = 0; i < 5; i++){ const w = !!a.r[i]; if(G.held[i] !== w){ G.held[i] = w; if(!w) scatter([i]); Snd.keep(); renderDice(); await sleep(200); if(!ok()) return; } }
+        await sleep(250); if(!ok()) return;
+      }
+      roll();
+    }
+  };
+  if(G.cur === Net.me) Net.mine(apply);
+  else Net.turn(G.cur, netAI).then(apply);
+}
 
 /* ================= STATUT ================= */
 function renderUI(){
@@ -443,6 +482,8 @@ function renderUI(){
   const r = $("rolls"); r.innerHTML = "";
   for(let i = 0; i < 3; i++){ const d = document.createElement("i"); if(i < G.left) d.className = "on"; r.appendChild(d); }
   document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.m === mode));
+  document.querySelector(".seg").hidden = NET(); $("newg").hidden = NET();
+  if(window.Net) Net.refresh();
   renderSheet();
 }
 
@@ -478,7 +519,7 @@ function bestHold(d, p, left){
   return best;
 }
 async function aiTurn(){
-  const g = G, p = P(); if(!p.ai || g.rolled) return;
+  const g = G, p = P(); if(!p.ai || g.rolled || NET()) return;
   const alive = () => G === g && P() === p;
   await roll(); if(!alive()) return;
   while(G.left > 0){
@@ -501,10 +542,10 @@ document.querySelectorAll(".seg button").forEach(b => b.onclick = () => {
   if(busy || b.dataset.m === mode) return;
   mode = b.dataset.m; start({});
 });
-$("newg").onclick = () => { if(!busy) start({}); };
+$("newg").onclick = () => { if(!busy && !NET()) start({}); };
 document.addEventListener("keydown", e => {
   if(e.target.tagName === "BUTTON" && (e.key === "Enter" || e.key === " ")) return;
-  if((e.key === " " || e.key === "Enter") && G && !P().ai){ e.preventDefault(); roll(); }
+  if((e.key === " " || e.key === "Enter") && G && !P().ai){ e.preventDefault(); myRoll(); }
 });
 
 /* ================= Conserver la partie lors d'une mise à jour ================= */
@@ -515,8 +556,16 @@ function start(data){
   else G = newState();
   $("end").hidden = true;
   renderDice(); renderUI(); snapshot();
+  if(NET()){ netGen++; Net.cancel(); netStep(); return; }
   if(P().ai && !G.rolled){ const g = G; setTimeout(() => { if(G === g) aiTurn(); }, 800); }
 }
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+
+if(window.Net) Net.setup({
+  game: "yams", name: "Yam's", min: 2, max: 4, bots: true, seats: () => 2,
+  current: () => G ? G.cur : -1,
+  start(){ mode = "net"; start({}); },
+  leave(){ netGen++; mode = "ai"; start({}); }
+});
 })();
 </script>

@@ -255,19 +255,23 @@ let cfg = {n: 3, who: "ai", lvl: 2, goal: 100, dbl: 1, col: 1, row: 0};
 try{ const o = JSON.parse(load("sk_cfg") || "null"); if(o) cfg = Object.assign(cfg, o); }catch(e){}
 
 /* ================= ÉTAT ================= */
-let C = [], G = null, busy = false, token = 0;
+let C = [], G = null, busy = false, token = 0, NETON = false, localCfg = null;
+const NET = () => NETON;
+const RND = () => NETON ? Net.rand() : Math.random();   // hasard partagé en ligne
 const els = [];
 function namesFor(){
+  if(NET()) return Net.names.map((n, i) => i === Net.me ? "Vous" : n);
   return Array.from({length: cfg.n}, (_, i) => cfg.who === "ai" ? (i === 0 ? "Vous" : (cfg.n === 2 ? "L'ordinateur" : "Ordi " + i)) : "Joueur " + (i + 1));
 }
 function newGame(){
   token++; busy = false;
-  G = {players: namesFor().map((name, i) => ({name, ai: cfg.who === "ai" && i > 0, grid: [], total: 0, hist: []})), round: 0, over: false};
+  G = {players: namesFor().map((name, i) => ({name, ai: NET() ? i !== Net.me : cfg.who === "ai" && i > 0, grid: [], total: 0, hist: []})), round: 0, over: false};
   newRound();
 }
-function shuffle(a){ for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function shuffle(a, rnd = RND){ for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 async function newRound(){
   const my = ++token; busy = true;
+  if(NET()) Net.cancel();
   $("scores").hidden = true;
   G.round++;
   C = [];
@@ -275,7 +279,7 @@ async function newRound(){
   for(let v = 1; v <= 12; v++) for(let k = 0; k < 10; k++) C.push({v, up: false});
   $("layer").innerHTML = ""; els.length = 0;
   G.deck = shuffle(C.map((_, i) => i));
-  G.discard = []; G.held = null; G.from = null; G.cur = -1; G.finisher = -1; G.phase = "deal"; G.flips = {}; G.last = null;
+  G.discard = []; G.held = null; G.from = null; G.cur = -1; G.finisher = -1; G.phase = "deal"; G.flips = {}; G.myFlips = []; G.setupSeen = {}; G.last = null;
   G.players.forEach(p => { p.grid = Array(12).fill(null); });
   render(); Snd.shuffle();
   await sleep(D(300)); if(my !== token) return;
@@ -319,6 +323,7 @@ function drawCard(){
 /* ================= AFFICHAGE ================= */
 const humanIdx = () => G.players.findIndex(p => !p.ai);
 function mainIdx(){
+  if(NET()) return Net.me;
   if(cfg.who === "ai") return 0;
   if(G.phase === "setup") return G.setupWho ?? 0;
   if(G.cur >= 0) return G.cur;
@@ -429,6 +434,7 @@ window.addEventListener("resize", () => { if(G) place(); });
 /* ================= DÉBUT DE MANCHE : 2 CARTES CHACUN ================= */
 async function setupStep(){
   const my = token;
+  if(NET()) return netSetup();
   // les ordinateurs retournent leurs deux cartes
   for(const [i, p] of G.players.entries()){
     if(!p.ai || (G.flips[i] || 0) >= 2) continue;
@@ -457,29 +463,36 @@ function onCard(id){
     if(G.setupWho !== m) return;
     const k = p.grid.indexOf(id); if(k < 0 || C[id].up) return;
     C[id].up = true; G.flips[m] = (G.flips[m] || 0) + 1; Snd.flip();
+    if(NET()){ (G.myFlips = G.myFlips || []).push(k); if(G.flips[m] >= 2){ G.setupWho = undefined; Net.send({setup: G.myFlips, p: m}, m, "free"); } render(); return; }
     if(G.flips[m] >= 2) setupStep(); else render();
     return;
   }
   if(!isHumanTurn() || G.cur !== m) return;
   if(G.discard.length && id === G.discard[G.discard.length - 1] && G.phase === "turn"){ humanDiscard(); return; }
   const k = p.grid.indexOf(id); if(k < 0) return;
-  if(G.phase === "flip"){ if(C[id].up){ Snd.nope(); return; } doFlip(G.cur, k); return; }
-  if(G.held !== null){ doSwap(G.cur, k); return; }
+  if(G.phase === "flip"){ if(C[id].up){ Snd.nope(); return; } if(NET()) Net.send({flip: k}); doFlip(G.cur, k); return; }
+  if(G.held !== null){ if(NET()) Net.send({swap: k}); doSwap(G.cur, k); return; }
   Snd.nope();
 }
 function humanDraw(){
   if(busy || !isHumanTurn() || G.phase !== "turn" || G.held !== null) return;
+  if(NET()) Net.send({draw: 1});
   doDraw();
+  if(NET()) netTurn();
 }
 function humanTakeDiscard(){
   if(busy || !isHumanTurn() || G.phase !== "turn" || G.held !== null || !G.discard.length) return;
+  if(NET()) Net.send({take: 1});
   G.held = G.discard.pop(); G.from = "discard"; Snd.slide(); render();
+  if(NET()) netTurn();
 }
 function humanDiscard(){
   if(busy || !isHumanTurn() || G.phase !== "turn") return;
   if(G.held === null){ humanTakeDiscard(); return; }
   if(G.from !== "deck"){ Snd.nope(); return; }
+  if(NET()) Net.send({throw: 1});
   doThrow();
+  if(NET() && G.phase === "flip") netTurn();
 }
 function doDraw(){
   const id = drawCard(); C[id].up = true; G.held = id; G.from = "deck";
@@ -534,8 +547,87 @@ async function endAction(){
   nextTurn();
 }
 function nextTurn(){
+  if(NET()){ render(); return netTurn(); }
   if(G.players[G.cur].ai) aiTurn();
   else render();
+}
+
+/* ================= EN LIGNE ================= */
+function applySetup(a){
+  if(!a || !a.setup) return;
+  G.setupSeen = G.setupSeen || {};
+  G.setupSeen[a.p] = true;
+  const p = G.players[a.p];
+  if(a.p !== Net.me || (G.flips[a.p] || 0) < 2){ a.setup.forEach(k => { if(p.grid[k] !== null) C[p.grid[k]].up = true; }); Snd.flip(); }
+  if(a.p === Net.me) G.setupWho = undefined;
+  G.flips[a.p] = 2; render();
+}
+function netSetup(){
+  const my = token;
+  // l'hôte retourne les deux cartes des ordinateurs
+  if(Net.isHost()) G.players.forEach((p, i) => {
+    if(!Net.bots[i]) return;
+    Net.send({setup: shuffle(hiddenOf(p), Math.random).slice(0, 2), p: i}, i, "free");
+  });
+  G.setupWho = (G.flips[Net.me] || 0) < 2 ? Net.me : undefined;
+  render();
+  // un joueur absent : l'hôte retourne ses cartes à sa place
+  const sentFor = {};
+  const watch = setInterval(() => {
+    if(my !== token || G.phase !== "setup"){ clearInterval(watch); return; }
+    if(!Net.isHost() || !Net._v) return;
+    G.players.forEach((p, i) => {
+      if(i !== Net.me && !Net.bots[i] && Net._v.away[i] && !G.setupSeen[i] && !sentFor[i]){ sentFor[i] = 1; Net.send({setup: shuffle(hiddenOf(p), Math.random).slice(0, 2), p: i}, i, "free"); }
+    });
+  }, 2000);
+  const loop = () => { if(my !== token || netSetupCheck()) return; Net.next().then(a => { if(my !== token) return; applySetup(a); loop(); }); };
+  loop();
+}
+let setupDone = -1;
+function netSetupCheck(){
+  if(G.phase !== "setup" || !G.players.every((p, i) => G.setupSeen && G.setupSeen[i])) return false;
+  if(setupDone === token) return true;
+  setupDone = token;
+  Net.cancel();
+  const my = token;
+  G.setupWho = undefined; render(); Snd.flip(); Snd.flip(.08);
+  busy = true;
+  setTimeout(() => {
+    if(my !== token) return;
+    const sums = G.players.map(visibleSum), max = Math.max(...sums);
+    const cands = sums.map((s, i) => s === max ? i : -1).filter(i => i >= 0);
+    G.cur = cands[Math.floor(RND() * cands.length)];
+    G.phase = "turn"; busy = false;
+    render(); nextTurn();
+  }, D(700));
+  return true;
+}
+function netAI(){
+  const i = G.cur, p = G.players[i];
+  if(G.phase === "flip"){ const h = hiddenOf(p); return {flip: h[Math.floor(Math.random() * h.length)]}; }
+  if(G.held === null){
+    const top = G.discard[G.discard.length - 1];
+    if(top !== undefined){ const o = choose(i, top, false), thr = cfg.lvl === 1 ? -3.5 : -1.2; if(o.val < thr || (C[top].v <= 0 && o.val < 0)) return {take: 1}; }
+    return {draw: 1};
+  }
+  const o = choose(i, G.held, G.from === "deck");
+  if(o.type === "swap") return {swap: o.k};
+  return {throw: 1};
+}
+async function netApply(a){
+  const i = G.cur, my = token;
+  if(i !== Net.me) await sleep(D(450));
+  if(my !== token) return;
+  if(a.draw){ doDraw(); return netTurn(); }
+  if(a.take){ G.held = G.discard.pop(); G.from = "discard"; Snd.slide(); render(); return netTurn(); }
+  if(a.swap !== undefined) return doSwap(i, a.swap);
+  if(a.throw){ doThrow(); if(G.phase === "flip") netTurn(); return; }
+  if(a.flip !== undefined) return doFlip(i, a.flip);
+}
+function netTurn(){
+  const my = token;
+  if(G.cur === Net.me){ Net.mine(a => { if(my === token) netApply(a); }); return; }
+  Net.turn(G.cur, netAI).then(a => { if(my === token) netApply(a); });
 }
 
 /* ================= ORDINATEURS ================= */
@@ -681,17 +773,19 @@ function showScores(endOfRound){
   const btns = $("scbtns"); btns.innerHTML = "";
   const mk = (t, fn, cls = "") => { const b = document.createElement("button"); b.textContent = t; b.className = cls; b.onclick = fn; btns.appendChild(b); };
   if(!endOfRound) mk("Fermer", () => $("scores").hidden = true, "primary");
+  else if(NET()) mk(G.over ? "Nouvelle partie" : "Manche suivante", () => Net.send({t: "next"}, null, true), "primary");
   else if(G.over){ mk("Nouvelle partie", () => newGame(), "primary"); }
   else mk("Manche suivante", () => newRound(), "primary");
   $("scores").hidden = false;
+  if(endOfRound && NET()){ const my = token; Net.next().then(a => { if(my === token && NET() && a && a.t === "next") (G.over ? newGame() : newRound()); }); }
   if(endOfRound){
     const hi = humanIdx();
-    if(G.over){ const w = ranked[0]; (cfg.who === "hot" || w.i === hi) ? Snd.win() : Snd.meh(); }
+    if(G.over){ const w = ranked[0]; (cfg.who === "hot" || w.i === (NET() ? Net.me : hi)) ? Snd.win() : Snd.meh(); }
     else Snd.round();
   }
 }
 $("scorebtn").onclick = () => { if(G && G.phase !== "end") showScores(false); };
-$("newg").onclick = () => newGame();
+$("newg").onclick = () => { if(!NET()) newGame(); };
 
 /* ================= FENÊTRE DES RÉGLAGES ================= */
 let draft = null;
@@ -702,7 +796,7 @@ function paintSettings(){
   });
   $("optlvl").hidden = draft.who !== "ai";
 }
-$("setbtn").onclick = () => { draft = Object.assign({}, cfg); paintSettings(); $("settings").hidden = false; };
+$("setbtn").onclick = () => { if(NET()) return; draft = Object.assign({}, cfg); paintSettings(); $("settings").hidden = false; };
 document.querySelectorAll("#settings .seg").forEach(seg => seg.addEventListener("click", e => {
   const b = e.target.closest("button"); if(!b) return;
   const k = seg.dataset.k, v = b.dataset.v;
@@ -712,6 +806,16 @@ $("setcancel").onclick = () => { $("settings").hidden = true; };
 $("setok").onclick = () => { cfg = draft; save("sk_cfg", JSON.stringify(cfg)); $("settings").hidden = true; newGame(); };
 document.addEventListener("keydown", e => { if(e.key === "Escape"){ $("settings").hidden = true; if(G && G.phase !== "end") $("scores").hidden = true; } });
 
+const _render = render;
+render = function(){ _render(); $("newg").hidden = NET(); $("setbtn").disabled = NET(); if(window.Net) Net.refresh(); };
 newGame();
+
+if(window.Net) Net.setup({
+  game: "skyjo", name: "Skyjo", min: 2, max: 8, bots: true, seats: () => cfg.n,
+  cfg: () => cfg,
+  current: () => G && G.cur >= 0 && G.phase !== "end" ? G.cur : -1,
+  start(info){ localCfg = Object.assign({}, cfg); cfg = Object.assign({}, cfg, info.cfg, {n: info.n, who: "ai"}); NETON = true; newGame(); },
+  leave(){ NETON = false; if(localCfg) cfg = localCfg; newGame(); }
+});
 })();
 </script>

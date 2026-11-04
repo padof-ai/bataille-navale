@@ -227,7 +227,8 @@ $("snd").onclick = () => { Snd.on = !Snd.on; save("dc_sound", Snd.on ? "1" : "0"
 sndLabel();
 
 /* ================= ÉTAT ================= */
-let G = null, viewer = 0, mode = "ai", scores = [0, 0], starter = 0, aiBusy = false;
+let G = null, viewer = 0, mode = "ai", scores = [0, 0], starter = 0, aiBusy = false, netGen = 0;
+const RND = () => mode === "net" ? Net.rand() : Math.random();   // hasard partagé en ligne
 const tokEls = [];       // éléments des jetons de la face visible
 const tokPos = [];       // position affichée {x,y}
 
@@ -236,7 +237,7 @@ function newNotches(){
   for(let w = 0; w < NW; w++){
     let a, b;
     do{
-      const pick = () => { const s = new Set(); while(s.size < 3) s.add(1 + Math.floor(Math.random() * (K - 1))); return s; };
+      const pick = () => { const s = new Set(); while(s.size < 3) s.add(1 + Math.floor(RND() * (K - 1))); return s; };
       a = pick(); b = pick();
     } while([...a].every(x => b.has(x)));
     n[0][w] = Array.from({length: K}, (_, i) => a.has(i));
@@ -253,7 +254,8 @@ const tokensAt = (s, L, lv = G.lv[s]) => { const r = []; for(let i = 0; i < NT; 
 const exempt = (s, w) => w === NW - 1 && G.lv[s][NT - 1] === NW - 1;
 const allowed = (s, w) => w !== G.lastWheel || exempt(s, w);
 const isAI = s => mode === "ai" && s === 1;
-const nameOf = s => mode === "ai" ? (s === 0 ? "Vous" : "L'ordinateur") : COLORS[s];
+const nameOf = s => mode === "net" ? Net.names[s] : mode === "ai" ? (s === 0 ? "Vous" : "L'ordinateur") : COLORS[s];
+const remote = s => mode === "net" && s !== viewer;
 
 /* ================= DESSIN DE LA TOUR ================= */
 const wheelG = [], notchG = [], btns = [], locks = [];
@@ -397,15 +399,16 @@ function cran(w, dir){
   for(const s of [0, 1]) if(!G.over && G.lv[s].every(v => v === NW)){ G.over = true; G.winner = s; }
   if(G.over){
     scores[G.winner]++;
-    setTimeout(() => { (mode === "ai" && G.winner === 1) ? Snd.lose() : Snd.win(); }, 650);
+    setTimeout(() => { ((mode === "ai" && G.winner === 1) || (mode === "net" && G.winner !== viewer)) ? Snd.lose() : Snd.win(); }, 650);
   }
   updateUI(); snapshot();
 }
 function humanCran(w, dir){
-  if(!G || G.over || aiBusy || isAI(G.turn) || !$("curtain").hidden) return;
+  if(!G || G.over || aiBusy || isAI(G.turn) || remote(G.turn) || !$("curtain").hidden) return;
   if(G.curWheel !== -1 && G.curWheel !== w){ Snd.bump(); flash("Une seule roue par tour : terminez votre tour ou continuez la roue " + (G.curWheel + 1) + "."); return; }
   if(!allowed(G.turn, w)){ Snd.bump(); flash("Roue " + (w + 1) + " verrouillée : l'adversaire vient de la tourner."); return; }
   if(G.crans >= MAXC){ Snd.bump(); flash("4 crans maximum : terminez votre tour."); return; }
+  if(mode === "net") Net.send({c: [w, dir]});
   cran(w, dir);
 }
 let flashT = null;
@@ -417,12 +420,55 @@ function endTurn(){
   updateUI(); snapshot();
   if(isAI(G.turn)) setTimeout(aiPlay, 600);
   else if(mode === "pvp") showCurtain();
+  else if(mode === "net") netStep();
 }
-$("endt").onclick = () => { if(!aiBusy && !isAI(G.turn)) endTurn(); };
+$("endt").onclick = () => { if(!aiBusy && !isAI(G.turn) && !remote(G.turn) && G.crans){ if(mode === "net") Net.send({e: 1}); endTurn(); } };
+
+/* ================= EN LIGNE ================= */
+function aiPlan(s){
+  let best = null;
+  for(let w = 0; w < NW; w++){
+    if(!allowed(s, w)) continue;
+    for(const d of [1, -1]){
+      let p = G.pos[w], lv = G.lv[s].slice(), sc = 0;
+      for(let n = 1; n <= MAXC; n++){
+        p += d;
+        if(G.notch[s][w][mod(p)]){ const t = tokensAt(s, w, lv); if(t.length){ lv[t[0]] = w + 1; sc += 10 + w; } }
+        const c = {w, d, n, v: sc - n * .1 + Math.random() * .5};
+        if(!best || c.v > best.v) best = c;
+      }
+    }
+  }
+  return {t: [best.w, best.d, best.n - G.crans > 0 ? best.n : 1]};
+}
+function netApply(a){
+  const my = netGen;
+  if(a.c){ cran(a.c[0], a.c[1]); if(!G.over) netStep(); else netStep(); }
+  else if(a.e){ endTurn(); }
+  else if(a.t){
+    aiBusy = true; updateUI(); let k = 0;
+    const step = () => {
+      if(my !== netGen) return;
+      if(G.over){ aiBusy = false; updateUI(); return netStep(); }
+      if(G.curWheel !== -1 && G.curWheel !== a.t[0]){ aiBusy = false; updateUI(); return endTurn(); }
+      cran(a.t[0], a.t[1]); k++;
+      if(k < a.t[2] && !G.over && G.crans < MAXC) setTimeout(step, 520);
+      else setTimeout(() => { if(my !== netGen) return; aiBusy = false; if(!G.over) endTurn(); else { updateUI(); netStep(); } }, 650);
+    };
+    setTimeout(step, 300);
+  }
+}
+function netStep(){
+  if(mode !== "net") return;
+  const my = netGen;
+  if(G.over){ Net.next().then(a => { if(my === netGen && a && a.t === "new"){ Snd.swoosh(); startGame(); } }); return; }
+  if(remote(G.turn)) Net.turn(G.turn, () => aiPlan(G.turn)).then(a => { if(my === netGen) netApply(a); });
+  else Net.mine(a => { if(my === netGen) netApply(a); });
+}
 
 /* ================= ORDINATEUR ================= */
 function aiPlay(){
-  if(!G || G.over) return;
+  if(!G || G.over || mode !== "ai") return;
   aiBusy = true; updateUI();
   const s = 1; let best = null;
   for(let w = 0; w < NW; w++){
@@ -439,7 +485,7 @@ function aiPlay(){
   }
   let k = 0;
   const step = () => {
-    if(!G || G.over){ aiBusy = false; updateUI(); return; }
+    if(!G || G.over || mode !== "ai"){ aiBusy = false; updateUI(); return; }
     cran(best.w, best.d); k++;
     if(k < best.n && !G.over) setTimeout(step, 520);
     else setTimeout(() => { aiBusy = false; if(!G.over) endTurn(); else updateUI(); }, 650);
@@ -461,15 +507,18 @@ $("ready").onclick = () => {
 /* ================= INTERFACE ================= */
 function updateUI(){
   const me = viewer, opp = 1 - me, myTurn = G.turn === me && !G.over && !aiBusy;
+  $("m-ai").parentNode.hidden = mode === "net"; $("newg").disabled = mode === "net" && !G.over;
+  if(window.Net) Net.refresh();
   $("mychip").className = "chip c" + me;
-  $("myname").textContent = mode === "ai" ? "Votre face (Rouge)" : "Face " + COLORS[me];
+  $("myname").textContent = mode === "ai" ? "Votre face (Rouge)" : mode === "net" ? "Votre face (" + COLORS[me] + ")" : "Face " + COLORS[me];
   const st = $("status");
   if(G.over){
     st.className = "win";
-    st.textContent = mode === "ai" ? (G.winner === 0 ? "Gagné ! Vos 5 jetons sont au bac." : "Perdu… l'ordinateur a vidé sa face.") : COLORS[G.winner] + " gagne !";
+    st.textContent = mode === "ai" || mode === "net" ? (G.winner === viewer ? "Gagné ! Vos 5 jetons sont au bac." : mode === "net" ? "Perdu… " + nameOf(G.winner) + " a vidé sa face." : "Perdu… l'ordinateur a vidé sa face.") : COLORS[G.winner] + " gagne !";
   } else {
     st.className = "";
     if(isAI(G.turn)) st.textContent = "L'ordinateur tourne une roue… surveillez vos jetons.";
+    else if(remote(G.turn)) st.textContent = nameOf(G.turn) + " tourne une roue… surveillez vos jetons.";
     else if(G.crans === 0) st.textContent = (mode === "pvp" ? COLORS[me] + ", à vous" : "À vous") + " : choisissez une roue et tournez-la de 1 à 4 crans.";
     else st.textContent = "Roue " + (G.curWheel + 1) + " : encore " + (MAXC - G.crans) + " cran" + (MAXC - G.crans > 1 ? "s" : "") + " possible" + (MAXC - G.crans > 1 ? "s" : "") + ", ou terminez votre tour.";
   }
@@ -481,7 +530,7 @@ function updateUI(){
     btns[w].forEach(b => { b.classList.toggle("off", !usable); b.setAttribute("aria-disabled", !usable); });
     locks[w].classList.toggle("on", !G.over && w === G.lastWheel && !exempt(G.turn, w));
   }
-  $("oppname").textContent = mode === "ai" ? "Bac de l'ordinateur" : "Bac de " + COLORS[opp];
+  $("oppname").textContent = mode === "ai" ? "Bac de l'ordinateur" : mode === "net" ? "Bac de " + nameOf(opp) : "Bac de " + COLORS[opp];
   const ob = $("oppbac"); ob.innerHTML = "";
   const inTray = G.lv[opp].filter(v => v === NW).length;
   for(let i = 0; i < NT; i++){ const d = document.createElement("i"); if(i < inTray){ d.className = "in chip c" + opp; } ob.appendChild(d); }
@@ -490,13 +539,14 @@ function updateUI(){
 }
 function startGame(){
   starter = G ? 1 - starter : 0;
-  G = freshGame(); viewer = mode === "pvp" ? G.turn : 0; aiBusy = false;
+  G = freshGame(); viewer = mode === "pvp" ? G.turn : mode === "net" ? Net.me : 0; aiBusy = false;
   drawNotches(); setWheelAngles(); buildTokens(); updateUI(); snapshot();
   $("curtain").hidden = true;
   if(mode === "pvp") showCurtain();
   else if(isAI(G.turn)) setTimeout(aiPlay, 700);
+  else if(mode === "net") netStep();
 }
-$("newg").onclick = () => { if(!aiBusy) { Snd.swoosh(); startGame(); } };
+$("newg").onclick = () => { if(mode === "net"){ if(G.over) Net.send({t: "new"}, null, true); return; } if(!aiBusy) { Snd.swoosh(); startGame(); } };
 function setMode(m){
   if(m === mode || aiBusy) return;
   mode = m; scores = [0, 0]; G = null;
@@ -517,5 +567,13 @@ function start(data){
   } else startGame();
 }
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+
+if(window.Net) Net.setup({
+  game: "dix-de-chute", name: "Dix de Chute", min: 2, max: 2, bots: false,
+  seatName: k => COLORS[k],
+  current: () => G && !G.over ? G.turn : -1,
+  start(){ netGen++; mode = "net"; scores = [0, 0]; G = null; startGame(); },
+  leave(){ netGen++; mode = "ai"; scores = [0, 0]; G = null; $("m-ai").setAttribute("aria-pressed", true); $("m-pvp").setAttribute("aria-pressed", false); startGame(); }
+});
 })();
 </script>

@@ -306,19 +306,21 @@ function bestMove(b, p){
   }
   return list[Math.floor(Math.random() * list.length)];
 }
-function aiChoice(){
+function aiChoice(p = 2){
   const b = S.board.slice(), free = b.map((v, i) => v ? -1 : i).filter(i => i >= 0);
   const rnd = () => free[Math.floor(Math.random() * free.length)];
-  if(S.level === 3) return bestMove(b, 2);
-  if(S.level === 2) return Math.random() < .75 ? bestMove(b, 2) : rnd();
-  for(const i of free){ b[i] = 2; if(result(b) && result(b).p === 2){ return i; } b[i] = 0; }
-  return Math.random() < .3 ? bestMove(b, 2) : rnd();
+  if(S.level === 3) return bestMove(b, p);
+  if(S.level === 2) return Math.random() < .75 ? bestMove(b, p) : rnd();
+  for(const i of free){ b[i] = p; if(result(b) && result(b).p === p){ return i; } b[i] = 0; }
+  return Math.random() < .3 ? bestMove(b, p) : rnd();
 }
 
 /* ================= PARTIE ================= */
 let S = {board: Array(9).fill(0), turn: 1, over: false, win: null, scores: {1: 0, 2: 0}, starter: 1, mode: "pvp", level: 2};
 let busy = false;
-const names = () => S.mode === "ai" ? {1: "Vous", 2: "L'ordinateur"} : {1: "Bleu", 2: "Rouge"};
+let NETC = 0, netGen = 0;   // en ligne : symbole joué par ce navigateur
+const names = () => S.mode === "net" ? {1: Net.names[0], 2: Net.names[1]} : S.mode === "ai" ? {1: "Vous", 2: "L'ordinateur"} : {1: "Bleu", 2: "Rouge"};
+const notMine = () => S.mode === "net" && S.turn !== NETC;
 const aiTurn = () => S.mode === "ai" && S.turn === 2 && !S.over;
 
 const cells = [];
@@ -344,14 +346,17 @@ function updateUI(){
     t.className = "turn win";
     if(S.win && S.win.p){
       t.style.color = INK[S.win.p];
-      t.innerHTML = miniMark(S.win.p) + (S.mode === "ai" ? (S.win.p === 1 ? "Gagné, bravo !" : "L'ordinateur a gagné…") : n[S.win.p] + " a gagné !");
+      t.innerHTML = miniMark(S.win.p) + (S.mode === "ai" ? (S.win.p === 1 ? "Gagné, bravo !" : "L'ordinateur a gagné…") : S.mode === "net" && S.win.p === NETC ? "Gagné, bravo !" : n[S.win.p] + " a gagné !");
     } else { t.style.color = "var(--graphite)"; t.textContent = "Match nul, la grille est pleine."; }
   } else {
     t.className = "turn"; t.style.color = INK[S.turn];
-    t.innerHTML = miniMark(S.turn) + (aiTurn() ? "L'ordinateur réfléchit…" : S.mode === "ai" ? "À vous de jouer" : "Au tour de " + n[S.turn]);
+    t.innerHTML = miniMark(S.turn) + (aiTurn() ? "L'ordinateur réfléchit…" : S.mode === "ai" || (S.mode === "net" && !notMine()) ? "À vous de jouer" : S.mode === "net" ? n[S.turn] + " réfléchit…" : "Au tour de " + n[S.turn]);
   }
-  cells.forEach((b, i) => { b.disabled = !!S.board[i] || S.over || aiTurn(); });
+  cells.forEach((b, i) => { b.disabled = !!S.board[i] || S.over || aiTurn() || notMine(); });
   $("lv").hidden = S.mode !== "ai";
+  $("m-pvp").parentNode.hidden = S.mode === "net"; $("zero").hidden = S.mode === "net";
+  $("newg").disabled = S.mode === "net" && !S.over;
+  if(window.Net) Net.refresh();
   $("m-pvp").setAttribute("aria-pressed", S.mode === "pvp"); $("m-ai").setAttribute("aria-pressed", S.mode === "ai");
   document.querySelectorAll("#lv button").forEach(x => x.setAttribute("aria-pressed", +x.dataset.l === S.level));
 }
@@ -368,9 +373,16 @@ function play(i){
     } else Snd.draw();
   } else S.turn = 3 - S.turn;
   updateUI(); snapshot();
-  setTimeout(() => { busy = false; if(aiTurn()) scheduleAI(); }, S.turn === 1 || S.over ? 420 : 420);
+  const my = netGen;
+  setTimeout(() => { if(my !== netGen) return; busy = false; if(aiTurn()) scheduleAI(); if(S.mode === "net") netStep(); }, 420);
 }
-function humanPlay(i){ if(busy || S.over || S.board[i] || aiTurn()) return; play(i); }
+function humanPlay(i){ if(busy || S.over || S.board[i] || aiTurn() || notMine()) return; play(i); if(S.mode === "net") Net.send({i}); }
+function netStep(){
+  const my = netGen;
+  if(S.over){ Net.next().then(a => { if(my === netGen && S.mode === "net" && a && a.t === "new") newGame(false); }); return; }
+  if(notMine()) Net.turn(S.turn - 1, () => aiChoice(S.turn)).then(a => { if(my === netGen && S.mode === "net") play(a.i); });
+  else Net.mine(a => { if(my === netGen && S.mode === "net") play(a.i); });
+}
 function scheduleAI(){ updateUI(); setTimeout(() => { if(aiTurn()) play(aiChoice()); }, 450 + Math.random() * 350); }
 
 function redrawAll(){
@@ -391,10 +403,11 @@ function newGame(silent){
     $("marks").innerHTML = ""; $("winL").innerHTML = "";
     page.classList.remove("turning");
     drawGrid(true); updateUI(); snapshot();
-    setTimeout(() => { busy = false; if(aiTurn()) scheduleAI(); }, 1100);
+    const my = netGen;
+    setTimeout(() => { if(my !== netGen) return; busy = false; if(aiTurn()) scheduleAI(); if(S.mode === "net") netStep(); }, 1100);
   }, silent || reduced ? 0 : 360);
 }
-$("newg").onclick = () => newGame(false);
+$("newg").onclick = () => { if(S.mode === "net"){ if(S.over && !busy) Net.send({t: "new"}, null, true); return; } newGame(false); };
 $("zero").onclick = () => { S.scores = {1: 0, 2: 0}; drawTally($("t1"), 0); drawTally($("t2"), 0); snapshot(); };
 function setMode(m){
   if(busy || S.mode === m) return;
@@ -416,5 +429,16 @@ function start(data){
   else { S.starter = 2; newGame(true); }
 }
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+
+/* ================= En ligne (sur le site de la salle de jeux) ================= */
+if(window.Net) Net.setup({
+  game: "morpion", name: "Morpion", min: 2, max: 2, bots: false,
+  seatName: k => ["Croix bleue", "Rond rouge"][k],
+  current: () => S.over ? -1 : S.turn - 1,
+  start(info){ netGen++; busy = false; S.mode = "net"; NETC = info.me + 1; S.scores = {1: 0, 2: 0}; S.starter = 2;
+    drawTally($("t1"), 0); drawTally($("t2"), 0); newGame(true); },
+  leave(){ netGen++; busy = false; S.mode = "pvp"; S.scores = {1: 0, 2: 0}; S.starter = 2;
+    drawTally($("t1"), 0); drawTally($("t2"), 0); newGame(true); }
+});
 })();
 </script>

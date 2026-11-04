@@ -343,10 +343,12 @@ try{ const o = JSON.parse(load("mb_cfg") || "null"); if(o) cfg = Object.assign(c
 /* ================= ÉTAT ET RÈGLES =================
    Chaque joueur a sa main ; la route (piles, bornes, bottes) appartient à un « camp » :
    un joueur seul, ou une équipe de deux à 4 joueurs. */
-let S = null, token = 0, busy = false, sel = null;
+let S = null, token = 0, busy = false, sel = null, NETON = false, localCfg = null;
+const NET = () => NETON;
+const RND = () => NETON ? Net.rand() : Math.random();   // hasard partagé en ligne
 const teamMode = () => cfg.n === 4 && cfg.teams;
 const GOAL = () => cfg.goal || (cfg.n === 2 || teamMode() ? 1000 : 700);
-function shuffle(a){ for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function shuffle(a){ for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(RND() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 const N = () => S.players.length;
 const P = () => S.players[S.cur];
 const SD = i => S.sides[S.players[i].side];
@@ -386,7 +388,7 @@ function targets(i, c){
 function drawOne(){ return S.deck.length ? S.deck.pop() : null; }
 
 /* ================= AFFICHAGE ================= */
-function mainIdx(){ return cfg.who === "ai" ? 0 : (S.view ?? 0); }
+function mainIdx(){ return NET() ? Net.me : cfg.who === "ai" ? 0 : (S.view ?? 0); }
 const CARSVG = c => `<svg class="car" viewBox="0 0 40 26" aria-hidden="true" style="left:${c.pct}%"><g transform="translate(0 -9)">${CAR.replace('fill="#1f5fbf"', `fill="${c.col}"`)}</g></svg>`;
 function tabHTML(si, me){
   const s = S.sides[si], pct = Math.min(100, s.km / GOAL() * 100);
@@ -497,12 +499,13 @@ function toast(si, txt){
 /* ================= DÉROULEMENT ================= */
 function newGame(){
   token++;
-  const names = Array.from({length: cfg.n}, (_, i) => cfg.who === "ai" ? (i === 0 ? "Vous" : (cfg.n === 2 ? "L'ordinateur" : "Ordi " + i)) : "Joueur " + (i + 1));
-  const players = names.map((name, i) => ({name, ai: cfg.who === "ai" && i > 0, side: teamMode() ? i % 2 : i}));
+  if(NET()) Net.cancel();
+  const names = NET() ? Net.names.map((n, i) => i === Net.me ? "Vous" : n) : Array.from({length: cfg.n}, (_, i) => cfg.who === "ai" ? (i === 0 ? "Vous" : (cfg.n === 2 ? "L'ordinateur" : "Ordi " + i)) : "Joueur " + (i + 1));
+  const players = names.map((name, i) => ({name, ai: NET() ? i !== Net.me : cfg.who === "ai" && i > 0, side: teamMode() ? i % 2 : i}));
   const sides = teamMode()
     ? [0, 1].map(k => ({members: [k, k + 2], name: names[k] + " & " + names[k + 2], col: PCOL[k], score: 0}))
     : players.map((p, i) => ({members: [i], name: p.name, col: PCOL[i], score: 0}));
-  S = {players, sides, round: 0, first: Math.floor(Math.random() * cfg.n)};
+  S = {players, sides, round: 0, first: Math.floor(RND() * cfg.n)};
   newRound();
 }
 async function newRound(){
@@ -538,18 +541,35 @@ async function startTurn(){
     p.hand.push(c); if(!p.ai) S.fresh = c;
   }
   busy = false; render();
+  if(NET()){
+    if(S.cur === Net.me){ Net.mine(a => { if(my === token) netApply(a); }); return; }
+    busy = true; render();
+    const a = await Net.turn(S.cur, () => aiDecide(S.cur)); if(my !== token) return;
+    await sleep(D(300)); if(my !== token) return;
+    return netApply(a);
+  }
   if(p.ai){ busy = true; render(); await sleep(D(800)); if(my !== token) return; busy = false; aiTurn(); }
+}
+function netApply(a){
+  const i = S.cur, p = P();
+  busy = true; sel = null;
+  const c = a && p.hand.find(x => x.id === (a.play !== undefined ? a.play : a.disc));
+  if(!c){ busy = false; return nextPlayer(); }
+  if(a.play !== undefined) return play(i, c, a.t);
+  return discard(i, c);
 }
 function nextPlayer(){ S.cur = (S.cur + 1) % N(); startTurn(); }
 
 async function humanPlay(c, tgt){
   if(!humanTurn()) return;
   if(!targets(S.cur, c).includes(tgt)){ Snd.nope(); return; }
+  if(NET()) Net.send({play: c.id, t: tgt});
   busy = true; sel = null;
   await play(S.cur, c, tgt);
 }
 async function humanDiscard(c){
   if(!humanTurn()) return;
+  if(NET()) Net.send({disc: c.id});
   busy = true; sel = null;
   await discard(S.cur, c);
 }
@@ -613,6 +633,17 @@ async function play(i, c, tgt){
 }
 function askCF(hj, ti, by, c, boot){
   const H = S.players[hj];
+  if(NET() && hj !== Net.me) return Net.turn(hj, () => ({cf: cfg.lvl > 1 || Math.random() < .7})).then(a => sleep(D(300)).then(() => !!a.cf));
+  if(NET()) return new Promise(res => {
+    $("cfrow").innerHTML = cardHTML(c) + '<span style="font-size:1.6rem">→</span>' + cardHTML(boot);
+    $("cftext").textContent = `${S.players[by].name} attaque ${S.sides[ti].name} avec ${KINDS[c.t].name}, mais vous avez la botte ${KINDS[boot.t].name} ! La jouer maintenant annule l'attaque, rapporte 300 points de plus, et c'est à vous de jouer.`;
+    $("cfbox").hidden = false;
+    let done = false;
+    const fin = (v, remote) => { if(done) return; done = true; $("cfbox").hidden = true; if(!remote) Net.send({cf: v}); res(v); };
+    $("cfyes").onclick = () => fin(true);
+    $("cfno").onclick = () => fin(false);
+    Net.mine(a => fin(!!a.cf, true));
+  });
   if(H.ai) return sleep(D(400)).then(() => cfg.lvl > 1 || Math.random() < .7);
   return new Promise(res => {
     const go = () => {
@@ -678,6 +709,57 @@ function aiTurn(){
   busy = false; nextPlayer();
 }
 
+/* l'hôte décide pour un ordinateur en ligne (même réflexion, mais renvoie le coup) */
+function aiDecide(i0){
+  const i = i0, p = S.players[i0], M = SD(i), lvl = cfg.lvl;
+  const opts = [];
+  const need = GOAL() - M.km;
+  for(const c of p.hand){
+    const tg = targets(i, c), k = kindOf(c);
+    for(const t of tg){
+      let v = 0;
+      if(k === "km"){ v = 35 + c.v / 4; if(c.v === need) v += 200; if(c.v === 200 && lvl === 3 && need > 300 && M.n200 === 0) v -= 12; }
+      else if(k === "rem") v = c.t === "green" ? 70 : c.t === "endlim" ? (p.hand.some(x => x.t === "km" && x.v > 50) ? 55 : 12) : 80;
+      else if(k === "safe"){
+        const b = topB(M), cures = (b && SAFE_COVERS[c.t].includes(b.t)) || (c.t === "prio" && (limited(M) || !rolling(M)));
+        v = cures ? 90 : lvl === 3 ? (S.deck.length < 12 ? 40 : -5) : lvl === 2 ? 25 : 50;
+      }
+      else {
+        const q = S.sides[t];
+        v = 28 + q.km / 25 + (GOAL() - q.km <= 300 ? 45 : 0) + (c.t === "lim" ? -8 : 0);
+        if(rolling(M) && p.hand.some(x => kindOf(x) === "km" && targets(i, x).includes("self"))) v -= 12;   // avancer d'abord
+        if(lvl === 1) v -= 15;
+      }
+      if(lvl === 1) v += Math.random() * 30;
+      opts.push({c, t, v});
+    }
+  }
+  opts.sort((a, b) => b.v - a.v);
+  if(opts.length && opts[0].v > 0) return {play: opts[0].c.id, t: opts[0].t};
+  // défausser la carte la moins utile : on garde un feu vert et une parade de chaque sorte
+  const count = t => p.hand.filter(x => x.t === t).length;
+  const anyTarget = h => S.sides.some(q => q !== M && !immune(q, h));
+  const useless = c => {
+    const k = kindOf(c);
+    if(k === "safe") return -100;
+    if(k === "km"){
+      if(c.v > need || (c.v === 200 && cfg.lim200 && M.n200 >= 2)) return 95;
+      return 40 - c.v / 10 + (count(c.t) > 3 ? 5 : 0);
+    }
+    if(k === "rem"){
+      if(c.t === "green") return hasSafe(M, "prio") ? 98 : count("green") >= 3 ? 34 : 3;
+      if(c.t === "endlim") return hasSafe(M, "prio") ? 98 : count("endlim") >= 2 ? 50 : 22;
+      if(M.safes.some(s => SAFE_COVERS[s.t].includes(HAZ_OF_REM[c.t]))) return 99;
+      return count(c.t) >= 2 ? 45 : 10;
+    }
+    if(!anyTarget(c.t)) return 92;
+    return c.t === "lim" ? 42 : 30;
+  };
+  const worst = p.hand.slice().sort((a, b) => useless(b) - useless(a))[0];
+  if(worst) return {disc: worst.id};
+  return {pass: 1};
+}
+
 /* ================= FIN DE MANCHE ================= */
 function roundPoints(si){
   const s = S.sides[si], r = {km: s.km, safes: s.safes.length * 100, all: s.safes.length === 4 ? 300 : 0, cf: s.cfs * 300, trip: 0, safe: 0, delayed: 0, shut: 0};
@@ -718,17 +800,19 @@ function showScores(end){
   const btns = $("scbtns"); btns.innerHTML = "";
   const mk = (t, fn, cls) => { const b = document.createElement("button"); b.textContent = t; if(cls) b.className = cls; b.onclick = fn; btns.appendChild(b); };
   if(!end) mk("Fermer", () => $("scores").hidden = true, "primary");
+  else if(NET()) mk(S.over ? "Nouvelle partie" : "Manche suivante", () => Net.send({t: "next"}, null, true), "primary");
   else if(S.over) mk("Nouvelle partie", () => newGame(), "primary");
   else mk("Manche suivante", () => newRound(), "primary");
   $("scores").hidden = false;
+  if(end && NET()){ const my = token; Net.next().then(a => { if(my === token && NET() && a && a.t === "next") (S.over ? newGame() : newRound()); }); }
   if(end){
-    const hs = S.players[0].side;
+    const hs = S.players[NET() ? Net.me : 0].side;
     const good = cfg.who === "hot" || (S.over ? winners.includes(ss[hs]) : S.res[hs].total === Math.max(...S.res.map(r => r.total)));
     good ? Snd.win() : Snd.meh();
   }
 }
 $("scorebtn").onclick = () => { if(S && S.phase !== "end") showScores(false); };
-$("newg").onclick = () => newGame();
+$("newg").onclick = () => { if(!NET()) newGame(); };
 
 /* ================= RÉGLAGES ================= */
 let draft = null;
@@ -737,7 +821,7 @@ function paintSettings(){
   $("optlvl").hidden = draft.who !== "ai";
   $("optteams").hidden = draft.n !== 4;
 }
-$("setbtn").onclick = () => { draft = Object.assign({}, cfg); paintSettings(); $("settings").hidden = false; };
+$("setbtn").onclick = () => { if(NET()) return; draft = Object.assign({}, cfg); paintSettings(); $("settings").hidden = false; };
 document.querySelectorAll("#settings .seg").forEach(seg => seg.addEventListener("click", e => {
   const b = e.target.closest("button"); if(!b) return;
   draft[seg.dataset.k] = seg.dataset.k === "who" ? b.dataset.v : +b.dataset.v; paintSettings();
@@ -746,6 +830,17 @@ $("setcancel").onclick = () => { $("settings").hidden = true; };
 $("setok").onclick = () => { cfg = draft; save("mb_cfg", JSON.stringify(cfg)); $("settings").hidden = true; newGame(); };
 document.addEventListener("keydown", e => { if(e.key === "Escape"){ $("settings").hidden = true; if(S && S.phase !== "end") $("scores").hidden = true; if(sel){ sel = null; render(); } } });
 
+const _render = render;
+render = function(){ _render(); $("newg").hidden = NET(); $("setbtn").disabled = NET(); if(window.Net) Net.refresh(); };
 newGame();
+
+if(window.Net) Net.setup({
+  game: "mille-bornes", name: "1000 Bornes", min: 2, max: 4, bots: true, seats: () => cfg.n,
+  cfg: () => cfg,
+  seatName: (k, n) => n === 4 && cfg.teams ? (k % 2 ? "Équipe B" : "Équipe A") : "Place " + (k + 1),
+  current: () => S && S.cur >= 0 && S.phase === "play" ? S.cur : -1,
+  start(info){ localCfg = Object.assign({}, cfg); cfg = Object.assign({}, cfg, info.cfg, {n: info.n, who: "ai"}); NETON = true; newGame(); },
+  leave(){ NETON = false; if(localCfg) cfg = localCfg; newGame(); }
+});
 })();
 </script>

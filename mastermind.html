@@ -226,7 +226,11 @@ function allCodes(rep){
 const randomCode = rep => { const all = allCodes(rep); return all[rnd(all.length)].slice(); };
 
 /* ================= ÉTAT ================= */
-let S = null, busy = false;
+let S = null, busy = false, netGen = 0, netRound = 0, netPts = [0, 0];
+const NET = () => S && S.mode === "net";
+const iMake = () => NET() && S.maker === Net.me;     // je compose le code
+const iBreak = () => NET() && S.maker !== Net.me;    // je cherche le code
+const other = () => Net.names[1 - Net.me];
 function fresh(mode, rep){
   return {mode, rep, phase: mode === "solo" ? "play" : "setup", code: mode === "solo" ? randomCode(rep) : [null, null, null, null],
           rows: [], cur: [null, null, null, null], sel: 0, cands: null, won: false};
@@ -257,13 +261,14 @@ const pegHTML = (c, drop) => c === null || c === undefined ? "" : `<span class="
 
 function render(dropAt){
   const editing = S.phase === "setup" && S.mode !== "cpu-wait";
+  const net = NET();
   // code
   const ch = $("coderow").querySelectorAll(".hole");
   ch.forEach((h, i) => { h.innerHTML = pegHTML(S.code[i], dropAt && dropAt.code && dropAt.i === i); h.classList.toggle("sel", S.phase === "setup" && S.sel === i); });
   $("coderow").classList.toggle("edit", S.phase === "setup");
   // rangées
   rowEls.forEach((row, r) => {
-    const done = S.rows[r], isCur = S.phase === "play" && r === S.rows.length && S.mode !== "cpu";
+    const done = S.rows[r], isCur = S.phase === "play" && r === S.rows.length && S.mode !== "cpu" && !iMake();
     row.classList.toggle("cur", isCur || (S.phase === "play" && S.mode === "cpu" && r === S.rows.length));
     const holes = row.querySelectorAll(".hole");
     holes.forEach((h, i) => {
@@ -279,18 +284,26 @@ function render(dropAt){
     });
   });
   // boutons
-  const guessing = S.phase === "play" && S.mode !== "cpu";
+  const guessing = S.phase === "play" && S.mode !== "cpu" && !iMake();
+  const setting = S.phase === "setup" && !iBreak();
   const target = S.phase === "setup" ? S.code : S.cur;
   const full = target.every(v => v !== null);
-  $("submit").disabled = busy || !(S.phase === "setup" || guessing) || !full;
+  $("submit").disabled = busy || !(setting || guessing) || !full;
   $("submit").textContent = S.phase === "setup" ? (S.mode === "cpu" ? "Valider mon code" : "Cacher le code") : "Valider";
-  $("clear").disabled = busy || !(S.phase === "setup" || guessing);
-  $("palette").querySelectorAll("button").forEach(b => b.disabled = busy || !(S.phase === "setup" || guessing));
-  $("shield").classList.toggle("open", S.phase !== "play" || S.mode === "cpu");
+  $("clear").disabled = busy || !(setting || guessing);
+  $("palette").querySelectorAll("button").forEach(b => b.disabled = busy || !(setting || guessing));
+  $("shield").classList.toggle("open", S.phase === "over" || (S.phase === "setup" && !iBreak()) || S.mode === "cpu" || iMake());
+  document.querySelector(".seg").hidden = net; $("rep").parentNode.hidden = net; $("newg").disabled = net && S.phase !== "over";
+  document.querySelector(".best span").textContent = net ? "Points (" + Net.names.join(" / ") + ")" : "Meilleur score (Je devine)";
+  if(window.Net) Net.refresh();
   // statut
   const st = $("status"); st.className = "";
   const n = S.rows.length;
-  if(S.phase === "setup"){
+  if(net){
+    if(S.phase === "setup") st.textContent = iMake() ? `Composez un code secret de 4 couleurs : ${other()} va essayer de le trouver.` : `${other()} compose le code secret…`;
+    else if(S.phase === "play") st.textContent = iBreak() ? `Essai ${n + 1} sur ${TRIES} : posez 4 fiches puis validez.` : `${other()} cherche votre code… essai ${n + 1} sur ${TRIES}.`;
+    else { st.className = "win"; st.textContent = iBreak() ? (S.won ? `Trouvé en ${n} essai${n > 1 ? "s" : ""} !` : "Perdu… voici le code secret.") : (S.won ? `${other()} a trouvé en ${n} essai${n > 1 ? "s" : ""}.` : "Votre code a tenu bon !"); }
+  } else if(S.phase === "setup"){
     st.textContent = S.mode === "duo" ? "Joueur 1 : composez le code secret (le joueur 2 ne regarde pas), puis cachez-le." : "Composez un code secret de 4 couleurs : l'ordinateur va essayer de le trouver.";
   } else if(S.phase === "play"){
     st.textContent = S.mode === "cpu" ? `L'ordinateur réfléchit… essai ${n + 1} sur ${TRIES}.` : `Essai ${n + 1} sur ${TRIES} : posez 4 fiches puis validez.`;
@@ -301,13 +314,13 @@ function render(dropAt){
   }
   document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.m === S.mode));
   $("rep").setAttribute("aria-checked", S.rep);
-  const best = load("mm_best"); $("best").textContent = best ? best + " essai" + (+best > 1 ? "s" : "") : "—";
+  const best = load("mm_best"); $("best").textContent = net ? netPts.join(" – ") : best ? best + " essai" + (+best > 1 ? "s" : "") : "—";
 }
 
 /* ================= SAISIE ================= */
 function pick(c){
   if(busy) return;
-  const arr = S.phase === "setup" ? S.code : (S.phase === "play" && S.mode !== "cpu" ? S.cur : null);
+  const arr = S.phase === "setup" ? (iBreak() ? null : S.code) : (S.phase === "play" && S.mode !== "cpu" && !iMake() ? S.cur : null);
   if(!arr) return;
   if(!S.rep && arr.includes(c) && arr[S.sel] !== c){ Snd.nope(); flash("Couleurs répétées désactivées : chaque couleur une seule fois."); return; }
   let i = arr[S.sel] === null ? S.sel : arr.indexOf(null);
@@ -317,17 +330,17 @@ function pick(c){
   render(S.phase === "setup" ? {code: true, i} : {r: S.rows.length, i}); snapshot();
 }
 function holeClick(r, i){
-  if(busy || S.phase !== "play" || S.mode === "cpu" || r !== S.rows.length) return;
+  if(busy || S.phase !== "play" || S.mode === "cpu" || iMake() || r !== S.rows.length) return;
   if(S.cur[i] !== null){ S.cur[i] = null; Snd.pegOut(); }
   S.sel = i; render(); snapshot();
 }
 function codeHoleClick(i){
-  if(busy || S.phase !== "setup") return;
+  if(busy || S.phase !== "setup" || iBreak()) return;
   if(S.code[i] !== null){ S.code[i] = null; Snd.pegOut(); }
   S.sel = i; render(); snapshot();
 }
 $("clear").onclick = () => {
-  if(busy) return;
+  if(busy || $("clear").disabled) return;
   const arr = S.phase === "setup" ? S.code : S.cur;
   if(arr.some(v => v !== null)) Snd.pegOut();
   for(let i = 0; i < LEN; i++) arr[i] = null; S.sel = 0; render(); snapshot();
@@ -349,21 +362,25 @@ async function submitGuess(g){
     S.phase = "over"; S.won = fb.b === LEN;
     Snd.shield();
     if(S.mode === "solo" && S.won){ const b = +(load("mm_best") || 99); if(S.rows.length < b) save("mm_best", S.rows.length); }
-    (S.mode === "cpu" ? !S.won : S.won) ? Snd.win() : Snd.lose();
+    if(NET()){ netPts[S.maker] += S.rows.length + (S.won ? 0 : 1); }
+    (S.mode === "cpu" || iMake() ? !S.won : S.won) ? Snd.win() : Snd.lose();
   }
   busy = false; render(); snapshot();
   if(S.phase === "play" && S.mode === "cpu") cpuStep();
+  if(NET()) netStep();
 }
 $("submit").onclick = () => {
-  if(busy) return;
+  if(busy || $("submit").disabled) return;
   if(S.phase === "setup"){
     if(S.code.some(v => v === null)) return;
+    if(NET()){ Net.send({code: S.code.slice()}); Snd.shield(); S.sel = 0; S.phase = "play"; render(); netStep(); return; }
     Snd.shield(); S.sel = 0;
     if(S.mode === "duo"){ S.phase = "play"; render(); $("curtain").hidden = false; }
     else { S.phase = "play"; S.cands = allCodes(S.rep); render(); cpuStep(); }
     snapshot(); return;
   }
   if(S.cur.some(v => v === null)) return;
+  if(NET()) Net.send({g: S.cur.slice()});
   submitGuess(S.cur);
 };
 $("ready").onclick = () => { $("curtain").hidden = true; render(); };
@@ -398,6 +415,28 @@ async function cpuStep(){
   submitGuess(g);
 }
 
+/* ================= EN LIGNE : chacun compose puis devine à tour de rôle ================= */
+function candsNow(){ return allCodes(S.rep).filter(c => S.rows.every(r => { const s = score(c, r.g); return s.b === r.fb.b && s.w === r.fb.w; })); }
+async function remoteGuess(g){
+  const s0 = S;
+  for(let i = 0; i < LEN; i++){ S.cur[i] = g[i]; Snd.pegIn(g[i]); render({r: S.rows.length, i}); await sleep(220); if(S !== s0) return; }
+  await sleep(250); if(S !== s0) return;
+  submitGuess(g);
+}
+function netStep(){
+  const my = netGen;
+  const ok = () => my === netGen && NET();
+  if(S.phase === "over"){ Net.next().then(a => { if(ok() && a && a.t === "new") netNew(); }); return; }
+  if(S.phase === "setup"){
+    const take = a => { if(!ok()) return; S.code = a.code; S.phase = "play"; Snd.shield(); render(); netStep(); };
+    if(iMake()) Net.mine(take); else Net.turn(S.maker, () => ({code: randomCode(S.rep)})).then(take);
+    return;
+  }
+  if(iBreak()) Net.mine(a => { if(ok()) remoteGuess(a.g); });
+  else Net.turn(1 - S.maker, () => { S.cands = candsNow(); return {g: cpuGuess()}; }).then(a => { if(ok()) remoteGuess(a.g); });
+}
+function netNew(){ netRound++; busy = false; S = fresh("duo", Net.cfg && Net.cfg.rep !== undefined ? !!Net.cfg.rep : true); S.mode = "net"; S.maker = netRound % 2; render(); netStep(); }
+
 /* ================= MODES ================= */
 function newGame(mode = S ? S.mode : "solo", rep = S ? S.rep : true){
   busy = false; S = fresh(mode, rep); $("curtain").hidden = true;
@@ -405,7 +444,7 @@ function newGame(mode = S ? S.mode : "solo", rep = S ? S.rep : true){
 }
 document.querySelectorAll(".seg button").forEach(b => b.onclick = () => { if(b.dataset.m !== S.mode) newGame(b.dataset.m); });
 $("rep").onclick = () => { newGame(S.mode, !S.rep); flash(S.rep ? "Couleurs répétées autorisées (nouvelle partie)." : "Couleurs toutes différentes (nouvelle partie)."); };
-$("newg").onclick = () => newGame();
+$("newg").onclick = () => { if(NET()){ if(S.phase === "over") Net.send({t: "new"}, null, true); return; } newGame(); };
 document.addEventListener("keydown", e => {
   if(e.target.tagName === "BUTTON" && (e.key === "Enter" || e.key === " ")) return;
   if(e.key >= "1" && e.key <= "6") pick(+e.key - 1);
@@ -420,5 +459,14 @@ function start(data){
   else newGame("solo", true);
 }
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+
+if(window.Net) Net.setup({
+  game: "mastermind", name: "Mastermind", min: 2, max: 2, bots: false,
+  cfg: () => ({rep: S ? S.rep : true}),
+  seatName: k => k === 0 ? "Compose le 1er code" : "Devine le 1er code",
+  current: () => !NET() || S.phase === "over" ? -1 : S.phase === "setup" ? S.maker : 1 - S.maker,
+  start(){ netGen++; netRound = -1; netPts = [0, 0]; netNew(); },
+  leave(){ netGen++; newGame("solo", true); }
+});
 })();
 </script>
