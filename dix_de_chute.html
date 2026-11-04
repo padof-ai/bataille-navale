@@ -1,0 +1,521 @@
+<title>Dix de Chute</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800&display=swap">
+<style>
+/* Layout : la tour au centre sous la lampe ; à côté (ou au-dessus sur téléphone), le tableau de bord du tour. */
+:root{
+  color-scheme:dark;
+  --room:#0d1022; --lamp:#2a2660; --felt:#171c3a;
+  --ink:#eef1ff; --muted:#9aa3cf; --line:rgba(154,163,207,.22);
+  --red:#e3242b; --green:#1fb45a; --violet:#6a3df0; --gold:#f7c600;
+  --display:"Lilita One","Arial Rounded MT Bold","Trebuchet MS",sans-serif;
+  --body:"Nunito","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:radial-gradient(ellipse 70% 55% at 50% 40%,var(--lamp) 0,var(--room) 72%) fixed,var(--room);
+  color:var(--ink);font-family:var(--body);-webkit-tap-highlight-color:transparent}
+.app{max-width:860px;margin:0 auto;padding-block:10px 22px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px 26px;align-items:start}
+.top{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px}
+h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(1.7rem,6vw,2.3rem);line-height:1;text-shadow:0 3px 0 #2b1580,0 6px 14px rgba(0,0,0,.5)}
+h1 span{color:var(--gold)}
+button{font:inherit;font-weight:800;color:var(--ink);background:var(--felt);border:1px solid var(--line);border-radius:12px;padding:10px 14px;cursor:pointer}
+button:hover:not(:disabled){border-color:rgba(154,163,207,.55)}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button:disabled{opacity:.4;cursor:default}
+#snd{padding:8px 12px;font-size:.85rem}
+
+.stage{position:relative;display:flex;justify-content:center;min-width:0}
+#tw{display:block;width:min(100%,400px,max(270px,calc((100svh - 120px) * 300 / 980)));max-width:100%;height:auto;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.wb{cursor:pointer}
+.wb circle{transition:fill .15s}
+.wb:hover:not(.off) circle.face{fill:#8a63ff}
+.wb.off{cursor:default;opacity:.28}
+.wb:focus-visible{outline:none}
+.wb:focus-visible circle.face{stroke:var(--gold);stroke-width:4}
+.wheel{transition:transform .26s cubic-bezier(.3,1.6,.5,1)}
+.lock{opacity:0;transition:opacity .2s}
+.lock.on{opacity:1}
+
+/* Tableau de bord */
+.panel{display:flex;flex-direction:column;gap:12px;min-width:0}
+.card{background:var(--felt);border:1px solid var(--line);border-radius:14px;padding:14px}
+#status{font-weight:800;font-size:1.02rem;line-height:1.35;min-height:2.7em}
+#status.win{font-family:var(--display);font-weight:400;font-size:1.35rem;color:var(--gold);animation:pop .5s ease-out}
+@keyframes pop{from{transform:scale(1.4);opacity:0}}
+.who{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.chip{width:16px;height:16px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 3px rgba(0,0,0,.18)}
+.chip.c0{background:radial-gradient(circle at 38% 32%,#ff8f80,var(--red) 50%,#860b12)}
+.chip.c1{background:radial-gradient(circle at 38% 32%,#8cf2b1,var(--green) 50%,#0b6a32)}
+.cr{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
+.dots{display:flex;gap:6px}
+.dots i{width:14px;height:14px;border-radius:4px;background:#2a3160;border:1px solid var(--line)}
+.dots i.on{background:var(--gold);border-color:var(--gold)}
+#endt{background:var(--gold);border-color:var(--gold);color:#3d2a00;flex:none}
+.bac{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:.9rem}
+.bac .row{display:flex;gap:5px}
+.bac .row i{width:18px;height:18px;border-radius:50%;background:#2a3160;border:1px dashed rgba(154,163,207,.4)}
+.bac .row i.in{border:0}
+.score{display:flex;justify-content:space-between;font-size:.9rem;color:var(--muted)}
+.score b{font-family:var(--display);font-weight:400;font-size:1.3rem;color:var(--ink);font-variant-numeric:tabular-nums}
+.seg{display:flex;background:#10142c;border:1px solid var(--line);border-radius:12px;padding:3px}
+.seg button{flex:1;border:0;background:transparent;padding:8px 10px;border-radius:9px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--violet);color:#fff;box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
+.btnrow{display:flex;gap:8px}
+.btnrow button{flex:1}
+details{font-size:.88rem;line-height:1.5;color:var(--muted)}
+details summary{cursor:pointer;color:var(--ink);font-weight:800}
+details ul{margin:8px 0 0;padding-left:18px}
+details li{margin-bottom:4px}
+
+/* Écran de passage (2 joueurs) */
+.curtain{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;
+  background:rgba(13,16,34,.94);border-radius:18px;padding:24px;backdrop-filter:blur(6px)}
+.curtain p{margin:0;max-width:26ch;color:var(--muted);line-height:1.45}
+.curtain h2{margin:0;font-family:var(--display);font-weight:400;font-size:1.8rem}
+.curtain button{background:var(--gold);border-color:var(--gold);color:#3d2a00;padding:13px 22px;font-size:1.05rem}
+
+@media (max-width:720px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .panel{display:contents}
+  #turncard{order:-1;grid-row:2}
+  .stage{grid-row:3}
+}
+@media (prefers-reduced-motion:reduce){.wheel{transition:none}#status.win{animation:none}}
+</style>
+
+<div class="app">
+  <div class="top">
+    <h1>Dix de <span>Chute</span></h1>
+    <button id="snd" aria-label="Activer ou couper le son"></button>
+  </div>
+
+  <div class="stage">
+    <svg id="tw" viewBox="0 0 300 980" role="img" aria-label="Tour à cinq roues crantées">
+      <defs>
+        <linearGradient id="gFrame" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4a22c4"/><stop offset=".18" stop-color="#7a50ff"/><stop offset=".55" stop-color="#6a3df0"/><stop offset="1" stop-color="#3a1aa0"/></linearGradient>
+        <linearGradient id="gGloss" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".12" stop-color="#fff" stop-opacity=".22"/><stop offset=".22" stop-color="#fff" stop-opacity="0"/></linearGradient>
+        <radialGradient id="gWheel" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#7ff3ff" stop-opacity=".95"/><stop offset=".6" stop-color="#19b7c9" stop-opacity=".92"/><stop offset="1" stop-color="#0b6f80"/></radialGradient>
+        <linearGradient id="gTube" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".05"/><stop offset=".3" stop-color="#fff" stop-opacity=".28"/><stop offset=".45" stop-color="#fff" stop-opacity=".04"/><stop offset="1" stop-color="#fff" stop-opacity=".12"/></linearGradient>
+        <radialGradient id="gT0" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#ff8f80"/><stop offset=".5" stop-color="#e3242b"/><stop offset="1" stop-color="#860b12"/></radialGradient>
+        <radialGradient id="gT1" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#8cf2b1"/><stop offset=".5" stop-color="#1fb45a"/><stop offset="1" stop-color="#0b6a32"/></radialGradient>
+        <radialGradient id="gBtn" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#9b7bff"/><stop offset="1" stop-color="#4a22c4"/></radialGradient>
+      </defs>
+      <g id="frame"></g>
+      <g id="wheels"></g>
+      <g id="tokens"></g>
+      <g id="glass"></g>
+      <g id="ctrls"></g>
+    </svg>
+    <div class="curtain" id="curtain" hidden>
+      <h2 id="ctitle">Au tour de Vert</h2>
+      <p id="ctext">Passez l'appareil. L'autre joueur ne doit pas regarder votre face de la tour.</p>
+      <button id="ready">Je suis prêt</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="card" id="turncard">
+      <div class="who"><span class="chip c0" id="mychip"></span><span id="myname">Votre face</span></div>
+      <div id="status" aria-live="polite"></div>
+      <div class="cr">
+        <div><div class="who" style="margin:0 0 4px">Crans ce tour</div><div class="dots" id="dots"></div></div>
+        <button id="endt" disabled>Terminer mon tour</button>
+      </div>
+    </div>
+    <div class="card bac">
+      <span id="oppname">Bac adverse</span>
+      <span class="row" id="oppbac"></span>
+    </div>
+    <div class="card" style="display:flex;flex-direction:column;gap:10px">
+      <div class="seg" role="group" aria-label="Mode de jeu">
+        <button id="m-ai" aria-pressed="true">Contre l'ordinateur</button>
+        <button id="m-pvp" aria-pressed="false">2 joueurs</button>
+      </div>
+      <div class="score"><span id="sn0">Vous</span><b id="sc0">0</b><b id="sc1">0</b><span id="sn1">Ordinateur</span></div>
+      <div class="btnrow"><button id="newg">Nouvelle partie</button></div>
+    </div>
+    <div class="card">
+      <details>
+        <summary>Règles du jeu</summary>
+        <ul>
+          <li>Chaque joueur a sa face de la tour et 5 jetons numérotés. Vous ne voyez ni les jetons ni les encoches de l'adversaire.</li>
+          <li>À votre tour, tournez <b>une seule roue</b> de 1 à 4 crans, dans le sens de votre choix, avec ↺ et ↻.</li>
+          <li>À chaque cran, si une encoche de votre couleur passe devant votre tube, elle fait tomber le jeton posé sur cette roue jusqu'à la roue suivante.</li>
+          <li>Les roues sont communes aux deux faces : votre rotation peut aussi faire tomber les jetons adverses.</li>
+          <li>Interdit de tourner la roue que l'adversaire vient de tourner (cadenas), sauf la roue 5 si votre jeton 5 y attend.</li>
+          <li>Le premier dont les 5 jetons arrivent dans le bac gagne.</li>
+        </ul>
+      </details>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const NS = "http://www.w3.org/2000/svg";
+const NW = 5, K = 8, MAXC = 4, NT = 5;
+const R = 62, TX = 46, CX = TX + R, S = 160, TOP = 30;
+const cyW = w => TOP + S * (w + 1);
+const restY = (level, idx) => cyW(level) - 19 - idx * 29;
+const TRAY_Y = cyW(NW - 1) + R + 44;
+const trayX = i => TX + i * 31;
+const COLORS = ["Rouge", "Vert"];
+const reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const $ = id => document.getElementById(id);
+const el = (tag, a, parent) => { const e = document.createElementNS(NS, tag); for(const k in a) e.setAttribute(k, a[k]); if(parent) parent.appendChild(e); return e; };
+const mod = n => ((n % K) + K) % K;
+const load = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const save = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+
+/* ================= SONS ================= */
+const Snd = {
+  ctx: null, on: load("dc_sound") !== "0", nb: null,
+  init(){
+    if(!this.ctx){
+      const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
+      this.ctx = new AC(); this.out = this.ctx.createGain(); this.out.gain.value = .9; this.out.connect(this.ctx.destination);
+      const n = this.ctx.sampleRate, b = this.ctx.createBuffer(1, n, n), d = b.getChannelData(0);
+      for(let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      this.nb = b;
+    }
+    if(this.ctx.state === "suspended") this.ctx.resume();
+  },
+  ok(){ return this.on && this.ctx; },
+  env(g, t, dur, peak){ g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .003); g.gain.exponentialRampToValueAtTime(.0001, t + dur); },
+  noise(dur, type, f, q, peak, delay = 0){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.nb; fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+    this.env(g, t, dur, peak); s.connect(fl).connect(g).connect(this.out); s.start(t, Math.random() * .5); s.stop(t + dur + .02);
+  },
+  tone(type, f0, f1, dur, peak, delay = 0){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(f1, 30), t + dur);
+    this.env(g, t, dur, peak); o.connect(g).connect(this.out); o.start(t); o.stop(t + dur + .02);
+  },
+  /* cliquetis du cran : le cliquet saute la dent puis retombe */
+  ratchet(){
+    this.noise(.018, "highpass", 4200, 1, .35);
+    this.tone("square", 2600, 1700, .018, .06);
+    this.noise(.03, "bandpass", 1900, 5, .3, .05);
+    this.tone("triangle", 900, 600, .04, .12, .05);
+  },
+  /* jeton qui tombe sur une roue ou dans le bac */
+  clack(k = 1){
+    const p = 1 + (Math.random() - .5) * .2;
+    this.noise(.04, "bandpass", 3000 * p, 4, .5 * k);
+    this.tone("triangle", 1400 * p, 850 * p, .05, .2 * k);
+    this.tone("sine", 380 * p, 240, .07, .32 * k);
+  },
+  pass(){ this.noise(.09, "bandpass", 1500, 2, .12); },
+  roll(){ for(let i = 0; i < 4; i++) this.noise(.03, "bandpass", 2200 - i * 200, 3, .08, .06 + i * .07); },
+  /* jeton adverse qui tombe, entendu à travers la tour */
+  muffled(){ this.noise(.09, "lowpass", 700, 1, .4); this.tone("sine", 260, 160, .1, .25); },
+  bump(){ this.tone("square", 160, 110, .12, .07); },
+  win(){ [523, 659, 784, 1047, 784, 1047].forEach((f, i) => this.tone("triangle", f, f, i > 3 ? .5 : .17, .2, .1 + i * .14)); },
+  lose(){ [392, 349, 311, 262].forEach((f, i) => this.tone("sawtooth", f, f * .97, .45, .06, .1 + i * .38)); },
+  swoosh(){ this.noise(.35, "bandpass", 900, .8, .15); }
+};
+function sndLabel(){ $("snd").textContent = Snd.on ? "🔊 Son" : "🔇 Muet"; }
+$("snd").onclick = () => { Snd.on = !Snd.on; save("dc_sound", Snd.on ? "1" : "0"); Snd.init(); sndLabel(); };
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => Snd.init(), {capture: true}));
+sndLabel();
+
+/* ================= ÉTAT ================= */
+let G = null, viewer = 0, mode = "ai", scores = [0, 0], starter = 0, aiBusy = false;
+const tokEls = [];       // éléments des jetons de la face visible
+const tokPos = [];       // position affichée {x,y}
+
+function newNotches(){
+  const n = [[], []];
+  for(let w = 0; w < NW; w++){
+    let a, b;
+    do{
+      const pick = () => { const s = new Set(); while(s.size < 3) s.add(1 + Math.floor(Math.random() * (K - 1))); return s; };
+      a = pick(); b = pick();
+    } while([...a].every(x => b.has(x)));
+    n[0][w] = Array.from({length: K}, (_, i) => a.has(i));
+    n[1][w] = Array.from({length: K}, (_, i) => b.has(i));
+  }
+  return n;
+}
+function freshGame(){
+  return {pos: Array(NW).fill(0), notch: newNotches(), lv: [Array(NT).fill(0), Array(NT).fill(0)],
+          turn: starter, lastWheel: -1, curWheel: -1, crans: 0, over: false, winner: -1};
+}
+const open = (s, w) => G.notch[s][w][mod(G.pos[w])];
+const tokensAt = (s, L, lv = G.lv[s]) => { const r = []; for(let i = 0; i < NT; i++) if(lv[i] === L) r.push(i); return r; };
+const exempt = (s, w) => w === NW - 1 && G.lv[s][NT - 1] === NW - 1;
+const allowed = (s, w) => w !== G.lastWheel || exempt(s, w);
+const isAI = s => mode === "ai" && s === 1;
+const nameOf = s => mode === "ai" ? (s === 0 ? "Vous" : "L'ordinateur") : COLORS[s];
+
+/* ================= DESSIN DE LA TOUR ================= */
+const wheelG = [], notchG = [], btns = [], locks = [];
+(function build(){
+  const f = $("frame");
+  el("ellipse", {cx: 150, cy: 972, rx: 150, ry: 7, fill: "#000", opacity: .4}, f);
+  el("rect", {x: 6, y: 4, width: 288, height: 962, rx: 26, fill: "url(#gFrame)", stroke: "#2b1580", "stroke-width": 3}, f);
+  el("rect", {x: 6, y: 4, width: 288, height: 962, rx: 26, fill: "url(#gGloss)"}, f);
+  el("rect", {x: 18, y: 16, width: 264, height: 938, rx: 18, fill: "none", stroke: "#fff", "stroke-opacity": .12, "stroke-width": 2}, f);
+  // tube (fond)
+  el("rect", {x: TX - 17, y: 10, width: 34, height: TRAY_Y - 6, rx: 17, fill: "#120a2e", stroke: "#2b1580", "stroke-width": 2}, f);
+  // bac
+  el("rect", {x: TX - 18, y: TRAY_Y - 18, width: 5 * 31 + 6, height: 36, rx: 18, fill: "#120a2e", stroke: "#2b1580", "stroke-width": 2}, f);
+  el("text", {x: TX + 4 * 31 + 30, y: TRAY_Y + 6, "font-family": "Nunito,sans-serif", "font-weight": 800, "font-size": 15, fill: "#d9ccff", opacity: .8}, f).textContent = "BAC";
+  // capuchon
+  el("rect", {x: TX - 22, y: 2, width: 44, height: 16, rx: 6, fill: "#f7c600", stroke: "#a87b00", "stroke-width": 2}, f);
+
+  const wg = $("wheels"), cg = $("ctrls");
+  for(let w = 0; w < NW; w++){
+    const cy = cyW(w);
+    // repère de la porte
+    el("path", {d: `M${TX - 26} ${cy - 7} l9 7 l-9 7 z`, fill: "#f7c600"}, f);
+    const g = el("g", {class: "wheel"}, wg);
+    g.style.transformBox = "view-box"; g.style.transformOrigin = `${CX}px ${cy}px`;
+    el("circle", {cx: CX, cy, r: R + 3, fill: "#0b4f5c"}, g);
+    el("circle", {cx: CX, cy, r: R, fill: "url(#gWheel)", stroke: "#0b5a68", "stroke-width": 3}, g);
+    for(let i = 0; i < 24; i++){
+      const a = i * Math.PI / 12;
+      el("line", {x1: CX + Math.cos(a) * (R - 16), y1: cy + Math.sin(a) * (R - 16), x2: CX + Math.cos(a) * (R - 8), y2: cy + Math.sin(a) * (R - 8), stroke: "#0b6f80", "stroke-width": 2, opacity: .6}, g);
+    }
+    el("circle", {cx: CX, cy, r: 26, fill: "#0e8696", stroke: "#7ff3ff", "stroke-opacity": .5, "stroke-width": 2}, g);
+    el("circle", {cx: CX + R - 24, cy, r: 4, fill: "#f7c600"}, g);
+    const ng = el("g", {}, g); notchG.push(ng);
+    const t = el("text", {x: CX, y: cy + 10, "text-anchor": "middle", "font-family": "Lilita One,sans-serif", "font-size": 30, fill: "#fff"}, wg);
+    t.textContent = w + 1;
+    el("ellipse", {cx: CX - 18, cy: cy - 24, rx: 22, ry: 10, fill: "#fff", opacity: .18, transform: `rotate(-30 ${CX - 18} ${cy - 24})`}, wg);
+    wheelG.push(g);
+
+    // boutons ↺ ↻
+    const mk = (x, dir, label, glyph) => {
+      const b = el("g", {class: "wb", tabindex: 0, role: "button", "aria-label": label}, cg);
+      el("circle", {cx: x, cy, r: 24, fill: "url(#gBtn)", stroke: "#2b1580", "stroke-width": 2, class: "face"}, b);
+      el("text", {x, y: cy + 9, "text-anchor": "middle", "font-size": 26, "font-weight": 800, fill: "#fff", "font-family": "Nunito,sans-serif"}, b).textContent = glyph;
+      const go = () => humanCran(w, dir);
+      b.addEventListener("click", go);
+      b.addEventListener("keydown", e => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); go(); } });
+      return b;
+    };
+    btns.push([mk(214, -1, "Tourner la roue " + (w + 1) + " vers la gauche", "↺"), mk(266, 1, "Tourner la roue " + (w + 1) + " vers la droite", "↻")]);
+    const lk = el("g", {class: "lock"}, cg);
+    el("rect", {x: 222, y: cy - 52, width: 36, height: 22, rx: 11, fill: "#120a2e", stroke: "#f7c600", "stroke-width": 1.5}, lk);
+    el("text", {x: 240, y: cy - 36, "text-anchor": "middle", "font-size": 13}, lk).textContent = "🔒";
+    locks.push(lk);
+  }
+  // vitre du tube par-dessus les jetons
+  el("rect", {x: TX - 17, y: 10, width: 34, height: TRAY_Y - 6, rx: 17, fill: "url(#gTube)"}, $("glass"));
+  el("rect", {x: TX - 18, y: TRAY_Y - 18, width: 5 * 31 + 6, height: 36, rx: 18, fill: "url(#gTube)", opacity: .6}, $("glass"));
+})();
+
+function drawNotches(){
+  const s = viewer, col = s === 0 ? "#ff6b6b" : "#4ee08a";
+  for(let w = 0; w < NW; w++){
+    const ng = notchG[w], cy = cyW(w); ng.innerHTML = "";
+    G.notch[s][w].forEach((on, i) => {
+      if(!on) return;
+      const a = (180 - 45 * i) * Math.PI / 180, x = CX + Math.cos(a) * (R - 6), y = cy + Math.sin(a) * (R - 6);
+      el("circle", {cx: x, cy: y, r: 13, fill: "#120a2e", stroke: col, "stroke-width": 3}, ng);
+    });
+  }
+}
+function setWheelAngles(){ wheelG.forEach((g, w) => { g.style.transform = `rotate(${G.pos[w] * 45}deg)`; }); }
+
+/* ================= JETONS (face visible) ================= */
+function targetOf(i){
+  const s = viewer, L = G.lv[s][i];
+  if(L === NW) return {x: trayX(tokensAt(s, NW).indexOf(i)), y: TRAY_Y};
+  return {x: TX, y: restY(L, tokensAt(s, L).indexOf(i))};
+}
+function buildTokens(){
+  const tg = $("tokens"); tg.innerHTML = ""; tokEls.length = 0; tokPos.length = 0;
+  for(let i = 0; i < NT; i++){
+    const g = el("g", {}, tg);
+    el("circle", {r: 14, fill: `url(#gT${viewer})`, stroke: "rgba(0,0,0,.35)", "stroke-width": 1.5}, g);
+    el("circle", {r: 9.5, fill: "none", stroke: "rgba(255,255,255,.35)", "stroke-width": 1.2}, g);
+    el("text", {y: 5.5, "text-anchor": "middle", "font-family": "Lilita One,sans-serif", "font-size": 15, fill: "#fff", stroke: "rgba(0,0,0,.35)", "stroke-width": .6}, g).textContent = i + 1;
+    const p = targetOf(i);
+    g.setAttribute("transform", `translate(${p.x} ${p.y})`);
+    tokEls.push(g); tokPos.push({x: p.x, y: p.y});
+  }
+}
+const anims = new Map();
+let rafOn = false, lastT = 0;
+function tick(t){
+  const dt = Math.min(.033, (t - lastT) / 1000 || .016); lastT = t;
+  for(const [i, a] of anims){
+    const p = tokPos[i];
+    if(a.phase === "fall"){
+      a.vy += 2600 * dt; p.y += a.vy * dt;
+      if(p.y >= a.ty){
+        p.y = a.ty;
+        if(a.vy > 160) Snd.clack(Math.min(1, .35 + a.vy / 900) * (a.bounced ? .45 : 1));
+        if(!reduced && !a.bounced && a.vy > 300){ a.vy = -a.vy * .22; a.bounced = true; }
+        else { a.vy = 0; if(a.tx !== p.x){ a.phase = "slide"; a.t0 = t; a.x0 = p.x; Snd.roll(); } else anims.delete(i); }
+      }
+    } else {
+      const k = Math.min(1, (t - a.t0) / 380), e = 1 - Math.pow(1 - k, 3);
+      p.x = a.x0 + (a.tx - a.x0) * e;
+      if(k >= 1){ p.x = a.tx; anims.delete(i); }
+    }
+    tokEls[i].setAttribute("transform", `translate(${p.x} ${p.y})`);
+  }
+  if(anims.size) requestAnimationFrame(tick); else rafOn = false;
+}
+function relayout(){
+  for(let i = 0; i < NT; i++){
+    const tg = targetOf(i), p = tokPos[i];
+    if(Math.abs(tg.y - p.y) < .5 && Math.abs(tg.x - p.x) < .5) continue;
+    const toTray = G.lv[viewer][i] === NW;
+    const ty = toTray ? TRAY_Y : tg.y;
+    const cur = anims.get(i);
+    if(cur && cur.ty === ty && cur.tx === tg.x) continue;
+    anims.set(i, {phase: ty > p.y + .5 ? "fall" : "slide", vy: cur ? Math.max(0, cur.vy || 0) : 0, ty, tx: tg.x, t0: performance.now(), x0: p.x});
+    if(ty <= p.y + .5) tokPos[i].y = ty;
+  }
+  if(anims.size && !rafOn){ rafOn = true; lastT = performance.now(); requestAnimationFrame(tick); }
+}
+
+/* ================= RÈGLES EN ACTION ================= */
+function cran(w, dir){
+  G.pos[w] += dir; G.crans++; G.curWheel = w;
+  setWheelAngles(); Snd.ratchet();
+  let mine = false;
+  for(const s of [0, 1]){
+    if(!open(s, w)) continue;
+    const t = tokensAt(s, w); if(!t.length) continue;
+    G.lv[s][t[0]] = w + 1;
+    if(s === viewer){ mine = true; }
+    else if(G.lv[s][t[0]] === NW) setTimeout(() => Snd.muffled(), 380);
+  }
+  if(mine) setTimeout(() => { Snd.pass(); relayout(); }, 140);
+  for(const s of [0, 1]) if(!G.over && G.lv[s].every(v => v === NW)){ G.over = true; G.winner = s; }
+  if(G.over){
+    scores[G.winner]++;
+    setTimeout(() => { (mode === "ai" && G.winner === 1) ? Snd.lose() : Snd.win(); }, 650);
+  }
+  updateUI(); snapshot();
+}
+function humanCran(w, dir){
+  if(!G || G.over || aiBusy || isAI(G.turn) || !$("curtain").hidden) return;
+  if(G.curWheel !== -1 && G.curWheel !== w){ Snd.bump(); flash("Une seule roue par tour : terminez votre tour ou continuez la roue " + (G.curWheel + 1) + "."); return; }
+  if(!allowed(G.turn, w)){ Snd.bump(); flash("Roue " + (w + 1) + " verrouillée : l'adversaire vient de la tourner."); return; }
+  if(G.crans >= MAXC){ Snd.bump(); flash("4 crans maximum : terminez votre tour."); return; }
+  cran(w, dir);
+}
+let flashT = null;
+function flash(msg){ const s = $("status"); s.textContent = msg; clearTimeout(flashT); flashT = setTimeout(updateUI, 1800); }
+
+function endTurn(){
+  if(G.over || G.crans === 0) return;
+  G.lastWheel = G.curWheel; G.curWheel = -1; G.crans = 0; G.turn = 1 - G.turn;
+  updateUI(); snapshot();
+  if(isAI(G.turn)) setTimeout(aiPlay, 600);
+  else if(mode === "pvp") showCurtain();
+}
+$("endt").onclick = () => { if(!aiBusy && !isAI(G.turn)) endTurn(); };
+
+/* ================= ORDINATEUR ================= */
+function aiPlay(){
+  if(!G || G.over) return;
+  aiBusy = true; updateUI();
+  const s = 1; let best = null;
+  for(let w = 0; w < NW; w++){
+    if(!allowed(s, w)) continue;
+    for(const d of [1, -1]){
+      let p = G.pos[w], lv = G.lv[s].slice(), sc = 0;
+      for(let n = 1; n <= MAXC; n++){
+        p += d;
+        if(G.notch[s][w][mod(p)]){ const t = tokensAt(s, w, lv); if(t.length){ lv[t[0]] = w + 1; sc += 10 + w; } }
+        const c = {w, d, n, v: sc - n * .1 + Math.random() * .5};
+        if(!best || c.v > best.v) best = c;
+      }
+    }
+  }
+  let k = 0;
+  const step = () => {
+    if(!G || G.over){ aiBusy = false; updateUI(); return; }
+    cran(best.w, best.d); k++;
+    if(k < best.n && !G.over) setTimeout(step, 520);
+    else setTimeout(() => { aiBusy = false; if(!G.over) endTurn(); else updateUI(); }, 650);
+  };
+  setTimeout(step, 400);
+}
+
+/* ================= 2 JOUEURS : passage de l'appareil ================= */
+function showCurtain(){
+  $("ctitle").textContent = "Au tour de " + COLORS[G.turn];
+  $("ctext").textContent = "Passez l'appareil à " + COLORS[G.turn] + ". L'autre joueur ne doit pas regarder cette face de la tour.";
+  $("curtain").hidden = false; Snd.swoosh();
+}
+$("ready").onclick = () => {
+  viewer = G.turn; drawNotches(); buildTokens();
+  $("curtain").hidden = true; updateUI();
+};
+
+/* ================= INTERFACE ================= */
+function updateUI(){
+  const me = viewer, opp = 1 - me, myTurn = G.turn === me && !G.over && !aiBusy;
+  $("mychip").className = "chip c" + me;
+  $("myname").textContent = mode === "ai" ? "Votre face (Rouge)" : "Face " + COLORS[me];
+  const st = $("status");
+  if(G.over){
+    st.className = "win";
+    st.textContent = mode === "ai" ? (G.winner === 0 ? "Gagné ! Vos 5 jetons sont au bac." : "Perdu… l'ordinateur a vidé sa face.") : COLORS[G.winner] + " gagne !";
+  } else {
+    st.className = "";
+    if(isAI(G.turn)) st.textContent = "L'ordinateur tourne une roue… surveillez vos jetons.";
+    else if(G.crans === 0) st.textContent = (mode === "pvp" ? COLORS[me] + ", à vous" : "À vous") + " : choisissez une roue et tournez-la de 1 à 4 crans.";
+    else st.textContent = "Roue " + (G.curWheel + 1) + " : encore " + (MAXC - G.crans) + " cran" + (MAXC - G.crans > 1 ? "s" : "") + " possible" + (MAXC - G.crans > 1 ? "s" : "") + ", ou terminez votre tour.";
+  }
+  const dots = $("dots"); dots.innerHTML = "";
+  for(let i = 0; i < MAXC; i++){ const d = document.createElement("i"); if(i < G.crans) d.className = "on"; dots.appendChild(d); }
+  $("endt").disabled = !myTurn || G.crans === 0;
+  for(let w = 0; w < NW; w++){
+    const usable = myTurn && allowed(me, w) && (G.curWheel === -1 || G.curWheel === w) && G.crans < MAXC;
+    btns[w].forEach(b => { b.classList.toggle("off", !usable); b.setAttribute("aria-disabled", !usable); });
+    locks[w].classList.toggle("on", !G.over && w === G.lastWheel && !exempt(G.turn, w));
+  }
+  $("oppname").textContent = mode === "ai" ? "Bac de l'ordinateur" : "Bac de " + COLORS[opp];
+  const ob = $("oppbac"); ob.innerHTML = "";
+  const inTray = G.lv[opp].filter(v => v === NW).length;
+  for(let i = 0; i < NT; i++){ const d = document.createElement("i"); if(i < inTray){ d.className = "in chip c" + opp; } ob.appendChild(d); }
+  $("sn0").textContent = nameOf(0) === "L'ordinateur" ? "Ordinateur" : nameOf(0); $("sn1").textContent = nameOf(1) === "L'ordinateur" ? "Ordinateur" : nameOf(1);
+  $("sc0").textContent = scores[0]; $("sc1").textContent = scores[1];
+}
+function startGame(){
+  starter = G ? 1 - starter : 0;
+  G = freshGame(); viewer = mode === "pvp" ? G.turn : 0; aiBusy = false;
+  drawNotches(); setWheelAngles(); buildTokens(); updateUI(); snapshot();
+  $("curtain").hidden = true;
+  if(mode === "pvp") showCurtain();
+  else if(isAI(G.turn)) setTimeout(aiPlay, 700);
+}
+$("newg").onclick = () => { if(!aiBusy) { Snd.swoosh(); startGame(); } };
+function setMode(m){
+  if(m === mode || aiBusy) return;
+  mode = m; scores = [0, 0]; G = null;
+  $("m-ai").setAttribute("aria-pressed", m === "ai"); $("m-pvp").setAttribute("aria-pressed", m === "pvp");
+  startGame();
+}
+$("m-ai").onclick = () => setMode("ai");
+$("m-pvp").onclick = () => setMode("pvp");
+
+/* ================= Conserver la partie lors d'une mise à jour ================= */
+function snapshot(){ try{ window.claude?.hot?.snapshot?.(() => ({G, viewer, mode, scores, starter})); }catch(e){} }
+function start(data){
+  if(data && data.G){
+    ({G, viewer, mode, scores, starter} = data);
+    $("m-ai").setAttribute("aria-pressed", mode === "ai"); $("m-pvp").setAttribute("aria-pressed", mode === "pvp");
+    drawNotches(); setWheelAngles(); buildTokens(); updateUI();
+    if(isAI(G.turn) && !G.over) setTimeout(aiPlay, 500);
+  } else startGame();
+}
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>

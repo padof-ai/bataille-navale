@@ -1,0 +1,788 @@
+<title>Échiquier du club</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Nunito:wght@600;800&family=Noto+Sans+Symbols+2&display=swap">
+<style>
+/* Layout : un échiquier en bois sur le cuir vert d'une table de club ; le carnet de partie et les réglages à droite (dessous sur téléphone). */
+:root{
+  color-scheme:dark;
+  --leather:#123226;      /* table en cuir */
+  --leather2:#0a1f17;
+  --maple:#ecd3a6;        /* cases claires */
+  --walnut:#a2703f;       /* cases foncées */
+  --frame:#4a2a14;
+  --brass:#d8b46a;
+  --ink:#f1ead9; --muted:#b9b29f; --line:rgba(241,234,217,.17);
+  --display:"Cinzel","Trajan Pro","Times New Roman",serif;
+  --ui:"Nunito","Segoe UI",system-ui,sans-serif;
+  --pieces:"Noto Sans Symbols 2","Segoe UI Symbol","DejaVu Sans","Arial Unicode MS",sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0;font-family:var(--ui);color:var(--ink);-webkit-tap-highlight-color:transparent;
+  background:radial-gradient(ellipse 70% 55% at 40% 35%,#1d4a38 0,var(--leather) 50%,var(--leather2) 100%) fixed,var(--leather)}
+.app{max-width:1060px;margin:0 auto;padding-block:12px 26px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:grid;grid-template-columns:minmax(0,600px) minmax(0,340px);gap:16px 26px;justify-content:center;align-items:start}
+.top{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:12px}
+h1{margin:0;font-family:var(--display);font-weight:700;font-size:clamp(1.6rem,5.5vw,2.2rem);letter-spacing:.12em;color:var(--brass);text-shadow:0 2px 0 #3a2410,0 6px 14px rgba(0,0,0,.5)}
+button{font:inherit;font-weight:800;color:var(--ink);background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:11px;padding:9px 13px;cursor:pointer}
+button:hover:not(:disabled){border-color:rgba(241,234,217,.45)}
+button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
+button:disabled{opacity:.4;cursor:default}
+
+/* Échiquier */
+.boardzone{position:relative;min-width:0}
+.frame{padding:clamp(10px,2.6vw,18px);border-radius:14px;
+  background:linear-gradient(135deg,#7a4a26,var(--frame) 40%,#2e1808);
+  box-shadow:0 22px 44px rgba(0,0,0,.6),inset 0 2px 0 rgba(255,255,255,.16),inset 0 -2px 0 rgba(0,0,0,.4)}
+.board{position:relative;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);aspect-ratio:1;max-width:100%;
+  container-type:inline-size;border:3px solid #2a1606;box-shadow:0 0 0 2px var(--brass);user-select:none;-webkit-user-select:none;touch-action:none}
+.sq{position:relative;border:0;padding:0;border-radius:0;display:flex;align-items:center;justify-content:center;cursor:default}
+.sq.l{background:linear-gradient(115deg,rgba(255,255,255,.12),transparent 40%,rgba(0,0,0,.04)),repeating-linear-gradient(95deg,rgba(150,100,40,.05) 0 2px,transparent 2px 7px),var(--maple)}
+.sq.d{background:linear-gradient(115deg,rgba(255,255,255,.08),transparent 45%,rgba(0,0,0,.08)),repeating-linear-gradient(85deg,rgba(60,30,5,.12) 0 2px,transparent 2px 6px),var(--walnut)}
+.sq:focus-visible{outline:3px solid #ffe08a;outline-offset:-3px;z-index:2}
+.sq.last::before{content:"";position:absolute;inset:0;background:rgba(255,210,80,.38)}
+.sq.sel::before{content:"";position:absolute;inset:0;background:rgba(120,200,120,.5)}
+.sq.chk::before{content:"";position:absolute;inset:0;background:radial-gradient(circle,rgba(255,40,30,.85) 0,rgba(255,40,30,.45) 40%,transparent 72%)}
+.sq.dot::after{content:"";position:absolute;width:28%;height:28%;border-radius:50%;background:rgba(20,60,20,.45);z-index:3;pointer-events:none}
+.sq.ring::after{content:"";position:absolute;inset:4%;border-radius:50%;border:.7cqw solid rgba(20,60,20,.5);z-index:3;pointer-events:none}
+.sq.can{cursor:pointer}
+.co{position:absolute;font-size:2.1cqw;font-weight:800;line-height:1;pointer-events:none;z-index:1}
+.co.f{right:5%;bottom:4%}.co.r{left:5%;top:4%}
+.sq.l .co{color:var(--walnut)}.sq.d .co{color:var(--maple)}
+.pc{position:relative;z-index:2;font-family:var(--pieces);font-size:10.4cqw;line-height:1;pointer-events:none;
+  -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-stroke:.022em #1d120a}
+.pc.w{background-image:linear-gradient(160deg,#fffaf0 15%,#efe1c2 55%,#c9b48c 100%);filter:drop-shadow(0 .05em .03em rgba(0,0,0,.55))}
+.pc.b{background-image:linear-gradient(160deg,#6a4a34 0%,#2c1c12 45%,#120a05 100%);-webkit-text-stroke:.022em #000;filter:drop-shadow(0 .05em .03em rgba(0,0,0,.6))}
+.ghost{position:fixed;z-index:50;pointer-events:none;transform:translate(-50%,-55%) scale(1.12)}
+.drag .pc.src{opacity:.25}
+
+/* Promotion */
+.promo{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;background:rgba(5,15,10,.6);border-radius:14px}
+.promo .box{background:#f1ead9;color:#2a1a0c;border-radius:14px;padding:14px;text-align:center;box-shadow:0 16px 30px rgba(0,0,0,.5)}
+.promo p{margin:0 0 10px;font-weight:800}
+.promo .opts{display:flex;gap:8px}
+.promo button{width:64px;height:64px;padding:0;border-radius:12px;background:var(--maple);border:1px solid #b08850;container-type:inline-size;display:flex;align-items:center;justify-content:center}
+.promo button .pc{font-size:52px}
+
+/* Panneau */
+.panel{display:flex;flex-direction:column;gap:12px;min-width:0}
+.card{background:rgba(0,0,0,.22);border:1px solid var(--line);border-radius:14px;padding:14px}
+#status{font-weight:800;font-size:1.05rem;line-height:1.35;display:flex;align-items:center;gap:10px}
+#status .tm{flex:none;width:18px;height:18px;border-radius:50%;border:2px solid var(--brass)}
+#status .tm.w{background:#f6ecd6}#status .tm.b{background:#1d130c}
+#status.end{font-family:var(--display);font-weight:700;color:var(--brass);font-size:1.2rem}
+.caps{display:flex;flex-direction:column;gap:4px;margin-top:10px}
+.caps div{display:flex;align-items:center;gap:6px;min-height:26px;container-type:inline-size}
+.caps .pc{font-size:22px}
+.caps b{font-size:.85rem;color:var(--muted);margin-left:4px}
+.moves{max-height:220px;overflow-y:auto;font-variant-numeric:tabular-nums;font-size:.95rem}
+.moves table{width:100%;border-collapse:collapse}
+.moves td{padding:3px 6px}
+.moves td.n{color:var(--muted);width:2.4em;text-align:right}
+.moves tr:nth-child(odd){background:rgba(255,255,255,.035)}
+.moves td.cur{background:rgba(216,180,106,.25);border-radius:6px}
+.moves .empty{color:var(--muted);font-size:.88rem;margin:0}
+.card h2{margin:0 0 8px;font-family:var(--display);font-size:.95rem;letter-spacing:.1em;color:var(--brass)}
+.seg{display:flex;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:12px;padding:3px}
+.seg button{flex:1;border:0;background:transparent;padding:8px 6px;border-radius:9px;color:var(--muted);font-size:.88rem}
+.seg button[aria-pressed="true"]{background:var(--brass);color:#2a1a08}
+.opts{display:flex;flex-direction:column;gap:10px}
+.lbl{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+.btnrow button{flex:1 1 auto}
+#newg{background:var(--brass);border-color:var(--brass);color:#2a1a08}
+
+@media (max-width:860px){.app{grid-template-columns:minmax(0,1fr)}.panel{display:contents}.stat{order:-1}.top{order:-2}.boardzone{order:0}.panel>.card:not(.stat){order:1}}
+</style>
+
+<div class="app">
+  <div class="top">
+    <h1>Échecs</h1>
+    <button id="snd" aria-label="Activer ou couper le son"></button>
+  </div>
+
+  <div class="boardzone" id="zone">
+    <div class="frame"><div class="board" id="board" role="grid" aria-label="Échiquier"></div></div>
+    <div class="promo" id="promo" hidden><div class="box"><p>Promotion du pion</p><div class="opts" id="popts"></div></div></div>
+  </div>
+
+  <div class="panel">
+    <div class="card stat">
+      <div id="status" aria-live="polite"></div>
+      <div class="caps"><div id="capW"></div><div id="capB"></div></div>
+    </div>
+    <div class="card">
+      <h2>Carnet de partie</h2>
+      <div class="moves" id="moves"></div>
+    </div>
+    <div class="card opts">
+      <div><div class="lbl">Adversaire</div>
+        <div class="seg" id="mode"><button data-v="ai" aria-pressed="true">Ordinateur</button><button data-v="pvp" aria-pressed="false">2 joueurs</button></div></div>
+      <div id="aiopts" class="opts">
+        <div><div class="lbl">Vous jouez</div>
+          <div class="seg" id="color"><button data-v="0" aria-pressed="true">Blancs</button><button data-v="1" aria-pressed="false">Noirs</button></div></div>
+        <div><div class="lbl">Niveau</div>
+          <div class="seg" id="level"><button data-v="1" aria-pressed="false">Débutant</button><button data-v="2" aria-pressed="true">Club</button><button data-v="3" aria-pressed="false">Fort</button></div></div>
+      </div>
+      <div class="btnrow">
+        <button id="undo">↶ Annuler</button>
+        <button id="flip">⇅ Retourner</button>
+        <button id="newg">Nouvelle partie</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function engineFactory(){
+"use strict";
+var EMPTY = 0, OFF = 7, P = 1, N = 2, B = 3, R = 4, Q = 5, K = 6, BL = 8;
+var N_OFF = [-21, -19, -12, -8, 8, 12, 19, 21], B_OFF = [-11, -9, 9, 11], R_OFF = [-10, -1, 1, 10], K_OFF = [-11, -10, -9, -1, 1, 9, 10, 11];
+var FILES = "abcdefgh";
+function sq(r, f){ return 21 + r * 10 + f; }
+function rowOf(s){ return ((s - 21) / 10) | 0; }
+function colOf(s){ return (s - 21) % 10; }
+function sqName(s){ return FILES[colOf(s)] + (8 - rowOf(s)); }
+function nameSq(n){ return sq(8 - (+n[1]), FILES.indexOf(n[0])); }
+var CMASK = new Int8Array(120); for(var i = 0; i < 120; i++) CMASK[i] = 15;
+CMASK[95] = 12; CMASK[98] = 14; CMASK[91] = 13; CMASK[25] = 3; CMASK[28] = 11; CMASK[21] = 7;
+var START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+function create(fen){
+  var g = {b: new Int8Array(120), side: 0, castle: 0, ep: 0, half: 0, full: 1, kings: [0, 0], stack: []};
+  for(var i = 0; i < 120; i++) g.b[i] = OFF;
+  for(var r = 0; r < 8; r++) for(var f = 0; f < 8; f++) g.b[sq(r, f)] = EMPTY;
+  var parts = (fen || START).trim().split(/\s+/), rows = parts[0].split("/");
+  var map = {p: P, n: N, b: B, r: R, q: Q, k: K};
+  for(r = 0; r < 8; r++){
+    f = 0;
+    for(var ch of rows[r]){
+      if(ch >= "1" && ch <= "8"){ f += +ch; continue; }
+      var lo = ch.toLowerCase(), p = map[lo] | (ch === lo ? BL : 0);
+      g.b[sq(r, f)] = p; if(map[lo] === K) g.kings[ch === lo ? 1 : 0] = sq(r, f); f++;
+    }
+  }
+  g.side = parts[1] === "b" ? 1 : 0;
+  var c = parts[2] || "-";
+  g.castle = (c.indexOf("K") >= 0 ? 1 : 0) | (c.indexOf("Q") >= 0 ? 2 : 0) | (c.indexOf("k") >= 0 ? 4 : 0) | (c.indexOf("q") >= 0 ? 8 : 0);
+  g.ep = parts[3] && parts[3] !== "-" ? nameSq(parts[3]) : 0;
+  g.half = +(parts[4] || 0); g.full = +(parts[5] || 1);
+  return g;
+}
+function toFen(g){
+  var s = "", L = " PNBRQK  pnbrqk";
+  for(var r = 0; r < 8; r++){
+    var e = 0;
+    for(var f = 0; f < 8; f++){
+      var p = g.b[sq(r, f)];
+      if(p === EMPTY){ e++; continue; }
+      if(e){ s += e; e = 0; }
+      s += L[p];
+    }
+    if(e) s += e;
+    if(r < 7) s += "/";
+  }
+  var c = (g.castle & 1 ? "K" : "") + (g.castle & 2 ? "Q" : "") + (g.castle & 4 ? "k" : "") + (g.castle & 8 ? "q" : "");
+  return s + " " + (g.side ? "b" : "w") + " " + (c || "-") + " " + (g.ep ? sqName(g.ep) : "-") + " " + g.half + " " + g.full;
+}
+function attacked(g, s, by){
+  var b = g.b, c8 = by ? BL : 0, o, t, q;
+  if(by === 0){ if(b[s + 9] === P || b[s + 11] === P) return true; }
+  else { if(b[s - 9] === (P | BL) || b[s - 11] === (P | BL)) return true; }
+  for(o of N_OFF) if(b[s + o] === (N | c8)) return true;
+  for(o of K_OFF) if(b[s + o] === (K | c8)) return true;
+  for(o of B_OFF){ t = s + o; while(b[t] === EMPTY) t += o; q = b[t]; if(q === (B | c8) || q === (Q | c8)) return true; }
+  for(o of R_OFF){ t = s + o; while(b[t] === EMPTY) t += o; q = b[t]; if(q === (R | c8) || q === (Q | c8)) return true; }
+  return false;
+}
+function inCheck(g){ return attacked(g, g.kings[g.side], g.side ^ 1); }
+function add(list, f, t, p, c, pr, fl){ list.push({f: f, t: t, p: p, c: c, pr: pr, fl: fl}); }
+function pseudo(g, capsOnly){
+  var list = [], b = g.b, us = g.side, c8 = us ? BL : 0, s, p, ty, t, q, o;
+  for(s = 21; s < 99; s++){
+    p = b[s];
+    if(p === EMPTY || p === OFF || (p & BL) !== c8) continue;
+    ty = p & 7;
+    if(ty === P){
+      var dir = us ? 10 : -10, startRow = us ? 1 : 6, promoRow = us ? 7 : 0, one = s + dir;
+      if(b[one] === EMPTY){
+        if(rowOf(one) === promoRow){ add(list, s, one, p, 0, Q | c8, 0); if(!capsOnly){ add(list, s, one, p, 0, R | c8, 0); add(list, s, one, p, 0, B | c8, 0); add(list, s, one, p, 0, N | c8, 0); } }
+        else if(!capsOnly){ add(list, s, one, p, 0, 0, 0); if(rowOf(s) === startRow && b[one + dir] === EMPTY) add(list, s, one + dir, p, 0, 0, 3); }
+      }
+      for(o of [dir - 1, dir + 1]){
+        t = s + o; q = b[t];
+        if(q !== EMPTY && q !== OFF && (q & BL) !== c8){
+          if(rowOf(t) === promoRow){ add(list, s, t, p, q, Q | c8, 0); add(list, s, t, p, q, R | c8, 0); add(list, s, t, p, q, B | c8, 0); add(list, s, t, p, q, N | c8, 0); }
+          else add(list, s, t, p, q, 0, 0);
+        } else if(t === g.ep && g.ep) add(list, s, t, p, P | (c8 ^ BL), 0, 1);
+      }
+    } else if(ty === N || ty === K){
+      for(o of (ty === N ? N_OFF : K_OFF)){
+        t = s + o; q = b[t];
+        if(q === OFF) continue;
+        if(q === EMPTY){ if(!capsOnly) add(list, s, t, p, 0, 0, 0); }
+        else if((q & BL) !== c8) add(list, s, t, p, q, 0, 0);
+      }
+      if(ty === K && !capsOnly){
+        if(us === 0 && s === 95){
+          if((g.castle & 1) && b[96] === EMPTY && b[97] === EMPTY && b[98] === R && !attacked(g, 95, 1) && !attacked(g, 96, 1) && !attacked(g, 97, 1)) add(list, 95, 97, p, 0, 0, 2);
+          if((g.castle & 2) && b[94] === EMPTY && b[93] === EMPTY && b[92] === EMPTY && b[91] === R && !attacked(g, 95, 1) && !attacked(g, 94, 1) && !attacked(g, 93, 1)) add(list, 95, 93, p, 0, 0, 2);
+        } else if(us === 1 && s === 25){
+          if((g.castle & 4) && b[26] === EMPTY && b[27] === EMPTY && b[28] === (R | BL) && !attacked(g, 25, 0) && !attacked(g, 26, 0) && !attacked(g, 27, 0)) add(list, 25, 27, p, 0, 0, 2);
+          if((g.castle & 8) && b[24] === EMPTY && b[23] === EMPTY && b[22] === EMPTY && b[21] === (R | BL) && !attacked(g, 25, 0) && !attacked(g, 24, 0) && !attacked(g, 23, 0)) add(list, 25, 23, p, 0, 0, 2);
+        }
+      }
+    } else {
+      var offs = ty === B ? B_OFF : ty === R ? R_OFF : K_OFF;
+      for(o of offs){
+        t = s + o;
+        while(true){
+          q = b[t];
+          if(q === OFF) break;
+          if(q === EMPTY){ if(!capsOnly) add(list, s, t, p, 0, 0, 0); }
+          else { if((q & BL) !== c8) add(list, s, t, p, q, 0, 0); break; }
+          t += o;
+        }
+      }
+    }
+  }
+  return list;
+}
+function make(g, m){
+  var b = g.b;
+  g.stack.push(g.castle, g.ep, g.half);
+  b[m.t] = m.pr || m.p; b[m.f] = EMPTY;
+  if(m.fl === 1) b[m.t + (g.side === 0 ? 10 : -10)] = EMPTY;
+  else if(m.fl === 2){
+    if(m.t === 97){ b[98] = EMPTY; b[96] = R; } else if(m.t === 93){ b[91] = EMPTY; b[94] = R; }
+    else if(m.t === 27){ b[28] = EMPTY; b[26] = R | BL; } else { b[21] = EMPTY; b[24] = R | BL; }
+  }
+  if((m.p & 7) === K) g.kings[g.side] = m.t;
+  g.ep = m.fl === 3 ? (m.f + m.t) / 2 : 0;
+  g.castle &= CMASK[m.f] & CMASK[m.t];
+  g.half = ((m.p & 7) === P || m.c) ? 0 : g.half + 1;
+  if(g.side === 1) g.full++;
+  g.side ^= 1;
+}
+function unmake(g, m){
+  var b = g.b;
+  g.side ^= 1;
+  g.half = g.stack.pop(); g.ep = g.stack.pop(); g.castle = g.stack.pop();
+  if(g.side === 1) g.full--;
+  b[m.f] = m.p;
+  if(m.fl === 1){ b[m.t] = EMPTY; b[m.t + (g.side === 0 ? 10 : -10)] = m.c; }
+  else b[m.t] = m.c;
+  if(m.fl === 2){
+    if(m.t === 97){ b[98] = R; b[96] = EMPTY; } else if(m.t === 93){ b[91] = R; b[94] = EMPTY; }
+    else if(m.t === 27){ b[28] = R | BL; b[26] = EMPTY; } else { b[21] = R | BL; b[24] = EMPTY; }
+  }
+  if((m.p & 7) === K) g.kings[g.side] = m.f;
+}
+function legal(g){
+  var out = [], list = pseudo(g, false), me = g.side;
+  for(var m of list){ make(g, m); if(!attacked(g, g.kings[me], g.side)) out.push(m); unmake(g, m); }
+  return out;
+}
+function perft(g, d){
+  if(d === 0) return 1;
+  var n = 0, list = pseudo(g, false), me = g.side;
+  for(var m of list){ make(g, m); if(!attacked(g, g.kings[me], g.side)) n += perft(g, d - 1); unmake(g, m); }
+  return n;
+}
+/* ----- notation française ----- */
+var LET = {2: "C", 3: "F", 4: "T", 5: "D", 6: "R"};
+function san(g, m, moves){
+  var s;
+  if(m.fl === 2) s = (m.t === 97 || m.t === 27) ? "O-O" : "O-O-O";
+  else {
+    var ty = m.p & 7;
+    if(ty === P){ s = m.c ? FILES[colOf(m.f)] + "x" : ""; s += sqName(m.t); if(m.pr) s += "=" + LET[m.pr & 7]; }
+    else {
+      s = LET[ty];
+      var others = (moves || legal(g)).filter(function(o){ return o.t === m.t && o.p === m.p && o.f !== m.f; });
+      if(others.length){
+        var sameF = others.some(function(o){ return colOf(o.f) === colOf(m.f); }), sameR = others.some(function(o){ return rowOf(o.f) === rowOf(m.f); });
+        if(!sameF) s += FILES[colOf(m.f)]; else if(!sameR) s += (8 - rowOf(m.f)); else s += sqName(m.f);
+      }
+      s += (m.c ? "x" : "") + sqName(m.t);
+    }
+  }
+  make(g, m);
+  if(inCheck(g)) s += legal(g).length ? "+" : "#";
+  unmake(g, m);
+  return s;
+}
+function posKey(g){ return toFen(g).split(" ").slice(0, 4).join(" "); }
+function insufficient(g){
+  var minor = [], others = 0;
+  for(var s = 21; s < 99; s++){
+    var p = g.b[s]; if(p === EMPTY || p === OFF) continue;
+    var t = p & 7; if(t === K) continue;
+    if(t === N || t === B) minor.push({t: t, c: (rowOf(s) + colOf(s)) & 1}); else others++;
+  }
+  if(others) return false;
+  if(minor.length <= 1) return true;
+  return minor.every(function(x){ return x.t === B && x.c === minor[0].c; });
+}
+
+/* ----- évaluation et recherche ----- */
+var VAL = [0, 100, 320, 330, 500, 900, 0];
+var PST = [null,
+ [0,0,0,0,0,0,0,0, 50,50,50,50,50,50,50,50, 10,10,20,30,30,20,10,10, 5,5,10,25,25,10,5,5, 0,0,0,20,20,0,0,0, 5,-5,-10,0,0,-10,-5,5, 5,10,10,-20,-20,10,10,5, 0,0,0,0,0,0,0,0],
+ [-50,-40,-30,-30,-30,-30,-40,-50, -40,-20,0,0,0,0,-20,-40, -30,0,10,15,15,10,0,-30, -30,5,15,20,20,15,5,-30, -30,0,15,20,20,15,0,-30, -30,5,10,15,15,10,5,-30, -40,-20,0,5,5,0,-20,-40, -50,-40,-30,-30,-30,-30,-40,-50],
+ [-20,-10,-10,-10,-10,-10,-10,-20, -10,0,0,0,0,0,0,-10, -10,0,5,10,10,5,0,-10, -10,5,5,10,10,5,5,-10, -10,0,10,10,10,10,0,-10, -10,10,10,10,10,10,10,-10, -10,5,0,0,0,0,5,-10, -20,-10,-10,-10,-10,-10,-10,-20],
+ [0,0,0,0,0,0,0,0, 5,10,10,10,10,10,10,5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, 0,0,0,5,5,0,0,0],
+ [-20,-10,-10,-5,-5,-10,-10,-20, -10,0,0,0,0,0,0,-10, -10,0,5,5,5,5,0,-10, -5,0,5,5,5,5,0,-5, 0,0,5,5,5,5,0,-5, -10,5,5,5,5,5,0,-10, -10,0,5,0,0,0,0,-10, -20,-10,-10,-5,-5,-10,-10,-20],
+ [-30,-40,-40,-50,-50,-40,-40,-30, -30,-40,-40,-50,-50,-40,-40,-30, -30,-40,-40,-50,-50,-40,-40,-30, -30,-40,-40,-50,-50,-40,-40,-30, -20,-30,-30,-40,-40,-30,-30,-20, -10,-20,-20,-20,-20,-20,-20,-10, 20,20,0,0,0,0,20,20, 20,30,10,0,0,10,30,20]];
+var KEND = [-50,-40,-30,-20,-20,-30,-40,-50, -30,-20,-10,0,0,-10,-20,-30, -30,-10,20,30,30,20,-10,-30, -30,-10,30,40,40,30,-10,-30, -30,-10,30,40,40,30,-10,-30, -30,-10,20,30,30,20,-10,-30, -30,-30,0,0,0,0,-30,-30, -50,-30,-30,-30,-30,-30,-30,-50];
+function evaluate(g){
+  var b = g.b, sc = 0, mat = 0, wk = 0, bk = 0;
+  for(var s = 21; s < 99; s++){
+    var p = b[s]; if(p === EMPTY || p === OFF) continue;
+    var t = p & 7, r = rowOf(s), f = colOf(s);
+    if(t !== P && t !== K) mat += VAL[t];
+    if(t === K){ if(p & BL) bk = s; else wk = s; continue; }
+    if(p & BL) sc -= VAL[t] + PST[t][(7 - r) * 8 + f];
+    else sc += VAL[t] + PST[t][r * 8 + f];
+  }
+  var end = mat <= 2600, KT = end ? KEND : PST[6];
+  sc += KT[rowOf(wk) * 8 + colOf(wk)] - KT[(7 - rowOf(bk)) * 8 + colOf(bk)];
+  return g.side ? -sc : sc;
+}
+var MATE = 100000, nodes = 0, t0 = 0, limit = 0, stopped = false;
+function now(){ return (typeof performance !== "undefined" ? performance : Date).now(); }
+function orderKey(m){ return (m.c ? 10 * VAL[m.c & 7] - VAL[m.p & 7] + 10000 : 0) + (m.pr ? 9000 : 0); }
+function quies(g, alpha, beta, qd){
+  if((++nodes & 2047) === 0 && now() - t0 > limit) stopped = true;
+  if(stopped) return 0;
+  var stand = evaluate(g);
+  if(stand >= beta) return beta;
+  if(stand > alpha) alpha = stand;
+  if(qd > 6) return alpha;
+  var list = pseudo(g, true), me = g.side;
+  list.sort(function(a, b){ return orderKey(b) - orderKey(a); });
+  for(var m of list){
+    make(g, m);
+    if(attacked(g, g.kings[me], g.side)){ unmake(g, m); continue; }
+    var s = -quies(g, -beta, -alpha, qd + 1);
+    unmake(g, m);
+    if(stopped) return 0;
+    if(s >= beta) return beta;
+    if(s > alpha) alpha = s;
+  }
+  return alpha;
+}
+function negamax(g, depth, alpha, beta, ply){
+  if((++nodes & 2047) === 0 && now() - t0 > limit) stopped = true;
+  if(stopped) return 0;
+  var chk = inCheck(g);
+  if(chk) depth++;
+  if(depth <= 0) return quies(g, alpha, beta, 0);
+  if(g.half >= 100) return 0;
+  var list = pseudo(g, false), me = g.side, any = false;
+  list.sort(function(a, b){ return orderKey(b) - orderKey(a); });
+  for(var m of list){
+    make(g, m);
+    if(attacked(g, g.kings[me], g.side)){ unmake(g, m); continue; }
+    any = true;
+    var s = -negamax(g, depth - 1, -beta, -alpha, ply + 1);
+    unmake(g, m);
+    if(stopped) return 0;
+    if(s >= beta) return beta;
+    if(s > alpha) alpha = s;
+  }
+  if(!any) return chk ? -MATE + ply : 0;
+  return alpha;
+}
+/* level : 1 débutant, 2 club, 3 fort */
+function think(g, level){
+  var moves = legal(g);
+  if(!moves.length) return null;
+  if(level === 1 && Math.random() < .18) return moves[(Math.random() * moves.length) | 0];
+  var maxD = level === 1 ? 1 : level === 2 ? 3 : 7, noise = level === 1 ? 90 : level === 2 ? 12 : 0;
+  limit = level === 1 ? 300 : level === 2 ? 900 : 2400;
+  t0 = now(); nodes = 0; stopped = false;
+  moves.sort(function(a, b){ return orderKey(b) - orderKey(a); });
+  var best = moves[0], bestScores = null;
+  for(var d = 1; d <= maxD; d++){
+    var alpha = -MATE - 1, cur = null, scores = [];
+    for(var m of moves){
+      make(g, m);
+      var s = -negamax(g, d - 1, -MATE - 1, -alpha + noise + 1, 1);
+      unmake(g, m);
+      if(stopped) break;
+      var sn = s + (noise ? (Math.random() * 2 - 1) * noise : 0);
+      scores.push({m: m, s: sn});
+      if(sn > alpha){ alpha = sn; cur = m; }
+    }
+    if(stopped && d > 1) break;
+    if(cur){ best = cur; bestScores = scores; }
+    // meilleur coup d'abord à l'itération suivante
+    moves.sort(function(a, b){ return (b === best) - (a === best); });
+    if(alpha > MATE - 100) break;
+    if(now() - t0 > limit * .55) break;
+  }
+  return best;
+}
+return {create: create, toFen: toFen, legal: legal, make: make, unmake: unmake, inCheck: inCheck, perft: perft, san: san,
+        posKey: posKey, insufficient: insufficient, think: think, sqName: sqName, rowOf: rowOf, colOf: colOf, sq: sq, START: START};
+}
+var Engine = engineFactory();
+
+</script>
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const E = Engine;
+const load = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const save = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+const reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const GLYPH = {1: "♟", 2: "♞", 3: "♝", 4: "♜", 5: "♛", 6: "♚"};
+const VS = "︎";
+const NAMES = {1: "Pion", 2: "Cavalier", 3: "Fou", 4: "Tour", 5: "Dame", 6: "Roi"};
+const VAL = {1: 1, 2: 3, 3: 3, 4: 5, 5: 9, 6: 0};
+
+/* ================= SONS ================= */
+const Snd = {
+  ctx: null, on: load("ch_sound") !== "0", nb: null,
+  init(){
+    if(!this.ctx){
+      const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
+      this.ctx = new AC(); this.out = this.ctx.createGain(); this.out.gain.value = .9; this.out.connect(this.ctx.destination);
+      const n = this.ctx.sampleRate, b = this.ctx.createBuffer(1, n, n), d = b.getChannelData(0);
+      for(let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      this.nb = b;
+    }
+    if(this.ctx.state === "suspended") this.ctx.resume();
+  },
+  ok(){ return this.on && this.ctx; },
+  hit(f, q, peak, dur, delay = 0, type = "bandpass"){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.nb; fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .003); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    s.connect(fl).connect(g).connect(this.out); s.start(t, Math.random() * .5); s.stop(t + dur + .02);
+  },
+  tone(f0, f1, dur, peak, delay = 0, type = "sine"){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(this.out); o.start(t); o.stop(t + dur + .02);
+  },
+  /* pièce lestée feutrée posée sur le bois */
+  place(delay = 0, k = 1){ this.hit(380, 1.2, .55 * k, .09, delay, "lowpass"); this.tone(170, 95, .1, .35 * k, delay); this.hit(1500, 2, .08 * k, .03, delay + .005); },
+  lift(){ this.hit(900, 2, .06, .04); },
+  capture(){ this.hit(2200, 4, .22, .03); this.tone(600, 380, .05, .12, 0, "triangle"); this.place(.07, 1.1); },
+  castle(){ this.place(0); this.place(.16, .8); },
+  check(){ this.tone(1175, 1175, .35, .1, .12, "triangle"); this.tone(1568, 1568, .3, .06, .14, "triangle"); },
+  promo(){ [784, 988, 1175].forEach((f, i) => this.tone(f, f, .3, .12, .1 + i * .09, "triangle")); },
+  nope(){ this.tone(160, 120, .12, .08, 0, "square"); },
+  mate(win){ (win ? [523, 659, 784, 1047, 1319] : [392, 370, 349, 294]).forEach((f, i, a) => this.tone(f, f, i === a.length - 1 ? 1 : .35, .15, .35 + i * (win ? .13 : .3), "triangle")); },
+  draw(){ [523, 523].forEach((f, i) => this.tone(f, f, .4, .12, .3 + i * .3, "triangle")); }
+};
+function sndLabel(){ $("snd").textContent = Snd.on ? "🔊 Son" : "🔇 Muet"; }
+$("snd").onclick = () => { Snd.on = !Snd.on; save("ch_sound", Snd.on ? "1" : "0"); Snd.init(); sndLabel(); };
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => Snd.init(), {capture: true}));
+sndLabel();
+
+/* ================= ORDINATEUR (dans un travailleur, pour ne pas figer la page) ================= */
+let worker = null, reqId = 0;
+try{
+  const src = "var Engine = (" + engineFactory.toString() + ")();\n" +
+    "onmessage = function(e){ var g = Engine.create(e.data.fen); var m = Engine.think(g, e.data.level); postMessage({id: e.data.id, m: m ? {f: m.f, t: m.t, pr: m.pr} : null}); };";
+  worker = new Worker(URL.createObjectURL(new Blob([src], {type: "text/javascript"})));
+}catch(e){ worker = null; }
+function askEngine(fen, level){
+  const id = ++reqId;
+  return new Promise(res => {
+    const local = () => setTimeout(() => { const m = E.think(E.create(fen), level); res({id, m}); }, 30);
+    if(!worker) return local();
+    const to = setTimeout(() => { worker.onmessage = null; local(); }, 8000);
+    worker.onmessage = e => { if(e.data.id === id){ clearTimeout(to); res(e.data); } };
+    worker.onerror = () => { clearTimeout(to); worker = null; local(); };
+    worker.postMessage({fen, level, id});
+  });
+}
+
+/* ================= ÉTAT ================= */
+let g, hist = [], keys = [], legalNow = [], result = null;
+let opt = {mode: "ai", human: 0, level: 2, flip: false};
+let sel = -1, thinking = false, token = 0;
+try{ const o = JSON.parse(load("ch_opt") || "null"); if(o) opt = Object.assign(opt, o, {flip: false}); }catch(e){}
+
+const pieceAt = s => g.b[s];
+const colorOf = p => p & 8 ? 1 : 0;
+const humanTurn = () => !result && (opt.mode === "pvp" || g.side === opt.human);
+const flipped = () => opt.mode === "ai" ? (opt.human === 1) !== opt.flip : opt.flip;
+
+/* ================= PLATEAU ================= */
+const sqEls = {};
+(function build(){
+  const bd = $("board");
+  for(let i = 0; i < 64; i++){
+    const b = document.createElement("button");
+    b.className = "sq"; b.type = "button";
+    bd.appendChild(b);
+  }
+})();
+function layout(){
+  const bd = $("board"), els = bd.children, fl = flipped();
+  for(let i = 0; i < 64; i++){
+    const vr = Math.floor(i / 8), vc = i % 8;
+    const r = fl ? 7 - vr : vr, c = fl ? 7 - vc : vc, s = E.sq(r, c);
+    const el = els[i]; el.dataset.s = s; sqEls[s] = el;
+    el.className = "sq " + ((r + c) % 2 ? "d" : "l");
+    let co = "";
+    if(vr === 7) co += `<span class="co f">${"abcdefgh"[c]}</span>`;
+    if(vc === 0) co += `<span class="co r">${8 - r}</span>`;
+    el.dataset.co = co;
+  }
+}
+function pieceHTML(p, extra = ""){ return p ? `<span class="pc ${p & 8 ? "b" : "w"}${extra}">${GLYPH[p & 7]}${VS}</span>` : ""; }
+function render(){
+  const last = hist.length ? hist[hist.length - 1].m : null;
+  const targets = sel >= 0 ? legalNow.filter(m => m.f === sel) : [];
+  const chkSq = !result || result.type === "mate" ? (E.inCheck(g) ? g.kings[g.side] : -1) : -1;
+  for(const s in sqEls){
+    const el = sqEls[s], si = +s, p = pieceAt(si);
+    el.innerHTML = el.dataset.co + pieceHTML(p);
+    el.classList.toggle("last", !!last && (last.f === si || last.t === si));
+    el.classList.toggle("sel", si === sel);
+    el.classList.toggle("chk", si === chkSq);
+    const tg = targets.find(m => m.t === si);
+    el.classList.toggle("dot", !!tg && !tg.c);
+    el.classList.toggle("ring", !!tg && !!tg.c);
+    const mine = humanTurn() && !thinking && p && colorOf(p) === g.side;
+    el.classList.toggle("can", mine || !!tg);
+    const name = E.sqName(si) + (p ? ", " + NAMES[p & 7] + (p & 8 ? " noir" : " blanc") : "");
+    el.setAttribute("aria-label", name);
+  }
+  renderPanel();
+}
+function animateMove(m){
+  if(reduced) return;
+  const to = sqEls[m.t], from = sqEls[m.f];
+  if(!to || !from) return;
+  const a = to.getBoundingClientRect(), b = from.getBoundingClientRect();
+  const pc = to.querySelector(".pc"); if(!pc) return;
+  pc.animate([{transform: `translate(${b.left - a.left}px,${b.top - a.top}px)`}, {transform: "none"}], {duration: 190, easing: "cubic-bezier(.3,.7,.4,1)"});
+  if(m.fl === 2){
+    const rookTo = m.t === 97 ? 96 : m.t === 93 ? 94 : m.t === 27 ? 26 : 24, rookFrom = m.t === 97 ? 98 : m.t === 93 ? 91 : m.t === 27 ? 28 : 21;
+    const ra = sqEls[rookTo].getBoundingClientRect(), rb = sqEls[rookFrom].getBoundingClientRect(), rp = sqEls[rookTo].querySelector(".pc");
+    if(rp) rp.animate([{transform: `translate(${rb.left - ra.left}px,${rb.top - ra.top}px)`}, {transform: "none"}], {duration: 220, delay: 120, easing: "cubic-bezier(.3,.7,.4,1)", fill: "backwards"});
+  }
+}
+
+/* ================= PANNEAU ================= */
+function renderPanel(){
+  const st = $("status");
+  const side = g.side ? "Noirs" : "Blancs";
+  if(result){
+    st.className = "end";
+    st.textContent = result.text;
+  } else {
+    st.className = "";
+    let txt;
+    if(thinking) txt = "L'ordinateur réfléchit…";
+    else if(opt.mode === "ai") txt = g.side === opt.human ? "À vous de jouer" : "Tour de l'ordinateur";
+    else txt = "Aux " + side + " de jouer";
+    if(E.inCheck(g)) txt += " — échec !";
+    st.innerHTML = `<span class="tm ${g.side ? "b" : "w"}"></span>` + txt;
+  }
+  // prises
+  const lostBy = [[], []];
+  hist.forEach(h => { if(h.m.c) lostBy[colorOf(h.m.c)].push(h.m.c); });
+  let mat = 0;
+  for(let s = 21; s < 99; s++){ const p = g.b[s]; if(p && p !== 7){ mat += (p & 8 ? -1 : 1) * VAL[p & 7]; } }
+  const line = (pcs, lead) => pcs.sort((a, b) => VAL[b & 7] - VAL[a & 7]).map(p => pieceHTML(p)).join("") + (lead > 0 ? `<b>+${lead}</b>` : "");
+  $("capW").innerHTML = line(lostBy[1].slice(), mat) || '<span style="color:var(--muted);font-size:.85rem">Blancs : aucune prise</span>';
+  $("capB").innerHTML = line(lostBy[0].slice(), -mat) || '<span style="color:var(--muted);font-size:.85rem">Noirs : aucune prise</span>';
+  // carnet
+  const mv = $("moves");
+  if(!hist.length){ mv.innerHTML = '<p class="empty">Les coups s\'inscriront ici, en notation française (R roi, D dame, T tour, F fou, C cavalier).</p>'; }
+  else {
+    let h = "<table>";
+    for(let i = 0; i < hist.length; i += 2){
+      h += `<tr><td class="n">${i / 2 + 1}.</td><td class="${i === hist.length - 1 ? "cur" : ""}">${hist[i].san}</td><td class="${i + 1 === hist.length - 1 ? "cur" : ""}">${hist[i + 1] ? hist[i + 1].san : ""}</td></tr>`;
+    }
+    mv.innerHTML = h + "</table>";
+    mv.scrollTop = mv.scrollHeight;
+  }
+  // réglages
+  $("aiopts").hidden = opt.mode !== "ai";
+  [["mode", opt.mode], ["color", String(opt.human)], ["level", String(opt.level)]].forEach(([id, v]) =>
+    $(id).querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === v)));
+  $("undo").disabled = thinking || !hist.length;
+}
+
+/* ================= COUPS ================= */
+function doMove(m, animate = true){
+  const sanTxt = E.san(g, m, legalNow);
+  E.make(g, m);
+  hist.push({m, san: sanTxt});
+  keys.push(E.posKey(g));
+  legalNow = E.legal(g); sel = -1;
+  checkEnd();
+  render();
+  if(animate) animateMove(m);
+  // sons
+  if(m.fl === 2) Snd.castle(); else if(m.c) Snd.capture(); else Snd.place();
+  if(m.pr) Snd.promo();
+  if(result){ result.type === "mate" ? Snd.mate(opt.mode === "pvp" || result.winner === opt.human) : Snd.draw(); }
+  else if(E.inCheck(g)) Snd.check();
+  snapshot();
+  maybeAI();
+}
+function checkEnd(){
+  result = null;
+  if(!legalNow.length){
+    if(E.inCheck(g)){
+      const w = g.side ^ 1;
+      result = {type: "mate", winner: w, text: "Échec et mat ! " + (opt.mode === "ai" ? (w === opt.human ? "Vous gagnez." : "L'ordinateur gagne.") : (w ? "Les Noirs" : "Les Blancs") + " gagnent.")};
+    } else result = {type: "draw", text: "Pat : partie nulle."};
+  } else if(g.half >= 100) result = {type: "draw", text: "Nulle : 50 coups sans prise ni coup de pion."};
+  else if(E.insufficient(g)) result = {type: "draw", text: "Nulle : plus assez de matériel pour mater."};
+  else if(keys.filter(k => k === keys[keys.length - 1]).length >= 3) result = {type: "draw", text: "Nulle par triple répétition."};
+}
+async function maybeAI(){
+  if(result || opt.mode !== "ai" || g.side === opt.human) return;
+  thinking = true; render();
+  const my = ++token, t = performance.now();
+  const r = await askEngine(E.toFen(g), opt.level);
+  const wait = Math.max(0, 500 - (performance.now() - t));
+  await new Promise(res => setTimeout(res, wait));
+  if(my !== token) return;
+  thinking = false;
+  if(!r.m){ render(); return; }
+  const m = legalNow.find(x => x.f === r.m.f && x.t === r.m.t && (x.pr || 0) === (r.m.pr || 0)) || legalNow[0];
+  doMove(m);
+}
+
+/* ================= INTERACTION ================= */
+let pendingPromo = null;
+function tryMove(from, to){
+  const cands = legalNow.filter(m => m.f === from && m.t === to);
+  if(!cands.length) return false;
+  if(cands.length > 1 && cands[0].pr){ askPromo(cands); return true; }
+  doMove(cands[0]);
+  return true;
+}
+function askPromo(cands){
+  pendingPromo = cands;
+  const box = $("popts"); box.innerHTML = "";
+  [5, 4, 3, 2].forEach(t => {
+    const m = cands.find(c => (c.pr & 7) === t);
+    const b = document.createElement("button"); b.setAttribute("aria-label", NAMES[t]);
+    b.innerHTML = pieceHTML(m.pr);
+    b.onclick = () => { $("promo").hidden = true; pendingPromo = null; doMove(m); };
+    box.appendChild(b);
+  });
+  $("promo").hidden = false;
+  box.querySelector("button").focus();
+}
+function clickSquare(s){
+  if(!humanTurn() || thinking || pendingPromo) return;
+  const p = pieceAt(s);
+  if(sel >= 0 && sel !== s){
+    if(tryMove(sel, s)) return;
+  }
+  if(p && colorOf(p) === g.side){
+    if(sel === s){ sel = -1; render(); return; }
+    sel = s; Snd.lift(); render();
+    if(!legalNow.some(m => m.f === s)) Snd.nope();
+    return;
+  }
+  if(sel >= 0){ Snd.nope(); sel = -1; render(); }
+}
+/* glisser-déposer (souris ou doigt), le simple toucher reste possible */
+let drag = null;
+$("board").addEventListener("pointerdown", e => {
+  const el = e.target.closest(".sq"); if(!el) return;
+  const s = +el.dataset.s, p = pieceAt(s);
+  if(!humanTurn() || thinking || pendingPromo || !p || colorOf(p) !== g.side){ drag = {s, click: true, x: e.clientX, y: e.clientY}; return; }
+  drag = {s, x: e.clientX, y: e.clientY, moved: false, el: null};
+  $("board").setPointerCapture(e.pointerId);
+});
+$("board").addEventListener("pointermove", e => {
+  if(!drag || drag.click) return;
+  if(!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6){
+    drag.moved = true;
+    if(sel !== drag.s){ sel = drag.s; render(); Snd.lift(); }
+    const src = sqEls[drag.s].querySelector(".pc");
+    const gh = document.createElement("div"); gh.className = "ghost";
+    const size = sqEls[drag.s].getBoundingClientRect().width;
+    gh.innerHTML = pieceHTML(pieceAt(drag.s)); gh.firstChild.style.fontSize = (size * .83) + "px";
+    document.body.appendChild(gh); drag.el = gh;
+    if(src) src.classList.add("src");
+    $("board").classList.add("drag");
+  }
+  if(drag.el){ drag.el.style.left = e.clientX + "px"; drag.el.style.top = e.clientY + "px"; }
+});
+function endDrag(e){
+  if(!drag) return;
+  const d = drag; drag = null;
+  $("board").classList.remove("drag");
+  if(d.el){
+    d.el.remove();
+    const under = document.elementFromPoint(e.clientX, e.clientY), el = under && under.closest(".sq");
+    const to = el ? +el.dataset.s : -1;
+    if(to >= 0 && to !== d.s && tryMove(d.s, to)) return;
+    render(); return;
+  }
+  const under = document.elementFromPoint(e.clientX, e.clientY), el = under && under.closest(".sq");
+  if(el) clickSquare(+el.dataset.s);
+}
+$("board").addEventListener("pointerup", endDrag);
+$("board").addEventListener("pointercancel", () => { if(drag && drag.el) drag.el.remove(); drag = null; $("board").classList.remove("drag"); render(); });
+$("board").addEventListener("keydown", e => {
+  const el = e.target.closest(".sq"); if(!el) return;
+  if(e.key === "Enter" || e.key === " "){ e.preventDefault(); clickSquare(+el.dataset.s); return; }
+  const kids = [...$("board").children], i = kids.indexOf(el);
+  const d = {ArrowLeft: -1, ArrowRight: 1, ArrowUp: -8, ArrowDown: 8}[e.key];
+  if(d !== undefined){ const j = i + d; if(j >= 0 && j < 64 && !(d === -1 && i % 8 === 0) && !(d === 1 && i % 8 === 7)){ kids[j].focus(); e.preventDefault(); } }
+});
+
+/* ================= COMMANDES ================= */
+function newGame(){
+  token++; thinking = false; pendingPromo = null; $("promo").hidden = true;
+  g = E.create(); hist = []; keys = [E.posKey(g)]; legalNow = E.legal(g); result = null; sel = -1; opt.flip = false;
+  layout(); render(); snapshot();
+  Snd.place(0, .6); Snd.place(.12, .5);
+  maybeAI();
+}
+function saveOpt(){ save("ch_opt", JSON.stringify({mode: opt.mode, human: opt.human, level: opt.level})); }
+$("newg").onclick = newGame;
+$("flip").onclick = () => { opt.flip = !opt.flip; layout(); render(); };
+$("undo").onclick = () => {
+  if(thinking || !hist.length) return;
+  token++;
+  const back = () => { const h = hist.pop(); keys.pop(); E.unmake(g, h.m); };
+  back();
+  if(opt.mode === "ai" && g.side !== opt.human && hist.length) back();
+  legalNow = E.legal(g); result = null; sel = -1;
+  Snd.lift(); render(); snapshot(); maybeAI();
+};
+$("mode").onclick = e => { const b = e.target.closest("button"); if(!b || b.dataset.v === opt.mode) return; opt.mode = b.dataset.v; saveOpt(); newGame(); };
+$("color").onclick = e => { const b = e.target.closest("button"); if(!b || +b.dataset.v === opt.human) return; opt.human = +b.dataset.v; saveOpt(); newGame(); };
+$("level").onclick = e => { const b = e.target.closest("button"); if(!b) return; opt.level = +b.dataset.v; saveOpt(); renderPanel(); };
+document.addEventListener("keydown", e => { if(e.key === "Escape" && sel >= 0){ sel = -1; render(); } });
+
+/* ================= Conserver la partie lors d'une mise à jour ================= */
+function snapshot(){ try{ window.claude?.hot?.snapshot?.(() => ({moves: hist.map(h => [h.m.f, h.m.t, h.m.pr || 0]), opt: Object.assign({}, opt)})); }catch(e){} }
+function start(data){
+  if(data && data.moves){
+    opt = Object.assign(opt, data.opt);
+    g = E.create(); hist = []; keys = [E.posKey(g)]; legalNow = E.legal(g); result = null;
+    for(const [f, t, pr] of data.moves){
+      const m = legalNow.find(x => x.f === f && x.t === t && (x.pr || 0) === pr); if(!m) break;
+      const s = E.san(g, m, legalNow); E.make(g, m); hist.push({m, san: s}); keys.push(E.posKey(g)); legalNow = E.legal(g);
+    }
+    checkEnd(); layout(); render(); maybeAI();
+  } else newGame();
+}
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>

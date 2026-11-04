@@ -1,0 +1,530 @@
+<title>Décal</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Nunito:wght@600;800&display=swap">
+<style>
+/* Layout : une table en chêne ; en haut les grilles des adversaires, au milieu la pioche du tour, en bas la grande grille du joueur qui agit. */
+:root{
+  color-scheme:light;
+  --oak:#c89b63;          /* plateau de table */
+  --oak2:#a87a45;
+  --ink:#2b1d10;          /* texte */
+  --muted:#6e5233;
+  --cream:#fff8ec;        /* panneaux */
+  --back:#24356b;         /* dos des cartes */
+  --accent:#e2572c;       /* action */
+  --round:"Fredoka","Arial Rounded MT Bold","Trebuchet MS",sans-serif;
+  --ui:"Nunito","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0;font-family:var(--ui);color:var(--ink);-webkit-tap-highlight-color:transparent;
+  background:
+    repeating-linear-gradient(91deg,rgba(90,50,15,.07) 0 2px,transparent 2px 9px),
+    repeating-linear-gradient(89deg,rgba(255,240,210,.08) 0 1px,transparent 1px 23px),
+    radial-gradient(ellipse 75% 55% at 50% 30%,#ddb47c 0,var(--oak) 55%,var(--oak2) 100%) fixed,
+    var(--oak)}
+.app{max-width:820px;margin:0 auto;padding-block:10px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:12px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+h1{margin:0;font-family:var(--round);font-weight:700;font-size:clamp(1.9rem,7vw,2.5rem);line-height:1;color:var(--cream);
+  text-shadow:0 3px 0 #7a5228,0 6px 12px rgba(60,30,5,.35);letter-spacing:.02em}
+h1 span{display:inline-block;transform:translateX(.12em);color:#ffd27a}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;font-weight:800;color:var(--ink);background:var(--cream);border:1px solid rgba(43,29,16,.18);border-radius:11px;padding:8px 12px;cursor:pointer;box-shadow:0 2px 0 rgba(60,30,5,.25)}
+button:hover:not(:disabled){border-color:rgba(43,29,16,.45)}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+
+.bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--cream);border-radius:14px;padding:10px 14px;box-shadow:0 3px 0 rgba(60,30,5,.2)}
+#status{flex:1;min-width:200px;font-weight:800;font-size:1.02rem;line-height:1.35}
+#status .who{font-family:var(--round);font-weight:700}
+.turnno{font-family:var(--round);font-weight:700;color:var(--muted);white-space:nowrap}
+
+/* Table */
+.table{position:relative;display:flex;flex-direction:column;align-items:center;gap:14px}
+.opps{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;width:100%}
+.opp{display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px;border-radius:12px;background:rgba(255,248,236,.25);border:2px solid transparent;transition:border-color .2s,background .2s}
+.opp.act{border-color:var(--accent);background:rgba(255,248,236,.45)}
+.name{font-family:var(--round);font-weight:700;font-size:.92rem;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.name i{width:12px;height:12px;border-radius:50%;flex:none}
+.name .pts{font-family:var(--ui);font-weight:800;font-size:.8rem;color:var(--muted)}
+.name .tok{font-size:.95rem}
+.mini{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;width:clamp(92px,24vw,140px)}
+.mini .slot{aspect-ratio:.72}
+.poolwrap{display:flex;flex-direction:column;align-items:center;gap:6px}
+.poolwrap .lbl{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:#5a3d1c;font-weight:800}
+.pool{display:flex;gap:10px;justify-content:center;min-height:calc(clamp(52px,13vw,74px) / .72)}
+.pool .slot{width:clamp(52px,13vw,74px);aspect-ratio:.72;border-radius:9px;border:2px dashed rgba(90,60,25,.35)}
+.me{display:flex;flex-direction:column;align-items:center;gap:6px;width:100%}
+.me .name{font-size:1.1rem}
+.mgrid{display:grid;grid-template-columns:.55fr repeat(4,1fr) .55fr;grid-template-rows:.4fr repeat(4,1fr) .4fr;gap:6px;width:min(100%,400px)}
+.mgrid .slot{aspect-ratio:.72;border-radius:10px;background:rgba(90,55,20,.18);box-shadow:inset 0 2px 4px rgba(60,30,5,.25)}
+.arrow{border-radius:10px;border:0;padding:0;background:var(--accent);color:#fff;font-size:1.25rem;font-weight:800;box-shadow:0 3px 0 #9a3416;animation:bob .9s ease-in-out infinite alternate}
+.arrow:hover{filter:brightness(1.1)}
+@keyframes bob{from{transform:translate(0,0)}to{transform:translate(var(--bx),var(--by))}}
+.arrow[data-d="T"]{--bx:0;--by:3px}.arrow[data-d="B"]{--bx:0;--by:-3px}.arrow[data-d="L"]{--bx:3px;--by:0}.arrow[data-d="R"]{--bx:-3px;--by:0}
+
+/* Cartes */
+.layer{position:absolute;inset:0;pointer-events:none;z-index:5}
+.card{position:absolute;left:0;top:0;pointer-events:auto;perspective:600px;border:0;padding:0;background:transparent;box-shadow:none;border-radius:9px;
+  transition:transform .38s cubic-bezier(.3,.8,.3,1),width .38s,height .38s;cursor:default}
+.card .in{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .45s ease}
+.card.up .in{transform:rotateY(180deg)}
+.card .f,.card .b{position:absolute;inset:0;border-radius:inherit;backface-visibility:hidden;-webkit-backface-visibility:hidden;box-shadow:0 3px 6px rgba(50,25,5,.35)}
+.card .b{background:
+    repeating-linear-gradient(45deg,rgba(255,255,255,.08) 0 6%,transparent 6% 12%),
+    radial-gradient(circle at 50% 50%,#3b55a3 0,var(--back) 70%);
+  border:3px solid #fff8ec;display:flex;align-items:center;justify-content:center;color:rgba(255,248,236,.85);font-family:var(--round);font-weight:700}
+.card .b::after{content:"⇆";font-size:calc(var(--w) * .38)}
+.card .f{transform:rotateY(180deg);background:#fffdf7;border:3px solid var(--vc);display:flex;align-items:center;justify-content:center}
+.card .f .v{font-family:var(--round);font-weight:700;font-size:calc(var(--w) * .52);line-height:1;color:var(--vc);text-shadow:0 2px 0 rgba(0,0,0,.08)}
+.card .f .c{position:absolute;font-family:var(--round);font-weight:700;font-size:calc(var(--w) * .17);color:var(--vc);line-height:1}
+.card .f .c.a{left:9%;top:6%}.card .f .c.z{right:9%;bottom:6%}
+.card .f::before{content:"";position:absolute;inset:9%;border-radius:6px;background:radial-gradient(circle,color-mix(in srgb,var(--vc) 12%,transparent) 0,transparent 70%)}
+.card.pick{cursor:pointer}
+.card.pick:hover{filter:brightness(1.05)}
+.card.sel .f,.card.sel .b{box-shadow:0 0 0 4px var(--accent),0 8px 14px rgba(50,25,5,.4)}
+.card.lift{z-index:3}
+.card.pair .f{box-shadow:0 0 0 3px #3aa15a,0 3px 6px rgba(50,25,5,.35)}
+.card.gone{animation:pop .45s ease-in forwards}
+@keyframes pop{40%{filter:brightness(1.4)}100%{opacity:0;filter:brightness(1.6)}}
+.card:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* Bas de page */
+.foot{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center}
+.seg{display:inline-flex;background:var(--cream);border-radius:12px;padding:3px;box-shadow:0 2px 0 rgba(60,30,5,.25)}
+.seg button{border:0;box-shadow:none;background:transparent;padding:7px 11px;border-radius:9px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--back);color:#fff}
+.rules{background:var(--cream);border-radius:14px;padding:12px 14px;box-shadow:0 3px 0 rgba(60,30,5,.2);font-size:.9rem;line-height:1.5}
+.rules summary{cursor:pointer;font-weight:800}
+.rules ul{margin:8px 0 0;padding-left:18px}
+
+/* Fin de manche */
+.end{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(40,20,5,.55);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.end .box{background:var(--cream);border-radius:16px;padding:22px;width:100%;max-width:380px;box-shadow:0 20px 40px rgba(40,20,5,.45)}
+.end h2{margin:0 0 12px;font-family:var(--round);font-weight:700;font-size:1.6rem;text-align:center}
+.end table{width:100%;border-collapse:collapse;margin-bottom:14px;font-variant-numeric:tabular-nums}
+.end th,.end td{padding:7px 6px;text-align:left;border-bottom:1px solid rgba(43,29,16,.12)}
+.end td.n{text-align:right;font-weight:800}
+.end tr.best td{background:rgba(255,210,122,.45)}
+.end .btns{display:flex;gap:8px}
+.end .btns button{flex:1}
+#nextr{background:var(--accent);color:#fff;border-color:var(--accent)}
+@media (prefers-reduced-motion:reduce){.card,.card .in{transition:none}.arrow,.card.gone{animation:none}}
+</style>
+
+<div class="app">
+  <div class="top">
+    <h1>Dé<span>cal</span></h1>
+    <div class="tools">
+      <div class="seg" id="np" role="group" aria-label="Nombre de joueurs"><button data-v="2" aria-pressed="true">2</button><button data-v="3" aria-pressed="false">3</button><button data-v="4" aria-pressed="false">4</button></div>
+      <div class="seg" id="who" role="group" aria-label="Adversaires"><button data-v="ai" aria-pressed="true">Ordinateurs</button><button data-v="hot" aria-pressed="false">Même écran</button></div>
+      <button id="snd" aria-label="Activer ou couper le son"></button>
+    </div>
+  </div>
+
+  <div class="bar"><div id="status" aria-live="polite"></div><span class="turnno" id="turnno"></span></div>
+
+  <div class="table" id="table">
+    <div class="opps" id="opps"></div>
+    <div class="poolwrap"><span class="lbl">Cartes du tour</span><div class="pool" id="pool"></div></div>
+    <div class="me" id="me"></div>
+    <div class="layer" id="layer"></div>
+  </div>
+
+  <div class="foot"><button id="newg">Nouvelle partie</button></div>
+  <details class="rules">
+    <summary>Règles du jeu</summary>
+    <ul>
+      <li>Chacun a 16 cartes faces cachées. Personne ne les connaît, pas même leur propriétaire.</li>
+      <li>À chaque tour, tout le monde retourne une de ses cartes cachées au centre : un trou apparaît dans sa grille.</li>
+      <li>Puis, à tour de rôle, chacun prend une carte du centre et la glisse depuis le bord de la ligne ou de la colonne du trou, ce qui décale les cartes pour combler le trou.</li>
+      <li>Au premier tour, la plus petite carte retournée désigne le premier joueur ; ensuite le jeton ★ passe au joueur suivant.</li>
+      <li>Après 16 tours, deux cartes identiques côte à côte (pas en diagonale) s'annulent. On additionne le reste : le plus petit total gagne. On enchaîne les manches jusqu'à ce que quelqu'un atteigne 100 points.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="end" id="end" hidden><div class="box">
+  <h2 id="endt">Fin de la manche</h2>
+  <table id="endtbl"></table>
+  <div class="btns"><button id="again">Nouvelle partie</button><button id="nextr">Manche suivante</button></div>
+</div></div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const load = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const save = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const VCOL = ["", "#1f9d6b", "#2a9bb5", "#3a74d1", "#6a55d8", "#a04fcf", "#d0479c", "#e04a5c", "#e8622e", "#d98a10", "#b8661a"];
+const PCOL = ["#e2572c", "#2a74d1", "#2f9d5b", "#a04fcf"];
+
+/* ================= SONS ================= */
+const Snd = {
+  ctx: null, on: load("dk_sound") !== "0", nb: null,
+  init(){
+    if(!this.ctx){
+      const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
+      this.ctx = new AC(); this.out = this.ctx.createGain(); this.out.gain.value = .9; this.out.connect(this.ctx.destination);
+      const n = this.ctx.sampleRate, b = this.ctx.createBuffer(1, n, n), d = b.getChannelData(0);
+      for(let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      this.nb = b;
+    }
+    if(this.ctx.state === "suspended") this.ctx.resume();
+  },
+  ok(){ return this.on && this.ctx; },
+  hit(f, q, peak, dur, delay = 0, type = "bandpass", f2){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.nb; fl.type = type; fl.frequency.setValueAtTime(f, t); if(f2) fl.frequency.exponentialRampToValueAtTime(f2, t + dur); fl.Q.value = q;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + Math.min(.015, dur / 3)); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    s.connect(fl).connect(g).connect(this.out); s.start(t, Math.random() * .5); s.stop(t + dur + .02);
+  },
+  tone(f0, f1, dur, peak, delay = 0, type = "sine"){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(this.out); o.start(t); o.stop(t + dur + .02);
+  },
+  /* carte retournée : claquement du carton */
+  flip(delay = 0){ this.hit(2400, 1.5, .28, .05, delay, "bandpass", 1200); this.hit(500, 1, .12, .05, delay + .02, "lowpass"); },
+  /* carte qu'on fait glisser sur la table */
+  slide(delay = 0, dur = .25){ this.hit(1800, .7, .1, dur, delay, "bandpass", 3200); },
+  tap(delay = 0){ this.hit(800, 1, .22, .04, delay, "lowpass"); this.tone(320, 200, .05, .12, delay, "triangle"); },
+  pick(){ this.hit(3000, 2, .15, .03); this.tone(900, 1200, .05, .07, 0, "triangle"); },
+  pop(delay = 0, k = 0){ this.tone(500 + k * 60, 900 + k * 80, .09, .14, delay, "sine"); },
+  tick(delay = 0){ this.tone(1500, 1500, .03, .05, delay, "triangle"); },
+  shuffle(){ for(let i = 0; i < 10; i++) this.hit(2600 + Math.random() * 900, 1, .1, .05, i * .05); },
+  win(){ [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, f, i === 4 ? .9 : .28, .15, .1 + i * .12, "triangle")); },
+  meh(){ [440, 392].forEach((f, i) => this.tone(f, f, .35, .12, .1 + i * .25, "triangle")); }
+};
+function sndLabel(){ $("snd").textContent = Snd.on ? "🔊" : "🔇"; $("snd").title = Snd.on ? "Son activé" : "Son coupé"; }
+$("snd").onclick = () => { Snd.on = !Snd.on; save("dk_sound", Snd.on ? "1" : "0"); Snd.init(); sndLabel(); };
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => Snd.init(), {capture: true}));
+sndLabel();
+
+/* ================= RÈGLES ================= */
+function neighbors(i){ const r = i >> 2, c = i & 3, n = []; if(r > 0) n.push(i - 4); if(r < 3) n.push(i + 4); if(c > 0) n.push(i - 1); if(c < 3) n.push(i + 1); return n; }
+function entries(grid){
+  const gap = grid.indexOf(null); if(gap < 0) return [];
+  const r = gap >> 2, c = gap & 3, out = [];
+  if(c !== 0) out.push({d: "L", line: r}); if(c !== 3) out.push({d: "R", line: r});
+  if(r !== 0) out.push({d: "T", line: c}); if(r !== 3) out.push({d: "B", line: c});
+  return out;
+}
+function insert(grid, id, d){
+  const g = grid.slice(), gap = g.indexOf(null), r = gap >> 2, c = gap & 3;
+  if(d === "L"){ for(let x = c; x > 0; x--) g[r * 4 + x] = g[r * 4 + x - 1]; g[r * 4] = id; }
+  else if(d === "R"){ for(let x = c; x < 3; x++) g[r * 4 + x] = g[r * 4 + x + 1]; g[r * 4 + 3] = id; }
+  else if(d === "T"){ for(let y = r; y > 0; y--) g[y * 4 + c] = g[(y - 1) * 4 + c]; g[c] = id; }
+  else { for(let y = r; y < 3; y++) g[y * 4 + c] = g[(y + 1) * 4 + c]; g[12 + c] = id; }
+  return g;
+}
+/* score des cartes visibles : les voisines identiques s'annulent */
+function scoreOf(grid){
+  const vals = grid.map(id => id !== null && C[id].up ? C[id].v : null);
+  let s = 0, left = 0; const pairs = new Set();
+  vals.forEach((v, i) => { if(v === null) return; if(neighbors(i).some(j => vals[j] === v)) pairs.add(i); else { s += v; left++; } });
+  return {s, left, pairs};
+}
+
+/* ================= ÉTAT ================= */
+let C = [];      // cartes {v, up}
+let S = null;    // partie
+let busy = false, token = 0;
+let cfg = {n: 2, who: "ai"};
+try{ const o = JSON.parse(load("dk_cfg") || "null"); if(o) cfg = Object.assign(cfg, o); }catch(e){}
+
+function namesFor(){ return Array.from({length: cfg.n}, (_, i) => cfg.who === "ai" ? (i === 0 ? "Vous" : (cfg.n === 2 ? "L'ordinateur" : "Ordi " + i)) : "Joueur " + (i + 1)); }
+function newGame(){
+  token++;
+  S = {players: namesFor().map((name, i) => ({name, ai: cfg.who === "ai" && i > 0, grid: [], total: 0, last: 0})), round: 0};
+  newRound();
+}
+function newRound(){
+  token++; busy = false;
+  S.round++;
+  C = []; for(let v = 1; v <= 10; v++) for(let k = 0; k < 10; k++) C.push({v, up: false});
+  const deck = C.map((_, i) => i); for(let i = deck.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; }
+  S.players.forEach(p => { p.grid = deck.splice(0, 16); });
+  S.spare = deck;
+  S.pool = []; S.turn = 1; S.first = -1; S.phase = "reveal"; S.picks = {}; S.order = []; S.opos = 0; S.sel = null;
+  S.view = 0;
+  $("end").hidden = true;
+  buildTable(); Snd.shuffle(); step();
+}
+
+/* ================= TABLE ================= */
+const cardEls = [];
+function cardEl(id){
+  if(cardEls[id]) return cardEls[id];
+  const c = C[id], b = document.createElement("button");
+  b.type = "button"; b.className = "card"; b.dataset.id = id; b.tabIndex = -1;
+  b.style.setProperty("--vc", VCOL[c.v]);
+  b.innerHTML = `<span class="in"><span class="b"></span><span class="f"><span class="c a">${c.v}</span><span class="v">${c.v}</span><span class="c z">${c.v}</span></span></span>`;
+  b.addEventListener("click", () => onCard(id));
+  $("layer").appendChild(b); cardEls[id] = b;
+  return b;
+}
+function buildTable(){
+  $("layer").innerHTML = ""; cardEls.length = 0;
+  // les faces des cartes changent à chaque manche
+  render();
+}
+function mainIdx(){
+  if(cfg.who === "ai") return 0;
+  if(S.phase === "take") return S.order[S.opos];
+  if(S.phase === "reveal") return S.revealer ?? 0;
+  return S.view;
+}
+function render(){
+  const m = mainIdx(), act = S.phase === "take" ? S.order[S.opos] : (S.phase === "reveal" ? S.revealer : -1);
+  // adversaires
+  const opps = $("opps"); opps.innerHTML = "";
+  S.players.forEach((p, i) => {
+    if(i === m) return;
+    const o = document.createElement("div"); o.className = "opp" + (i === act ? " act" : "");
+    o.innerHTML = `<div class="name"><i style="background:${PCOL[i]}"></i>${p.name}${S.first === i ? ' <span class="tok" title="Premier joueur">★</span>' : ""}<span class="pts">${scoreOf(p.grid).s} pts</span></div><div class="mini">${Array.from({length: 16}, (_, k) => `<span class="slot" data-p="${i}" data-k="${k}"></span>`).join("")}</div>`;
+    opps.appendChild(o);
+  });
+  // centre
+  const pool = $("pool"); pool.innerHTML = "";
+  for(let k = 0; k < S.players.length; k++){ const s = document.createElement("span"); s.className = "slot"; s.dataset.pool = k; pool.appendChild(s); }
+  // joueur principal
+  const me = $("me"), p = S.players[m], sc = scoreOf(p.grid);
+  let h = `<div class="name"><i style="background:${PCOL[m]}"></i>${p.name}${S.first === m ? ' <span class="tok" title="Premier joueur">★</span>' : ""}<span class="pts">${sc.s} pts visibles</span></div><div class="mgrid" id="mgrid">`;
+  for(let k = 0; k < 16; k++) h += `<span class="slot" data-p="${m}" data-k="${k}" style="grid-row:${(k >> 2) + 2};grid-column:${(k & 3) + 2}"></span>`;
+  const humanTake = S.phase === "take" && act === m && !S.players[m].ai && S.sel !== null && !busy;
+  if(humanTake){
+    for(const e of entries(p.grid)){
+      const pos = e.d === "L" ? `grid-row:${e.line + 2};grid-column:1` : e.d === "R" ? `grid-row:${e.line + 2};grid-column:6` : e.d === "T" ? `grid-row:1;grid-column:${e.line + 2}` : `grid-row:6;grid-column:${e.line + 2}`;
+      const glyph = {L: "→", R: "←", T: "↓", B: "↑"}[e.d];
+      h += `<button class="arrow" data-d="${e.d}" style="${pos}" aria-label="Glisser la carte ${({L: "par la gauche de la ligne", R: "par la droite de la ligne", T: "par le haut de la colonne", B: "par le bas de la colonne"})[e.d]} ${e.line + 1}">${glyph}</button>`;
+    }
+  }
+  me.innerHTML = h + "</div>";
+  me.querySelectorAll(".arrow").forEach(a => a.onclick = () => humanInsert(a.dataset.d));
+  // statut
+  const st = $("status");
+  const who = i => `<span class="who" style="color:${PCOL[i]}">${S.players[i].name}</span>`;
+  if(S.phase === "reveal"){
+    const r = S.revealer;
+    st.innerHTML = r !== undefined && !S.players[r].ai ? `${who(r)} : touchez une carte cachée de votre grille pour la retourner au centre.` : "Chacun retourne une carte…";
+  } else if(S.phase === "take"){
+    const a = S.order[S.opos];
+    if(S.players[a].ai) st.innerHTML = `${who(a)} choisit une carte…`;
+    else st.innerHTML = S.sel === null ? `${who(a)} : prenez une carte du centre.` : `${who(a)} : touchez une flèche pour glisser la carte dans votre grille.`;
+  } else st.innerHTML = "Décompte des points…";
+  $("turnno").textContent = `Manche ${S.round} · Tour ${Math.min(S.turn, 16)}/16`;
+  [["np", String(cfg.n)], ["who", cfg.who]].forEach(([id, v]) => $(id).querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === v)));
+  requestAnimationFrame(place);
+}
+function place(){
+  const layer = $("layer"), base = layer.getBoundingClientRect();
+  const seen = new Set();
+  const put = (id, slot, cls) => {
+    if(!slot) return;
+    const r = slot.getBoundingClientRect(), el = cardEl(id);
+    el.style.width = r.width + "px"; el.style.height = r.height + "px";
+    el.style.transform = `translate(${r.left - base.left}px,${r.top - base.top}px)`;
+    el.style.setProperty("--w", r.width + "px");
+    el.style.borderRadius = Math.max(5, r.width * .12) + "px";
+    el.classList.toggle("up", !!C[id].up);
+    el.className = el.className.replace(/\b(pick|sel|pair)\b/g, "").trim() + (cls ? " " + cls : "");
+    el.hidden = false; seen.add(id);
+  };
+  const m = mainIdx(), act = S.phase === "take" ? S.order[S.opos] : S.revealer;
+  S.players.forEach((p, i) => {
+    const sc = scoreOf(p.grid);
+    p.grid.forEach((id, k) => {
+      if(id === null) return;
+      const slot = document.querySelector(`.slot[data-p="${i}"][data-k="${k}"]`);
+      let cls = sc.pairs.has(k) ? "pair" : "";
+      if(S.phase === "reveal" && i === act && i === m && !p.ai && !C[id].up && !busy) cls += " pick";
+      if(S.picks[i] === k) cls += " sel";
+      put(id, slot, cls);
+    });
+  });
+  S.pool.forEach((id, k) => {
+    const a = S.phase === "take" ? S.order[S.opos] : -1;
+    let cls = a >= 0 && !S.players[a].ai && !busy ? "pick" : "";
+    if(S.sel === id) cls += " sel";
+    put(id, document.querySelector(`.slot[data-pool="${k}"]`), cls);
+  });
+  if(S.flying) put(S.flying.id, S.flying.slot, "sel lift");
+  cardEls.forEach((el, id) => { if(el && !seen.has(id) && !(S.flying && S.flying.id === id)) el.hidden = true; });
+  cardEls.forEach((el, id) => { if(el) el.tabIndex = el.classList.contains("pick") ? 0 : -1; });
+}
+window.addEventListener("resize", () => { if(S) place(); });
+
+/* ================= DÉROULEMENT ================= */
+async function step(){
+  const my = token;
+  if(S.phase === "reveal"){
+    // les ordinateurs choisissent, puis chaque humain à son tour
+    S.players.forEach((p, i) => { if(p.ai) S.picks[i] = aiReveal(p.grid); });
+    const humans = S.players.map((p, i) => i).filter(i => !S.players[i].ai && S.picks[i] === undefined);
+    if(humans.length){ S.revealer = humans[0]; render(); return; }
+    S.revealer = undefined;
+    busy = true; render();
+    await sleep(250); if(my !== token) return;
+    // tout le monde retourne en même temps
+    S.players.forEach((p, i) => { const k = S.picks[i], id = p.grid[k]; p.grid[k] = null; C[id].up = true; S.pool.push(id); });
+    S.players.forEach((_, i) => { Snd.slide(i * .06, .2); Snd.flip(.25 + i * .06); });
+    S.picks = {}; render();
+    await sleep(reduced ? 100 : 650); if(my !== token) return;
+    if(S.turn === 1){
+      const vals = S.pool.map(id => C[id].v), min = Math.min(...vals);
+      const cands = vals.map((v, i) => v === min ? i : -1).filter(i => i >= 0);
+      S.first = cands[Math.floor(Math.random() * cands.length)];
+    }
+    S.order = S.players.map((_, k) => (S.first + k) % S.players.length); S.opos = 0;
+    S.phase = "take"; S.sel = null; busy = false; render();
+    return step();
+  }
+  if(S.phase === "take"){
+    const a = S.order[S.opos];
+    if(!S.players[a].ai){ render(); return; }
+    busy = true; render();
+    await sleep(700); if(my !== token) return;
+    const mv = aiTake(S.players[a].grid);
+    S.sel = mv.id; Snd.pick(); render();
+    await sleep(450); if(my !== token) return;
+    await doInsert(a, mv.id, mv.d, my);
+  }
+}
+function onCard(id){
+  if(busy || !S) return;
+  if(S.phase === "reveal"){
+    const r = S.revealer; if(r === undefined || S.players[r].ai) return;
+    const k = S.players[r].grid.indexOf(id);
+    if(k < 0 || C[id].up) return;
+    S.picks[r] = k; Snd.tap();
+    // en mode même écran, le joueur suivant choisit à son tour
+    step(); return;
+  }
+  if(S.phase === "take"){
+    const a = S.order[S.opos]; if(S.players[a].ai) return;
+    if(!S.pool.includes(id)) return;
+    S.sel = S.sel === id ? null : id; Snd.pick(); render();
+  }
+}
+function humanInsert(d){
+  if(busy || S.sel === null) return;
+  const a = S.order[S.opos];
+  doInsert(a, S.sel, d, token);
+}
+async function doInsert(a, id, d, my){
+  busy = true;
+  const p = S.players[a];
+  // la carte vient se placer au bord, devant la ligne choisie
+  const gap = p.grid.indexOf(null), r = gap >> 2, c = gap & 3;
+  const k = d === "L" ? r * 4 : d === "R" ? r * 4 + 3 : d === "T" ? c : 12 + c;
+  S.pool.splice(S.pool.indexOf(id), 1);
+  const edge = edgeSlot(a, k, d);
+  S.flying = {id, slot: edge};
+  render(); Snd.slide(0, .3);
+  await sleep(reduced ? 60 : 380); if(my !== token) return;
+  S.flying = null;
+  p.grid = insert(p.grid, id, d);
+  S.sel = null;
+  render(); Snd.slide(0, .22); Snd.tap(.3);
+  const before = scoreOf(p.grid).pairs.size;
+  await sleep(reduced ? 60 : 450); if(my !== token) return;
+  if(before) Snd.pop(0, 2);
+  S.opos++;
+  if(S.opos >= S.players.length){
+    S.turn++; S.first = (S.first + 1) % S.players.length;
+    if(S.turn > 16){ busy = false; return endRound(my); }
+    S.phase = "reveal"; S.pool = [];
+  }
+  busy = false;
+  step();
+}
+/* position fantôme juste à l'extérieur de la grille, devant la ligne */
+function edgeSlot(a, k, d){
+  const slot = document.querySelector(`.slot[data-p="${a}"][data-k="${k}"]`);
+  if(!slot) return null;
+  const r = slot.getBoundingClientRect(), dx = d === "L" ? -1 : d === "R" ? 1 : 0, dy = d === "T" ? -1 : d === "B" ? 1 : 0;
+  return {getBoundingClientRect: () => ({left: r.left + dx * r.width * .75, top: r.top + dy * r.height * .75, width: r.width, height: r.height})};
+}
+
+/* ================= ORDINATEUR ================= */
+function aiReveal(grid){
+  const hidden = grid.map((id, k) => id !== null && !C[id].up ? k : -1).filter(k => k >= 0);
+  // préfère libérer une case entourée de cartes cachées, pour garder ses paires intactes
+  let best = [], bs = -1;
+  for(const k of hidden){ const s = neighbors(k).filter(j => grid[j] !== null && !C[grid[j]].up).length + Math.random() * .5; if(s > bs){ bs = s; best = [k]; } }
+  return best[0];
+}
+function potential(grid){
+  // petit bonus quand deux cartes identiques sont alignées à une case d'écart
+  const v = grid.map(id => id !== null && C[id].up ? C[id].v : null); let b = 0;
+  for(let i = 0; i < 16; i++){
+    if(v[i] === null) continue;
+    const r = i >> 2, c = i & 3;
+    if(c < 2 && v[i + 2] === v[i] && v[i + 1] !== v[i]) b += .35 * v[i];
+    if(r < 2 && v[i + 8] === v[i] && v[i + 4] !== v[i]) b += .35 * v[i];
+  }
+  return b;
+}
+function aiTake(grid){
+  let best = null;
+  for(const id of S.pool) for(const e of entries(grid)){
+    const g2 = insert(grid, id, e.d), sc = scoreOf(g2);
+    const val = sc.s - sc.pairs.size * .5 - potential(g2) + Math.random() * .3;
+    if(!best || val < best.val) best = {id, d: e.d, val};
+  }
+  return best;
+}
+
+/* ================= FIN DE MANCHE ================= */
+async function endRound(my){
+  S.phase = "end"; busy = true; render();
+  await sleep(500); if(my !== token) return;
+  let k = 0;
+  for(const p of S.players){
+    const sc = scoreOf(p.grid);
+    for(const i of sc.pairs){ const el = cardEls[p.grid[i]]; if(el){ el.classList.add("gone"); Snd.pop(k * .06, k % 8); k++; } }
+    p.last = sc.s; p.left = sc.left; p.total += sc.s;
+  }
+  await sleep(600 + k * 60); if(my !== token) return;
+  showEnd();
+}
+function showEnd(){
+  const ps = S.players.map((p, i) => ({...p, i}));
+  const over = ps.some(p => p.total >= 100);
+  const rk = ps.slice().sort((a, b) => over ? (a.total - b.total) : (a.last - b.last || a.left - b.left));
+  const best = rk[0];
+  const tieBest = rk.filter(p => over ? p.total === best.total : (p.last === best.last && p.left === best.left));
+  let title;
+  if(over) title = tieBest.length > 1 ? "Égalité finale !" : (best.name === "Vous" ? "Vous gagnez la partie !" : best.name + " gagne la partie !");
+  else title = tieBest.length > 1 ? "Manche partagée" : (best.name === "Vous" ? "Vous gagnez la manche !" : best.name + " gagne la manche");
+  $("endt").textContent = title;
+  $("endtbl").innerHTML = `<tr><th>Joueur</th><th style="text-align:right">Manche</th><th style="text-align:right">Total</th></tr>` +
+    rk.map(p => `<tr class="${tieBest.includes(p) ? "best" : ""}"><td><span style="color:${PCOL[p.i]};font-weight:800">●</span> ${p.name}</td><td class="n">${p.last} <small style="color:var(--muted);font-weight:600">(${p.left} cartes)</small></td><td class="n">${p.total}</td></tr>`).join("");
+  $("nextr").hidden = over;
+  $("end").hidden = false;
+  (tieBest.some(p => !p.ai) && (cfg.who === "hot" || best.i === 0)) ? Snd.win() : Snd.meh();
+  for(let i = 0; i < 6; i++) Snd.tick(.05 + i * .06);
+}
+$("nextr").onclick = () => newRound();
+$("again").onclick = () => newGame();
+$("newg").onclick = () => newGame();
+$("np").onclick = e => { const b = e.target.closest("button"); if(!b || +b.dataset.v === cfg.n) return; cfg.n = +b.dataset.v; save("dk_cfg", JSON.stringify(cfg)); newGame(); };
+$("who").onclick = e => { const b = e.target.closest("button"); if(!b || b.dataset.v === cfg.who) return; cfg.who = b.dataset.v; save("dk_cfg", JSON.stringify(cfg)); newGame(); };
+document.addEventListener("keydown", e => {
+  if(!S || S.phase !== "take" || S.sel === null) return;
+  const d = {ArrowRight: "L", ArrowLeft: "R", ArrowDown: "T", ArrowUp: "B"}[e.key];
+  if(d && entries(S.players[S.order[S.opos]].grid).some(x => x.d === d)){ e.preventDefault(); humanInsert(d); }
+});
+
+newGame();
+})();
+</script>

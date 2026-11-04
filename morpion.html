@@ -1,0 +1,420 @@
+<title>Morpion du cahier</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Nunito:wght@700;800&display=swap">
+<style>
+/* Layout : une page de cahier Seyès posée sur un bureau en bois ; la grille au centre de la page, les scores en bâtons dessous, les commandes sur le bureau. */
+:root{
+  color-scheme:light;
+  --desk:#3b2618;          /* bois du bureau */
+  --desk2:#2a1a10;
+  --paper:#fdfcf6;         /* papier */
+  --seyes:#a9c1e6;         /* lignes principales */
+  --seyes2:#dde7f5;        /* lignes fines */
+  --margin:#e07a7a;        /* marge rouge */
+  --blue:#1f3fa6;          /* stylo bleu */
+  --red:#c4142c;           /* stylo rouge */
+  --graphite:#55555e;      /* crayon */
+  --label:#f3ead8;         /* texte sur le bois */
+  --hand:"Caveat","Segoe Print","Comic Sans MS",cursive;
+  --ui:"Nunito","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0;font-family:var(--ui);color:var(--label);-webkit-tap-highlight-color:transparent;
+  background:
+    repeating-linear-gradient(92deg,rgba(255,255,255,.025) 0 3px,transparent 3px 11px),
+    repeating-linear-gradient(88deg,rgba(0,0,0,.08) 0 1px,transparent 1px 37px),
+    radial-gradient(ellipse 80% 60% at 50% 35%,#5a3a24 0,var(--desk) 55%,var(--desk2) 100%) fixed,
+    var(--desk)}
+.desk{max-width:620px;margin:0 auto;padding-block:12px 26px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:14px}
+.bar{display:flex;justify-content:flex-end}
+button{font:inherit;font-weight:800;cursor:pointer;border-radius:10px;border:1px solid rgba(243,234,216,.25);background:rgba(0,0,0,.25);color:var(--label);padding:9px 13px}
+button:hover{border-color:rgba(243,234,216,.5)}
+button:focus-visible{outline:3px solid #ffd36b;outline-offset:2px}
+
+/* La page */
+.page{position:relative;background:var(--paper);color:var(--blue);border-radius:3px 6px 6px 3px;
+  padding-block:18px 22px;padding-left:clamp(56px,14vw,84px);padding-right:clamp(14px,4vw,28px);
+  box-shadow:0 18px 40px rgba(0,0,0,.45),0 2px 0 #e9e4d4,0 4px 0 #f6f2e6,0 6px 0 #e3dccb;
+  background-image:
+    linear-gradient(90deg,transparent calc(clamp(56px,14vw,84px) - 10px),var(--margin) calc(clamp(56px,14vw,84px) - 10px),var(--margin) calc(clamp(56px,14vw,84px) - 8px),transparent calc(clamp(56px,14vw,84px) - 8px)),
+    repeating-linear-gradient(0deg,transparent 0 31px,var(--seyes) 31px 32px),
+    repeating-linear-gradient(0deg,transparent 0 7px,var(--seyes2) 7px 8px),
+    repeating-linear-gradient(90deg,transparent 0 31px,var(--seyes2) 31px 32px);
+  transition:transform .35s ease,opacity .35s ease}
+.page.turning{transform:translateX(-14px) rotate(-1.2deg);opacity:.0}
+.holes{position:absolute;left:14px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:space-around;pointer-events:none}
+.holes i{width:13px;height:13px;border-radius:50%;background:var(--desk2);box-shadow:inset 0 2px 3px rgba(0,0,0,.6)}
+.head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+h1{margin:0;font-family:var(--hand);font-weight:700;font-size:clamp(2.2rem,8vw,2.9rem);line-height:1;color:var(--red);text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:6px}
+.date{font-family:var(--hand);font-size:1.35rem;color:var(--blue)}
+.turn{font-family:var(--hand);font-size:1.6rem;line-height:1.2;margin:12px 0 4px;min-height:1.3em;display:flex;align-items:center;gap:8px}
+.turn svg{width:26px;height:26px;flex:none}
+.turn.win{font-weight:700;font-size:1.9rem}
+
+.board{position:relative;width:min(100%,380px);aspect-ratio:1;max-width:100%;margin:6px auto 4px}
+#ink{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.cells{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr)}
+.cells button{background:transparent;border:0;border-radius:12px;padding:0;cursor:pointer;position:relative}
+.cells button:hover:not(:disabled){background:rgba(31,63,166,.05)}
+.cells button:disabled{cursor:default}
+.cells button:focus-visible{outline:2px dashed var(--graphite);outline-offset:-8px}
+
+.scores{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;align-items:center;font-family:var(--hand);font-size:1.45rem;margin-top:8px}
+.scores .n1{color:var(--blue)}.scores .n2{color:var(--red)}
+.tally{height:30px;width:100%;overflow:visible}
+
+/* Commandes sur le bureau */
+.ctrl{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center}
+.seg{display:inline-flex;background:rgba(0,0,0,.28);border:1px solid rgba(243,234,216,.2);border-radius:12px;padding:3px}
+.seg button{border:0;background:transparent;padding:8px 12px;border-radius:9px;color:rgba(243,234,216,.7)}
+.seg button[aria-pressed="true"]{background:var(--paper);color:var(--blue);box-shadow:0 2px 0 rgba(0,0,0,.3)}
+#newg{background:#ffd36b;border-color:#ffd36b;color:#3a2600}
+.foot{text-align:center;font-size:.8rem;color:rgba(243,234,216,.6);margin:0}
+@media (max-width:420px){.seg button{padding:8px 9px;font-size:.85rem}}
+@media (prefers-reduced-motion:reduce){.page{transition:none}}
+</style>
+
+<div class="desk">
+  <div class="bar"><button id="snd" aria-label="Activer ou couper le son"></button></div>
+
+  <article class="page" id="page">
+    <div class="holes" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="head">
+      <h1>Morpion</h1>
+      <div class="date" id="date"></div>
+    </div>
+    <div class="turn" id="turn" aria-live="polite"></div>
+    <div class="board">
+      <svg id="ink" viewBox="0 0 300 300" aria-hidden="true">
+        <defs>
+          <filter id="inkf" x="-10%" y="-10%" width="120%" height="120%">
+            <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="3" result="n"/>
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="1.6"/>
+          </filter>
+        </defs>
+        <g id="gridL" filter="url(#inkf)"></g>
+        <g id="marks" filter="url(#inkf)"></g>
+        <g id="winL" filter="url(#inkf)"></g>
+      </svg>
+      <div class="cells" id="cells"></div>
+    </div>
+    <div class="scores">
+      <span class="n1" id="name1">Bleu</span><svg class="tally" id="t1" viewBox="0 0 300 30" preserveAspectRatio="xMinYMid meet"></svg>
+      <span class="n2" id="name2">Rouge</span><svg class="tally" id="t2" viewBox="0 0 300 30" preserveAspectRatio="xMinYMid meet"></svg>
+    </div>
+  </article>
+
+  <div class="ctrl">
+    <div class="seg" role="group" aria-label="Mode de jeu">
+      <button id="m-pvp" aria-pressed="true">2 joueurs</button>
+      <button id="m-ai" aria-pressed="false">Contre l'ordinateur</button>
+    </div>
+    <div class="seg" id="lv" role="group" aria-label="Niveau" hidden>
+      <button data-l="1" aria-pressed="false">Facile</button>
+      <button data-l="2" aria-pressed="true">Moyen</button>
+      <button data-l="3" aria-pressed="false">Imbattable</button>
+    </div>
+  </div>
+  <div class="ctrl">
+    <button id="newg">Tourner la page</button>
+    <button id="zero">Remettre les scores à zéro</button>
+  </div>
+  <p class="foot">Alignez trois croix ou trois ronds. Celui qui ne commençait pas commence la partie suivante.</p>
+</div>
+
+<script>
+(() => {
+const NS = "http://www.w3.org/2000/svg";
+const LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+const INK = {1: "var(--blue)", 2: "var(--red)"};
+const reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const $ = id => document.getElementById(id);
+const el = (tag, a, parent) => { const e = document.createElementNS(NS, tag); for(const k in a) e.setAttribute(k, a[k]); if(parent) parent.appendChild(e); return e; };
+const J = a => (Math.random() - .5) * a;
+const load = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const save = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+
+/* ================= SONS ================= */
+const Snd = {
+  ctx: null, on: load("mp_sound") !== "0", nb: null,
+  init(){
+    if(!this.ctx){
+      const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
+      this.ctx = new AC(); this.out = this.ctx.createGain(); this.out.gain.value = .9; this.out.connect(this.ctx.destination);
+      const n = this.ctx.sampleRate * 2, b = this.ctx.createBuffer(1, n, this.ctx.sampleRate), d = b.getChannelData(0);
+      for(let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      this.nb = b;
+    }
+    if(this.ctx.state === "suspended") this.ctx.resume();
+  },
+  ok(){ return this.on && this.ctx; },
+  /* grattement de stylo, calé sur la durée du trait ; "round" fait varier le timbre comme un rond */
+  scratch(ms, delay = 0, round = false, soft = 1){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay / 1000, dur = ms / 1000;
+    const s = c.createBufferSource(); s.buffer = this.nb; s.loop = true;
+    const bp = c.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = .9;
+    const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 1400;
+    const g = c.createGain();
+    const N = 32, curve = new Float32Array(N), fc = new Float32Array(N);
+    for(let i = 0; i < N; i++){
+      const k = i / (N - 1), envl = Math.min(1, k * 6) * Math.min(1, (1 - k) * 5);
+      curve[i] = Math.max(.0001, envl * (.55 + Math.random() * .45) * .32 * soft);
+      fc[i] = round ? 3200 + 1300 * Math.sin(k * Math.PI * 4) : 3800 + J(900);
+    }
+    g.gain.setValueAtTime(.0001, t);
+    g.gain.setValueCurveAtTime(curve, t, dur);
+    bp.frequency.setValueCurveAtTime(fc, t, dur);
+    s.connect(bp).connect(hp).connect(g).connect(this.out);
+    s.start(t, Math.random()); s.stop(t + dur + .03);
+    // le papier sous la pointe
+    const s2 = c.createBufferSource(); s2.buffer = this.nb; s2.loop = true;
+    const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 700;
+    const g2 = c.createGain(); g2.gain.setValueAtTime(.0001, t); g2.gain.linearRampToValueAtTime(.05 * soft, t + .03); g2.gain.linearRampToValueAtTime(.0001, t + dur);
+    s2.connect(lp).connect(g2).connect(this.out); s2.start(t, Math.random()); s2.stop(t + dur + .03);
+  },
+  tap(delay = 0){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay / 1000, o = c.createOscillator(), g = c.createGain();
+    o.type = "triangle"; o.frequency.setValueAtTime(1100, t); o.frequency.exponentialRampToValueAtTime(500, t + .03);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.08, t + .003); g.gain.exponentialRampToValueAtTime(.0001, t + .04);
+    o.connect(g).connect(this.out); o.start(t); o.stop(t + .05);
+  },
+  page(){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime, s = c.createBufferSource(), bp = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.nb; bp.type = "bandpass"; bp.Q.value = .7;
+    bp.frequency.setValueAtTime(500, t); bp.frequency.exponentialRampToValueAtTime(3200, t + .28); bp.frequency.exponentialRampToValueAtTime(900, t + .45);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.32, t + .08); g.gain.exponentialRampToValueAtTime(.0001, t + .5);
+    s.connect(bp).connect(g).connect(this.out); s.start(t, Math.random()); s.stop(t + .55);
+    for(let i = 0; i < 5; i++){
+      const t2 = t + .05 + i * .07 + Math.random() * .03, s3 = c.createBufferSource(), h = c.createBiquadFilter(), g3 = c.createGain();
+      s3.buffer = this.nb; h.type = "highpass"; h.frequency.value = 3500;
+      g3.gain.setValueAtTime(.0001, t2); g3.gain.exponentialRampToValueAtTime(.12, t2 + .004); g3.gain.exponentialRampToValueAtTime(.0001, t2 + .03);
+      s3.connect(h).connect(g3).connect(this.out); s3.start(t2, Math.random()); s3.stop(t2 + .04);
+    }
+  },
+  note(f, delay, dur = .5, peak = .16){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay;
+    [[1, 1], [2.76, .3], [5.4, .12]].forEach(([m, a]) => {
+      const o = c.createOscillator(), g = c.createGain(); o.type = "sine"; o.frequency.value = f * m;
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak * a, t + .005); g.gain.exponentialRampToValueAtTime(.0001, t + dur / m);
+      o.connect(g).connect(this.out); o.start(t); o.stop(t + dur + .05);
+    });
+  },
+  win(){ [659, 784, 988, 1319].forEach((f, i) => this.note(f, .45 + i * .12, i === 3 ? 1.2 : .5)); },
+  lose(){ [494, 440, 392].forEach((f, i) => this.note(f, .45 + i * .22, .7, .13)); },
+  draw(){ [523, 523].forEach((f, i) => this.note(f, .3 + i * .25, .4, .12)); }
+};
+function sndLabel(){ $("snd").textContent = Snd.on ? "🔊 Son" : "🔇 Muet"; }
+$("snd").onclick = () => { Snd.on = !Snd.on; save("mp_sound", Snd.on ? "1" : "0"); Snd.init(); sndLabel(); };
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => Snd.init(), {capture: true}));
+sndLabel();
+
+/* ================= TRACÉS À LA MAIN ================= */
+function wline(x1, y1, x2, y2, j = 3){
+  const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
+  const c1 = [x1 + dx * .33 + nx * J(j * 2), y1 + dy * .33 + ny * J(j * 2)];
+  const c2 = [x1 + dx * .66 + nx * J(j * 2), y1 + dy * .66 + ny * J(j * 2)];
+  return `M${(x1 + J(j)).toFixed(1)} ${(y1 + J(j)).toFixed(1)} C${c1[0].toFixed(1)} ${c1[1].toFixed(1)} ${c2[0].toFixed(1)} ${c2[1].toFixed(1)} ${(x2 + J(j)).toFixed(1)} ${(y2 + J(j)).toFixed(1)}`;
+}
+function wcircle(cx, cy, r){
+  const a0 = -Math.PI / 2 - .4 + J(1), turn = Math.PI * 2 + .5, n = 44, ph = Math.random() * 6, sx = 1 + J(.12), sy = 1 + J(.12);
+  let d = "";
+  for(let i = 0; i <= n; i++){
+    const k = i / n, a = a0 - turn * k, rr = r * (1 + .06 * Math.sin(2 * a + ph)) * (1 - .07 * k);
+    d += (i ? "L" : "M") + (cx + rr * Math.cos(a) * sx).toFixed(1) + " " + (cy + rr * Math.sin(a) * sy).toFixed(1);
+  }
+  return d;
+}
+function stroke(parent, d, color, width, ms, delay, animate = true){
+  const p = el("path", {d, fill: "none", stroke: color, "stroke-width": width, "stroke-linecap": "round", "stroke-linejoin": "round"}, parent);
+  if(!animate || reduced) return p;
+  const L = p.getTotalLength();
+  p.style.strokeDasharray = L; p.style.strokeDashoffset = L;
+  p.getBoundingClientRect();
+  p.style.transition = `stroke-dashoffset ${ms}ms cubic-bezier(.45,.05,.55,.95) ${delay}ms`;
+  requestAnimationFrame(() => requestAnimationFrame(() => { p.style.strokeDashoffset = 0; }));
+  return p;
+}
+const cellC = i => [50 + 100 * (i % 3), 50 + 100 * Math.floor(i / 3)];
+function drawGrid(animate){
+  const g = $("gridL"); g.innerHTML = "";
+  const segs = [[100, 10, 100, 290], [200, 10, 200, 290], [10, 100, 290, 100], [10, 200, 290, 200]];
+  segs.forEach(([a, b, c, d], i) => {
+    stroke(g, wline(a, b, c, d, 3.5), "var(--graphite)", 3.2, 230, i * 260, animate);
+    if(animate) Snd.scratch(230, i * 260, false, .7);
+  });
+}
+function drawMark(i, p, animate){
+  const [cx, cy] = cellC(i), g = el("g", {}, $("marks"));
+  if(p === 1){
+    const s = 27 + J(4);
+    stroke(g, wline(cx - s, cy - s, cx + s, cy + s, 3), INK[1], 6.5, 170, 0, animate);
+    stroke(g, wline(cx + s, cy - s, cx - s, cy + s, 3), INK[1], 6.5, 170, 230, animate);
+    if(animate){ Snd.scratch(170, 0); Snd.tap(185); Snd.scratch(170, 230); }
+  } else {
+    stroke(g, wcircle(cx, cy, 29 + J(3)), INK[2], 6, 380, 0, animate);
+    if(animate) Snd.scratch(380, 0, true);
+  }
+}
+function drawWin(line, p, animate){
+  const [a, , c] = line, [x1, y1] = cellC(a), [x2, y2] = cellC(c);
+  const ex = (x2 - x1) * .22, ey = (y2 - y1) * .22;
+  stroke($("winL"), wline(x1 - ex, y1 - ey, x2 + ex, y2 + ey, 2), INK[p], 7, 320, animate ? 420 : 0, animate);
+  if(animate) Snd.scratch(320, 420, false, 1.2);
+}
+function drawTally(svg, n, animateLast){
+  svg.innerHTML = "";
+  for(let k = 0; k < n; k++){
+    const grp = Math.floor(k / 5), j = k % 5, x0 = 6 + grp * 46;
+    const anim = animateLast && k === n - 1;
+    const color = svg.id === "t1" ? INK[1] : INK[2];
+    if(j < 4) stroke(svg, wline(x0 + j * 8, 4, x0 + j * 8 + J(2), 26, 1), color, 2.6, 140, anim ? 700 : 0, anim);
+    else stroke(svg, wline(x0 - 4, 22, x0 + 30, 8, 1), color, 2.6, 160, anim ? 700 : 0, anim);
+    if(anim) Snd.scratch(140, 700, false, .6);
+  }
+}
+
+/* ================= RÈGLES ET ORDINATEUR ================= */
+function result(b){
+  for(const L of LINES){ const [a, c, d] = L; if(b[a] && b[a] === b[c] && b[a] === b[d]) return {p: b[a], line: L}; }
+  return b.every(v => v) ? {p: 0} : null;
+}
+function minimax(b, p, me, depth){
+  const r = result(b);
+  if(r) return r.p === me ? 10 - depth : r.p === 0 ? 0 : depth - 10;
+  let best = p === me ? -Infinity : Infinity;
+  for(let i = 0; i < 9; i++){
+    if(b[i]) continue;
+    b[i] = p; const s = minimax(b, 3 - p, me, depth + 1); b[i] = 0;
+    best = p === me ? Math.max(best, s) : Math.min(best, s);
+  }
+  return best;
+}
+function bestMove(b, p){
+  let best = -Infinity, list = [];
+  for(let i = 0; i < 9; i++){
+    if(b[i]) continue;
+    b[i] = p; const s = minimax(b, 3 - p, p, 1); b[i] = 0;
+    if(s > best){ best = s; list = [i]; } else if(s === best) list.push(i);
+  }
+  return list[Math.floor(Math.random() * list.length)];
+}
+function aiChoice(){
+  const b = S.board.slice(), free = b.map((v, i) => v ? -1 : i).filter(i => i >= 0);
+  const rnd = () => free[Math.floor(Math.random() * free.length)];
+  if(S.level === 3) return bestMove(b, 2);
+  if(S.level === 2) return Math.random() < .75 ? bestMove(b, 2) : rnd();
+  for(const i of free){ b[i] = 2; if(result(b) && result(b).p === 2){ return i; } b[i] = 0; }
+  return Math.random() < .3 ? bestMove(b, 2) : rnd();
+}
+
+/* ================= PARTIE ================= */
+let S = {board: Array(9).fill(0), turn: 1, over: false, win: null, scores: {1: 0, 2: 0}, starter: 1, mode: "pvp", level: 2};
+let busy = false;
+const names = () => S.mode === "ai" ? {1: "Vous", 2: "L'ordinateur"} : {1: "Bleu", 2: "Rouge"};
+const aiTurn = () => S.mode === "ai" && S.turn === 2 && !S.over;
+
+const cells = [];
+for(let i = 0; i < 9; i++){
+  const b = document.createElement("button");
+  b.setAttribute("aria-label", "Case " + (Math.floor(i / 3) + 1) + "-" + (i % 3 + 1));
+  b.onclick = () => humanPlay(i);
+  b.addEventListener("keydown", e => {
+    const m = {ArrowLeft: -1, ArrowRight: 1, ArrowUp: -3, ArrowDown: 3}[e.key];
+    if(m !== undefined){ const j = i + m; if(j >= 0 && j < 9 && !(m === -1 && i % 3 === 0) && !(m === 1 && i % 3 === 2)){ cells[j].focus(); e.preventDefault(); } }
+  });
+  $("cells").appendChild(b); cells.push(b);
+}
+function miniMark(p){
+  return p === 1
+    ? `<svg viewBox="0 0 30 30"><path d="M6 6 L24 24 M24 6 L6 24" stroke="${INK[1]}" stroke-width="3.5" stroke-linecap="round" fill="none"/></svg>`
+    : `<svg viewBox="0 0 30 30"><circle cx="15" cy="15" r="10" stroke="${INK[2]}" stroke-width="3.5" fill="none"/></svg>`;
+}
+function updateUI(){
+  const n = names(), t = $("turn");
+  $("name1").textContent = n[1]; $("name2").textContent = S.mode === "ai" ? "Ordinateur" : n[2];
+  if(S.over){
+    t.className = "turn win";
+    if(S.win && S.win.p){
+      t.style.color = INK[S.win.p];
+      t.innerHTML = miniMark(S.win.p) + (S.mode === "ai" ? (S.win.p === 1 ? "Gagné, bravo !" : "L'ordinateur a gagné…") : n[S.win.p] + " a gagné !");
+    } else { t.style.color = "var(--graphite)"; t.textContent = "Match nul, la grille est pleine."; }
+  } else {
+    t.className = "turn"; t.style.color = INK[S.turn];
+    t.innerHTML = miniMark(S.turn) + (aiTurn() ? "L'ordinateur réfléchit…" : S.mode === "ai" ? "À vous de jouer" : "Au tour de " + n[S.turn]);
+  }
+  cells.forEach((b, i) => { b.disabled = !!S.board[i] || S.over || aiTurn(); });
+  $("lv").hidden = S.mode !== "ai";
+  $("m-pvp").setAttribute("aria-pressed", S.mode === "pvp"); $("m-ai").setAttribute("aria-pressed", S.mode === "ai");
+  document.querySelectorAll("#lv button").forEach(x => x.setAttribute("aria-pressed", +x.dataset.l === S.level));
+}
+function play(i){
+  S.board[i] = S.turn; busy = true;
+  drawMark(i, S.turn, true);
+  const r = result(S.board);
+  if(r){
+    S.over = true; S.win = r;
+    if(r.p){
+      S.scores[r.p]++; drawWin(r.line, r.p, true);
+      drawTally($("t" + r.p), S.scores[r.p], true);
+      (S.mode === "ai" && r.p === 2) ? Snd.lose() : Snd.win();
+    } else Snd.draw();
+  } else S.turn = 3 - S.turn;
+  updateUI(); snapshot();
+  setTimeout(() => { busy = false; if(aiTurn()) scheduleAI(); }, S.turn === 1 || S.over ? 420 : 420);
+}
+function humanPlay(i){ if(busy || S.over || S.board[i] || aiTurn()) return; play(i); }
+function scheduleAI(){ updateUI(); setTimeout(() => { if(aiTurn()) play(aiChoice()); }, 450 + Math.random() * 350); }
+
+function redrawAll(){
+  $("marks").innerHTML = ""; $("winL").innerHTML = "";
+  drawGrid(false);
+  S.board.forEach((p, i) => { if(p) drawMark(i, p, false); });
+  if(S.win && S.win.p) drawWin(S.win.line, S.win.p, false);
+  drawTally($("t1"), S.scores[1], false); drawTally($("t2"), S.scores[2], false);
+}
+function newGame(silent){
+  if(busy) return;
+  busy = true;
+  const page = $("page");
+  if(!silent){ Snd.page(); page.classList.add("turning"); }
+  setTimeout(() => {
+    S.starter = 3 - S.starter;
+    S.board = Array(9).fill(0); S.turn = S.starter; S.over = false; S.win = null;
+    $("marks").innerHTML = ""; $("winL").innerHTML = "";
+    page.classList.remove("turning");
+    drawGrid(true); updateUI(); snapshot();
+    setTimeout(() => { busy = false; if(aiTurn()) scheduleAI(); }, 1100);
+  }, silent || reduced ? 0 : 360);
+}
+$("newg").onclick = () => newGame(false);
+$("zero").onclick = () => { S.scores = {1: 0, 2: 0}; drawTally($("t1"), 0); drawTally($("t2"), 0); snapshot(); };
+function setMode(m){
+  if(busy || S.mode === m) return;
+  S.mode = m; S.scores = {1: 0, 2: 0}; S.starter = 2;
+  drawTally($("t1"), 0); drawTally($("t2"), 0);
+  newGame(false);
+}
+$("m-pvp").onclick = () => setMode("pvp");
+$("m-ai").onclick = () => setMode("ai");
+document.querySelectorAll("#lv button").forEach(b => b.onclick = () => { S.level = +b.dataset.l; updateUI(); snapshot(); });
+
+const d = new Date().toLocaleDateString("fr-FR", {weekday: "long", day: "numeric", month: "long"});
+$("date").textContent = d.charAt(0).toUpperCase() + d.slice(1);
+
+/* ================= Conserver la partie lors d'une mise à jour ================= */
+function snapshot(){ try{ window.claude?.hot?.snapshot?.(() => JSON.parse(JSON.stringify(S))); }catch(e){} }
+function start(data){
+  if(data && data.board){ S = data; redrawAll(); updateUI(); snapshot(); if(aiTurn()) scheduleAI(); }
+  else { S.starter = 2; newGame(true); }
+}
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>

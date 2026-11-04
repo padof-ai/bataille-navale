@@ -1,0 +1,424 @@
+<title>Mastermind</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800&display=swap">
+<style>
+/* Layout : le plateau vertical au centre (code caché en haut, essais de bas en haut), la palette de fiches dessous, les réglages à côté. */
+:root{
+  color-scheme:dark;
+  --room:#101418; --lamp:#26323a;
+  --board:#2b2420;       /* plastique du plateau */
+  --board2:#3c322b;
+  --hole:#120e0b;
+  --ink:#f1ece4; --muted:#b4aa9c; --line:rgba(241,236,228,.18);
+  --accent:#e8b04a;
+  --display:"Lilita One","Arial Rounded MT Bold","Trebuchet MS",sans-serif;
+  --ui:"Nunito","Segoe UI",system-ui,sans-serif;
+  --c0:#e53935; --c1:#fdd835; --c2:#43a047; --c3:#1e88e5; --c4:#fb8c00; --c5:#9c4dcc;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0;font-family:var(--ui);color:var(--ink);-webkit-tap-highlight-color:transparent;
+  background:radial-gradient(ellipse 70% 55% at 50% 35%,var(--lamp) 0,var(--room) 72%) fixed,var(--room)}
+.app{max-width:900px;margin:0 auto;padding-block:12px 26px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:grid;grid-template-columns:minmax(0,430px) minmax(0,1fr);gap:16px 28px;justify-content:center;align-items:start}
+.top{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:12px}
+h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(1.8rem,6vw,2.4rem);line-height:1;letter-spacing:.01em;
+  background:linear-gradient(90deg,var(--c0),var(--c1),var(--c2),var(--c3),var(--c5));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 3px 0 rgba(0,0,0,.6))}
+button{font:inherit;font-weight:800;color:var(--ink);background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:11px;padding:9px 13px;cursor:pointer}
+button:hover:not(:disabled){border-color:rgba(241,236,228,.45)}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.4;cursor:default}
+
+/* Plateau */
+.boardwrap{position:relative;min-width:0}
+.board{position:relative;border-radius:22px;padding:14px 14px 16px;
+  background:linear-gradient(90deg,#1f1a17,var(--board2) 18%,var(--board) 60%,#1a1512);
+  box-shadow:0 18px 40px rgba(0,0,0,.6),inset 0 2px 0 rgba(255,255,255,.12),inset 0 -3px 0 rgba(0,0,0,.4)}
+.coderow{position:relative;display:grid;grid-template-columns:28px repeat(4,1fr) 56px;align-items:center;gap:6px;height:58px;margin-bottom:10px;
+  border-radius:12px;background:rgba(0,0,0,.25);padding:0 6px}
+.shield{position:absolute;left:34px;right:62px;top:3px;bottom:3px;border-radius:10px;z-index:3;transform-origin:50% 0;
+  background:linear-gradient(180deg,#6b5b4c,#4a3d32);box-shadow:0 4px 8px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.25);
+  display:flex;align-items:center;justify-content:center;font-family:var(--display);letter-spacing:.12em;font-size:.95rem;color:rgba(241,236,228,.75);
+  transition:transform .55s cubic-bezier(.3,1.4,.5,1),opacity .4s}
+.shield.open{transform:perspective(400px) rotateX(78deg) translateY(-6px);opacity:.15}
+.rows{display:flex;flex-direction:column-reverse;gap:4px}
+.row{display:grid;grid-template-columns:28px repeat(4,1fr) 56px;align-items:center;gap:6px;height:46px;padding:0 6px;border-radius:12px;transition:background .2s}
+.row.cur{background:rgba(232,176,74,.14);box-shadow:inset 0 0 0 2px rgba(232,176,74,.55)}
+.num{font-family:var(--display);font-size:.9rem;color:rgba(241,236,228,.35);text-align:center}
+.row.cur .num{color:var(--accent)}
+.hole{justify-self:center;width:34px;height:34px;border-radius:50%;border:0;padding:0;position:relative;
+  background:radial-gradient(circle at 50% 40%,#000 0 38%,var(--hole) 39% 58%,rgba(0,0,0,0) 60%);cursor:default}
+.row.cur .hole,.coderow.edit .hole{cursor:pointer}
+.row.cur .hole.sel{box-shadow:0 0 0 2px var(--accent)}
+.peg{position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(circle at 34% 28%,rgba(255,255,255,.95) 0 9%,rgba(255,255,255,.25) 22%,transparent 40%),
+             radial-gradient(circle at 50% 50%,var(--pc) 0 55%,color-mix(in srgb,var(--pc) 60%,#000) 100%);
+  box-shadow:0 3px 4px rgba(0,0,0,.6),inset 0 -3px 5px rgba(0,0,0,.35)}
+.peg.drop{animation:drop .22s cubic-bezier(.3,1.6,.6,1)}
+@keyframes drop{from{transform:scale(1.45) translateY(-8px);opacity:.6}}
+.keys{display:grid;grid-template-columns:repeat(2,14px);grid-template-rows:repeat(2,14px);gap:5px;justify-content:center}
+.k{width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 50% 40%,#000 0 40%,var(--hole) 42% 62%,transparent 64%)}
+.k.b,.k.w{animation:kpop .2s ease-out backwards}
+.k.b{background:radial-gradient(circle at 35% 30%,#ff9a9a 0 12%,#d81b1b 45%,#7a0c0c);box-shadow:0 1px 2px rgba(0,0,0,.7)}
+.k.w{background:radial-gradient(circle at 35% 30%,#fff 0 15%,#eee 50%,#a9a39a);box-shadow:0 1px 2px rgba(0,0,0,.7)}
+@keyframes kpop{from{transform:scale(1.8);opacity:0}}
+.go{display:flex;justify-content:center}
+.go button{min-width:0;width:100%;height:40px;padding:0;font-size:.85rem;background:var(--accent);border-color:var(--accent);color:#2d1d00;border-radius:10px}
+
+.palette{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:14px;padding:12px;border-radius:16px;background:rgba(0,0,0,.3);border:1px solid var(--line)}
+.palette button{aspect-ratio:1;max-width:100%;border-radius:50%;padding:0;border:0;position:relative;background:transparent}
+.palette button .peg{inset:6%}
+.palette button:hover:not(:disabled) .peg{transform:translateY(-2px)}
+.palette button:active:not(:disabled) .peg{transform:scale(.92)}
+.actions{display:flex;gap:8px;margin-top:10px}
+.actions button{flex:1}
+#submit{background:var(--accent);border-color:var(--accent);color:#2d1d00;font-size:1.02rem;padding:12px}
+
+/* Panneau */
+.panel{display:flex;flex-direction:column;gap:12px;min-width:0}
+.card{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:14px;padding:14px}
+#status{font-weight:800;font-size:1.05rem;line-height:1.4;min-height:2.8em}
+#status.win{font-family:var(--display);font-weight:400;font-size:1.4rem;color:var(--accent)}
+.seg{display:flex;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:12px;padding:3px}
+.seg button{flex:1;border:0;background:transparent;padding:8px 6px;border-radius:9px;color:var(--muted);font-size:.88rem}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#2d1d00}
+.opt{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:800;font-size:.92rem}
+.switch{width:48px;height:28px;border-radius:14px;border:0;padding:3px;background:#4a4540;display:flex;cursor:pointer;flex:none}
+.switch span{width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .2s}
+.switch[aria-checked="true"]{background:var(--c2)}
+.switch[aria-checked="true"] span{transform:translateX(20px)}
+.legend{display:flex;flex-direction:column;gap:6px;font-size:.88rem;color:var(--muted)}
+.legend div{display:flex;align-items:center;gap:8px}
+.legend .k{flex:none}
+.small{font-size:.82rem;color:var(--muted);margin:0;line-height:1.45}
+.best{display:flex;justify-content:space-between;font-size:.9rem;color:var(--muted)}
+.best b{font-family:var(--display);font-weight:400;color:var(--ink);font-size:1.2rem}
+
+.curtain{position:absolute;inset:0;z-index:6;border-radius:22px;background:rgba(16,20,24,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px}
+.curtain h2{margin:0;font-family:var(--display);font-weight:400;font-size:1.7rem}
+.curtain p{margin:0;color:var(--muted);max-width:28ch;line-height:1.45}
+.curtain button{background:var(--accent);border-color:var(--accent);color:#2d1d00;padding:12px 22px}
+
+@media (max-width:760px){.app{grid-template-columns:minmax(0,1fr)}.panel{display:contents}.top{order:-2}.stat{order:-1}.boardwrap{order:0}.panel>.card:not(.stat){order:1}#status{min-height:0}}
+@media (max-width:400px){.hole{width:30px;height:30px}.row,.coderow{grid-template-columns:22px repeat(4,1fr) 50px}}
+@media (prefers-reduced-motion:reduce){.shield,.peg.drop,.k.b,.k.w{animation:none;transition:none}}
+</style>
+
+<div class="app">
+  <div class="top">
+    <h1>Mastermind</h1>
+    <button id="snd" aria-label="Activer ou couper le son"></button>
+  </div>
+
+  <div class="boardwrap">
+    <div class="board">
+      <div class="coderow" id="coderow">
+        <span class="num">?</span>
+        <div class="hole" data-c="0"></div><div class="hole" data-c="1"></div><div class="hole" data-c="2"></div><div class="hole" data-c="3"></div>
+        <span></span>
+        <div class="shield" id="shield">CODE SECRET</div>
+      </div>
+      <div class="rows" id="rows"></div>
+      <div class="palette" id="palette" role="group" aria-label="Couleurs"></div>
+      <div class="actions">
+        <button id="clear">Effacer la rangée</button>
+        <button id="submit" disabled>Valider</button>
+      </div>
+    </div>
+    <div class="curtain" id="curtain" hidden>
+      <h2 id="ctitle">Code caché !</h2>
+      <p id="ctext">Passez l'appareil au joueur qui doit deviner.</p>
+      <button id="ready">C'est parti</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="card stat"><div id="status" aria-live="polite"></div></div>
+    <div class="card" style="display:flex;flex-direction:column;gap:12px">
+      <div class="seg" role="group" aria-label="Mode de jeu">
+        <button data-m="solo" aria-pressed="true">Je devine</button>
+        <button data-m="duo" aria-pressed="false">2 joueurs</button>
+        <button data-m="cpu" aria-pressed="false">L'ordi devine</button>
+      </div>
+      <div class="opt"><span>Couleurs répétées dans le code</span><button class="switch" id="rep" role="switch" aria-checked="true" aria-label="Autoriser les couleurs répétées"><span></span></button></div>
+      <button id="newg">Nouvelle partie</button>
+      <div class="best"><span>Meilleur score (Je devine)</span><b id="best">—</b></div>
+    </div>
+    <div class="card legend">
+      <div><span class="k b"></span>Bonne couleur, bien placée</div>
+      <div><span class="k w"></span>Bonne couleur, mal placée</div>
+      <p class="small">Trouvez le code de 4 couleurs en 10 essais. Touchez une couleur pour la poser, touchez une fiche de la rangée en cours pour la retirer. L'ordre des indices ne dit pas quelle fiche est juste.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const NC = 6, LEN = 4, TRIES = 10;
+const NAMES = ["Rouge", "Jaune", "Vert", "Bleu", "Orange", "Violet"];
+const $ = id => document.getElementById(id);
+const load = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const save = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const rnd = n => Math.floor(Math.random() * n);
+
+/* ================= SONS ================= */
+const Snd = {
+  ctx: null, on: load("mm_sound") !== "0", nb: null,
+  init(){
+    if(!this.ctx){
+      const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
+      this.ctx = new AC(); this.out = this.ctx.createGain(); this.out.gain.value = .9; this.out.connect(this.ctx.destination);
+      const n = this.ctx.sampleRate, b = this.ctx.createBuffer(1, n, n), d = b.getChannelData(0);
+      for(let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      this.nb = b;
+    }
+    if(this.ctx.state === "suspended") this.ctx.resume();
+  },
+  ok(){ return this.on && this.ctx; },
+  hit(f, q, peak, dur, delay = 0, type = "bandpass"){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.nb; fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .002); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    s.connect(fl).connect(g).connect(this.out); s.start(t, Math.random() * .5); s.stop(t + dur + .02);
+  },
+  tone(f0, f1, dur, peak, delay = 0, type = "sine"){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .003); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(this.out); o.start(t); o.stop(t + dur + .02);
+  },
+  /* fiche enfoncée dans son trou : frottement puis butée */
+  pegIn(c = 0){ const p = 1 + c * .04; this.hit(2400 * p, 3, .18, .03); this.tone(520 * p, 300, .06, .25, .02, "triangle"); this.hit(300, 1, .25, .05, .03, "lowpass"); },
+  /* fiche arrachée : petit pop */
+  pegOut(){ this.tone(300, 900, .07, .18, 0, "sine"); this.hit(3000, 2, .12, .03, .01); },
+  key(i, red){ this.tone(red ? 1500 : 1900, red ? 1300 : 1700, .05, .14, i * .14, "triangle"); this.hit(4000, 3, .08, .02, i * .14); },
+  nope(){ this.tone(180, 130, .14, .1, 0, "square"); },
+  shield(){ this.hit(900, 1, .3, .12, 0, "lowpass"); this.tone(220, 120, .15, .2, .02, "triangle"); this.hit(2500, 3, .15, .03, .1); },
+  note(f, d, dur = .4, pk = .16){ this.tone(f, f, dur, pk, d, "triangle"); this.tone(f * 2, f * 2, dur * .4, pk * .2, d); },
+  win(){ [523, 659, 784, 1047, 1319].forEach((f, i) => this.note(f, .5 + i * .12, i === 4 ? 1 : .3)); },
+  lose(){ [440, 415, 392, 330].forEach((f, i) => this.note(f, .5 + i * .3, .5, .12)); }
+};
+function sndLabel(){ $("snd").textContent = Snd.on ? "🔊 Son" : "🔇 Muet"; }
+$("snd").onclick = () => { Snd.on = !Snd.on; save("mm_sound", Snd.on ? "1" : "0"); Snd.init(); sndLabel(); };
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => Snd.init(), {capture: true}));
+sndLabel();
+
+/* ================= LOGIQUE ================= */
+function score(code, g){
+  let b = 0, w = 0; const cc = Array(NC).fill(0), gc = Array(NC).fill(0);
+  for(let i = 0; i < LEN; i++){ if(code[i] === g[i]) b++; else { cc[code[i]]++; gc[g[i]]++; } }
+  for(let c = 0; c < NC; c++) w += Math.min(cc[c], gc[c]);
+  return {b, w};
+}
+function allCodes(rep){
+  const out = [];
+  for(let n = 0; n < NC ** LEN; n++){
+    const c = []; let x = n; for(let i = 0; i < LEN; i++){ c.push(x % NC); x = Math.floor(x / NC); }
+    if(rep || new Set(c).size === LEN) out.push(c);
+  }
+  return out;
+}
+const randomCode = rep => { const all = allCodes(rep); return all[rnd(all.length)].slice(); };
+
+/* ================= ÉTAT ================= */
+let S = null, busy = false;
+function fresh(mode, rep){
+  return {mode, rep, phase: mode === "solo" ? "play" : "setup", code: mode === "solo" ? randomCode(rep) : [null, null, null, null],
+          rows: [], cur: [null, null, null, null], sel: 0, cands: null, won: false};
+}
+
+/* ================= PLATEAU ================= */
+const rowEls = [];
+(function build(){
+  const rows = $("rows");
+  for(let r = 0; r < TRIES; r++){
+    const row = document.createElement("div"); row.className = "row";
+    row.innerHTML = `<span class="num">${r + 1}</span>` +
+      [0, 1, 2, 3].map(i => `<button class="hole" data-i="${i}" aria-label="Essai ${r + 1}, trou ${i + 1}" tabindex="-1"></button>`).join("") +
+      `<div class="keys">${'<span class="k"></span>'.repeat(4)}</div>`;
+    row.querySelectorAll(".hole").forEach(h => h.addEventListener("click", () => holeClick(r, +h.dataset.i)));
+    rows.appendChild(row); rowEls.push(row);
+  }
+  const pal = $("palette");
+  NAMES.forEach((n, c) => {
+    const b = document.createElement("button");
+    b.setAttribute("aria-label", n); b.innerHTML = `<span class="peg" style="--pc:var(--c${c})"></span>`;
+    b.onclick = () => pick(c);
+    pal.appendChild(b);
+  });
+  $("coderow").querySelectorAll(".hole").forEach(h => h.addEventListener("click", () => codeHoleClick(+h.dataset.c)));
+})();
+const pegHTML = (c, drop) => c === null || c === undefined ? "" : `<span class="peg${drop ? " drop" : ""}" style="--pc:var(--c${c})"></span>`;
+
+function render(dropAt){
+  const editing = S.phase === "setup" && S.mode !== "cpu-wait";
+  // code
+  const ch = $("coderow").querySelectorAll(".hole");
+  ch.forEach((h, i) => { h.innerHTML = pegHTML(S.code[i], dropAt && dropAt.code && dropAt.i === i); h.classList.toggle("sel", S.phase === "setup" && S.sel === i); });
+  $("coderow").classList.toggle("edit", S.phase === "setup");
+  // rangées
+  rowEls.forEach((row, r) => {
+    const done = S.rows[r], isCur = S.phase === "play" && r === S.rows.length && S.mode !== "cpu";
+    row.classList.toggle("cur", isCur || (S.phase === "play" && S.mode === "cpu" && r === S.rows.length));
+    const holes = row.querySelectorAll(".hole");
+    holes.forEach((h, i) => {
+      const c = done ? done.g[i] : (isCur ? S.cur[i] : null);
+      h.innerHTML = pegHTML(c, dropAt && !dropAt.code && dropAt.r === r && dropAt.i === i);
+      h.classList.toggle("sel", isCur && S.sel === i);
+      h.tabIndex = isCur ? 0 : -1;
+    });
+    const ks = row.querySelectorAll(".k");
+    ks.forEach((k, i) => {
+      k.className = "k";
+      if(done){ if(i < done.fb.b) k.classList.add("b"); else if(i < done.fb.b + done.fb.w) k.classList.add("w"); k.style.animationDelay = (done.fresh ? i * .14 : 0) + "s"; }
+    });
+  });
+  // boutons
+  const guessing = S.phase === "play" && S.mode !== "cpu";
+  const target = S.phase === "setup" ? S.code : S.cur;
+  const full = target.every(v => v !== null);
+  $("submit").disabled = busy || !(S.phase === "setup" || guessing) || !full;
+  $("submit").textContent = S.phase === "setup" ? (S.mode === "cpu" ? "Valider mon code" : "Cacher le code") : "Valider";
+  $("clear").disabled = busy || !(S.phase === "setup" || guessing);
+  $("palette").querySelectorAll("button").forEach(b => b.disabled = busy || !(S.phase === "setup" || guessing));
+  $("shield").classList.toggle("open", S.phase !== "play" || S.mode === "cpu");
+  // statut
+  const st = $("status"); st.className = "";
+  const n = S.rows.length;
+  if(S.phase === "setup"){
+    st.textContent = S.mode === "duo" ? "Joueur 1 : composez le code secret (le joueur 2 ne regarde pas), puis cachez-le." : "Composez un code secret de 4 couleurs : l'ordinateur va essayer de le trouver.";
+  } else if(S.phase === "play"){
+    st.textContent = S.mode === "cpu" ? `L'ordinateur réfléchit… essai ${n + 1} sur ${TRIES}.` : `Essai ${n + 1} sur ${TRIES} : posez 4 fiches puis validez.`;
+  } else {
+    st.className = "win";
+    if(S.mode === "cpu") st.textContent = S.won ? `L'ordinateur a trouvé en ${n} essai${n > 1 ? "s" : ""}.` : "L'ordinateur a séché : votre code a tenu bon !";
+    else st.textContent = S.won ? `Trouvé en ${n} essai${n > 1 ? "s" : ""} !` : "Perdu… voici le code secret.";
+  }
+  document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.m === S.mode));
+  $("rep").setAttribute("aria-checked", S.rep);
+  const best = load("mm_best"); $("best").textContent = best ? best + " essai" + (+best > 1 ? "s" : "") : "—";
+}
+
+/* ================= SAISIE ================= */
+function pick(c){
+  if(busy) return;
+  const arr = S.phase === "setup" ? S.code : (S.phase === "play" && S.mode !== "cpu" ? S.cur : null);
+  if(!arr) return;
+  if(!S.rep && arr.includes(c) && arr[S.sel] !== c){ Snd.nope(); flash("Couleurs répétées désactivées : chaque couleur une seule fois."); return; }
+  let i = arr[S.sel] === null ? S.sel : arr.indexOf(null);
+  if(i < 0) i = S.sel;
+  arr[i] = c; Snd.pegIn(c);
+  const nxt = arr.indexOf(null); S.sel = nxt >= 0 ? nxt : i;
+  render(S.phase === "setup" ? {code: true, i} : {r: S.rows.length, i}); snapshot();
+}
+function holeClick(r, i){
+  if(busy || S.phase !== "play" || S.mode === "cpu" || r !== S.rows.length) return;
+  if(S.cur[i] !== null){ S.cur[i] = null; Snd.pegOut(); }
+  S.sel = i; render(); snapshot();
+}
+function codeHoleClick(i){
+  if(busy || S.phase !== "setup") return;
+  if(S.code[i] !== null){ S.code[i] = null; Snd.pegOut(); }
+  S.sel = i; render(); snapshot();
+}
+$("clear").onclick = () => {
+  if(busy) return;
+  const arr = S.phase === "setup" ? S.code : S.cur;
+  if(arr.some(v => v !== null)) Snd.pegOut();
+  for(let i = 0; i < LEN; i++) arr[i] = null; S.sel = 0; render(); snapshot();
+};
+let flashT = null;
+function flash(m){ $("status").textContent = m; clearTimeout(flashT); flashT = setTimeout(render, 1800); }
+
+/* ================= ESSAIS ================= */
+async function submitGuess(g){
+  busy = true;
+  const fb = score(S.code, g);
+  S.rows.push({g: g.slice(), fb, fresh: true});
+  S.cur = [null, null, null, null]; S.sel = 0;
+  render();
+  for(let i = 0; i < fb.b + fb.w; i++) Snd.key(i, i < fb.b);
+  S.rows[S.rows.length - 1].fresh = false;
+  await sleep(150 + (fb.b + fb.w) * 140);
+  if(fb.b === LEN || S.rows.length >= TRIES){
+    S.phase = "over"; S.won = fb.b === LEN;
+    Snd.shield();
+    if(S.mode === "solo" && S.won){ const b = +(load("mm_best") || 99); if(S.rows.length < b) save("mm_best", S.rows.length); }
+    (S.mode === "cpu" ? !S.won : S.won) ? Snd.win() : Snd.lose();
+  }
+  busy = false; render(); snapshot();
+  if(S.phase === "play" && S.mode === "cpu") cpuStep();
+}
+$("submit").onclick = () => {
+  if(busy) return;
+  if(S.phase === "setup"){
+    if(S.code.some(v => v === null)) return;
+    Snd.shield(); S.sel = 0;
+    if(S.mode === "duo"){ S.phase = "play"; render(); $("curtain").hidden = false; }
+    else { S.phase = "play"; S.cands = allCodes(S.rep); render(); cpuStep(); }
+    snapshot(); return;
+  }
+  if(S.cur.some(v => v === null)) return;
+  submitGuess(S.cur);
+};
+$("ready").onclick = () => { $("curtain").hidden = true; render(); };
+
+/* ================= L'ORDINATEUR DEVINE ================= */
+function cpuGuess(){
+  const C = S.cands;
+  if(S.rows.length === 0) return S.rep ? [0, 0, 1, 1] : [0, 1, 2, 3];
+  if(C.length <= 2) return C[0];
+  // choisit, parmi les codes encore possibles, celui qui laisse le moins de cas dans le pire des cas
+  let best = null, bestW = Infinity;
+  const pool = C.length > 400 ? C.filter((_, i) => i % Math.ceil(C.length / 400) === 0) : C;
+  for(const g of pool){
+    const m = new Map(); let w = 0;
+    for(const c of C){ const s = score(c, g), k = s.b * 10 + s.w; const v = (m.get(k) || 0) + 1; m.set(k, v); if(v > w) w = v; if(w >= bestW) break; }
+    if(w < bestW){ bestW = w; best = g; }
+  }
+  return best;
+}
+async function cpuStep(){
+  const s0 = S;
+  await sleep(900);
+  if(S !== s0 || S.phase !== "play") return;
+  const g = cpuGuess();
+  for(let i = 0; i < LEN; i++){
+    S.cur[i] = g[i]; Snd.pegIn(g[i]); render({r: S.rows.length, i});
+    await sleep(260); if(S !== s0) return;
+  }
+  await sleep(350); if(S !== s0) return;
+  const fb = score(S.code, g);
+  S.cands = S.cands.filter(c => { const s = score(c, g); return s.b === fb.b && s.w === fb.w; });
+  submitGuess(g);
+}
+
+/* ================= MODES ================= */
+function newGame(mode = S ? S.mode : "solo", rep = S ? S.rep : true){
+  busy = false; S = fresh(mode, rep); $("curtain").hidden = true;
+  render(); snapshot();
+}
+document.querySelectorAll(".seg button").forEach(b => b.onclick = () => { if(b.dataset.m !== S.mode) newGame(b.dataset.m); });
+$("rep").onclick = () => { newGame(S.mode, !S.rep); flash(S.rep ? "Couleurs répétées autorisées (nouvelle partie)." : "Couleurs toutes différentes (nouvelle partie)."); };
+$("newg").onclick = () => newGame();
+document.addEventListener("keydown", e => {
+  if(e.target.tagName === "BUTTON" && (e.key === "Enter" || e.key === " ")) return;
+  if(e.key >= "1" && e.key <= "6") pick(+e.key - 1);
+  else if(e.key === "Backspace"){ const arr = S.phase === "setup" ? S.code : S.cur; let i = -1; for(let j = LEN - 1; j >= 0; j--) if(arr[j] !== null){ i = j; break; } if(i >= 0){ arr[i] = null; S.sel = i; Snd.pegOut(); render(); } }
+  else if(e.key === "Enter" && !$("submit").disabled) $("submit").click();
+});
+
+/* ================= Conserver la partie lors d'une mise à jour ================= */
+function snapshot(){ try{ window.claude?.hot?.snapshot?.(() => JSON.parse(JSON.stringify(S))); }catch(e){} }
+function start(data){
+  if(data && data.mode){ S = data; busy = false; render(); if(S.phase === "play" && S.mode === "cpu") cpuStep(); }
+  else newGame("solo", true);
+}
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
