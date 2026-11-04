@@ -1,0 +1,751 @@
+<title>1000 Bornes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;800&family=Nunito:wght@600;800&display=swap">
+<style>
+/* Layout : une nationale vue d'en haut ; en haut les tableaux de bord des adversaires, au milieu la pioche, en bas son tableau, sa route et sa main de cartes. */
+:root{
+  color-scheme:dark;
+  --asphalt:#2d3036;      /* route */
+  --asphalt2:#1c1e22;
+  --line:#f2c230;         /* ligne jaune */
+  --ink:#f3f1ea; --muted:#b9bcc4; --edge:rgba(243,241,234,.18);
+  --panel:rgba(20,22,26,.72);
+  --red:#d32f2f; --green:#2e9d4f; --gold:#e7b53b; --blue:#1f5fbf; --stone:#f4f1ea;
+  --sign:"Barlow Condensed","Arial Narrow","Roboto Condensed",sans-serif;
+  --ui:"Nunito","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0;font-family:var(--ui);color:var(--ink);-webkit-tap-highlight-color:transparent;
+  background:
+    repeating-linear-gradient(180deg,transparent 0 34px,rgba(242,194,48,.35) 34px 64px) left 10px top/4px 100% no-repeat fixed,
+    repeating-linear-gradient(180deg,transparent 0 34px,rgba(242,194,48,.35) 34px 64px) right 10px top/4px 100% no-repeat fixed,
+    radial-gradient(circle at 20% 30%,rgba(255,255,255,.025) 0 1px,transparent 1px 3px) 0 0/5px 5px,
+    radial-gradient(ellipse 80% 60% at 50% 35%,#3a3e45 0,var(--asphalt) 50%,var(--asphalt2) 100%) fixed,var(--asphalt)}
+.app{max-width:880px;margin:0 auto;padding-block:10px 24px;padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:12px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{margin:0;display:flex;align-items:center;gap:8px;white-space:nowrap;font-family:var(--sign);font-weight:800;font-size:clamp(1.5rem,6.5vw,2.5rem);line-height:1;letter-spacing:.02em}
+h1 svg{width:.95em;height:1.2em}
+h1 span{background:#fff;color:#1c1e22;padding:.06em .3em .02em;border-radius:6px;border:3px solid #1c1e22;box-shadow:0 0 0 2px #fff}
+.tools{display:flex;gap:8px}
+button{font:inherit;font-weight:800;color:var(--ink);background:var(--panel);border:1px solid var(--edge);border-radius:11px;padding:8px 12px;cursor:pointer}
+button:hover:not(:disabled){border-color:rgba(243,241,234,.5)}
+button:focus-visible{outline:3px solid var(--line);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+.bar{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:10px 14px}
+#status{flex:1;min-width:200px;font-weight:800;line-height:1.35}
+#status .who{font-family:var(--sign);font-size:1.12em}
+#roundno{color:var(--muted);font-weight:800;font-size:.88rem;white-space:nowrap}
+
+/* Tableaux de bord */
+.opps{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:10px}
+.tab{position:relative;background:var(--panel);border:2px solid transparent;border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;--cw:62px;transition:border-color .2s,box-shadow .2s}
+.tab.act{border-color:var(--line);box-shadow:0 0 16px rgba(242,194,48,.3)}
+.tab.target{border-color:var(--red);box-shadow:0 0 18px rgba(211,47,47,.55);cursor:pointer}
+.tab .th{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.tab .nm{font-family:var(--sign);font-weight:800;font-size:1.2rem;line-height:1}
+.tab .km{font-family:var(--sign);font-weight:800;font-size:1.3rem;font-variant-numeric:tabular-nums}
+.tab .km small{font-size:.75em;color:var(--muted)}
+.road{position:relative;height:16px;border-radius:8px;background:#1a1b1f;overflow:visible;box-shadow:inset 0 1px 3px rgba(0,0,0,.6)}
+.road::before{content:"";position:absolute;left:6px;right:6px;top:7px;height:2px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.35) 0 8px,transparent 8px 16px)}
+.road .fill{position:absolute;left:0;top:0;bottom:0;border-radius:8px;background:linear-gradient(90deg,rgba(242,194,48,.25),rgba(242,194,48,.55));transition:width .6s ease}
+.road .car{position:absolute;top:50%;width:30px;height:18px;transform:translate(-50%,-55%);transition:left .6s ease}
+.road .flag{position:absolute;right:-4px;top:-8px;width:14px;height:22px}
+.state{display:flex;align-items:flex-end;gap:8px;flex-wrap:nowrap}
+.boots-w{margin-left:auto}
+.slotc{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.62rem;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.empty{display:block;width:var(--cw);aspect-ratio:.7;border-radius:6px;border:2px dashed rgba(243,241,234,.18)}
+.boots{display:flex;gap:4px}
+.boots .bs{width:calc(var(--cw) * .6);aspect-ratio:.7;border-radius:5px;border:1.5px dashed rgba(231,181,59,.35)}
+.boots .mc{--cw:calc(var(--tw) * .6)}
+.boots .mc.cf{transform:rotate(90deg) scale(.82)}
+.meta{font-size:.85rem;line-height:1.35;color:var(--muted);font-weight:800}
+.meta b{color:var(--ink)}
+.tab .cnt{font-size:.75rem;color:var(--muted);font-weight:800}
+.tab.me{--cw:62px}
+
+/* Cartes (dessin original : panneaux de signalisation) */
+.mc{--cw:60px;position:relative;width:var(--cw);aspect-ratio:.7;border-radius:calc(var(--cw) * .12);background:#fff;color:#1c1e22;border:calc(var(--cw) * .04) solid #fff;
+  box-shadow:0 2px 5px rgba(0,0,0,.45);display:flex;flex-direction:column;overflow:hidden;flex:none;padding:0}
+.mc .band{height:13%;flex:none}
+.mc.haz .band{background:var(--red)}.mc.rem .band{background:var(--green)}.mc.km .band{background:#c8c3b6}
+.mc.safe{background:linear-gradient(160deg,#fff4cf,#f1cf6b 60%,#d39e25)}
+.mc.safe .band{background:linear-gradient(90deg,#b8860b,#f6d77a,#b8860b)}
+.mc .ic{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
+.mc .ic svg{width:78%;height:auto;max-height:100%}
+.mc .tx{font-family:var(--sign);font-weight:800;font-size:calc(var(--cw) * .148);line-height:1;text-align:center;padding:0 2% 7%;white-space:nowrap;overflow:hidden;text-overflow:clip;text-transform:uppercase;letter-spacing:-.01em}
+.mc.haz .tx{color:var(--red)}.mc.rem .tx{color:var(--green)}.mc.safe .tx{color:#6b4a07}
+.mc.km .ic svg{width:70%}
+.mc.back{background:repeating-linear-gradient(45deg,#1f5fbf 0 6%,#1b54aa 6% 12%);border-color:#fff}
+.mc.back .ic svg{width:70%}
+
+/* Centre */
+.mid{display:flex;align-items:center;justify-content:center;gap:24px}
+.pile{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:.7rem;font-weight:800;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;--cw:54px}
+#deck{position:relative;width:54px;aspect-ratio:.7}
+#deck .mc{position:absolute;inset:0;--cw:54px}
+#deck .mc:nth-child(1){transform:translate(-3px,3px)}#deck .mc:nth-child(2){transform:translate(-1.5px,1.5px)}
+#deckn,#discn{font-variant-numeric:tabular-nums}
+#disc{width:54px;aspect-ratio:.7;position:relative}
+#disc .mc{position:absolute;inset:0;--cw:54px}
+
+/* Main */
+.mewrap{position:relative;display:flex;flex-direction:column;gap:10px}
+.hand{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:8px;justify-items:center;--cw:min(80px,100%)}
+.hand .mc{width:100%;max-width:84px;--cw:76px;cursor:pointer;transition:transform .15s}
+.hand .mc:hover{transform:translateY(-3px)}
+.hand .mc.sel{transform:translateY(-8px);box-shadow:0 0 0 3px var(--line),0 8px 14px rgba(0,0,0,.5)}
+.hand .mc.dim{filter:brightness(.62) saturate(.6)}
+.hand .mc.new{box-shadow:0 0 0 3px #7dd3fc,0 2px 5px rgba(0,0,0,.45)}
+.hand .mc:focus-visible{outline:3px solid var(--line);outline-offset:2px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;min-height:40px;align-items:center}
+.actions button{flex:1 1 auto}
+.actions .go{background:var(--green);border-color:#7be0a0}
+.actions .atk{background:var(--red);border-color:#ff8a80}
+.actions .hint{color:var(--muted);font-size:.88rem;font-weight:700}
+.fly{position:fixed;z-index:60;pointer-events:none;margin:0}
+.curtain{position:absolute;inset:-4px;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;background:rgba(28,30,34,.97);border-radius:16px;padding:16px}
+.curtain h2{margin:0;font-family:var(--sign);font-weight:800;font-size:1.7rem}
+.curtain p{margin:0;color:var(--muted);max-width:32ch}
+.curtain button{background:var(--line);color:#2a2000;border-color:var(--line);padding:12px 22px}
+.toast{position:absolute;left:50%;top:-6px;transform:translate(-50%,-100%);background:var(--gold);color:#3a2600;font-family:var(--sign);font-weight:800;font-size:1.3rem;padding:6px 14px;border-radius:10px;white-space:nowrap;z-index:5;animation:toast 1.6s ease forwards;box-shadow:0 4px 10px rgba(0,0,0,.4)}
+@keyframes toast{0%{opacity:0;transform:translate(-50%,-60%) scale(.6)}15%{opacity:1;transform:translate(-50%,-100%) scale(1.08)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-130%)}}
+
+.rules{background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:12px 14px;font-size:.9rem;line-height:1.5;color:var(--muted)}
+.rules summary{cursor:pointer;font-weight:800;color:var(--ink)}
+.rules ul{margin:8px 0 0;padding-left:18px}
+.rules b{color:var(--ink)}
+.foot{display:flex;justify-content:center}
+
+.modal{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(10,11,13,.66);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px}
+.modal .box{background:#2a2d33;border:1px solid var(--edge);border-radius:16px;padding:20px;width:100%;max-width:480px;max-height:100%;overflow:auto;box-shadow:0 20px 40px rgba(0,0,0,.5)}
+.modal h2{margin:0 0 12px;font-family:var(--sign);font-weight:800;font-size:1.7rem;line-height:1.1}
+.modal p{margin:0 0 12px;color:var(--muted);line-height:1.45;font-size:.92rem}
+.modal .tbl{overflow-x:auto;margin-bottom:12px}
+.modal table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:.88rem}
+.modal th,.modal td{padding:6px;text-align:right;border-bottom:1px solid var(--edge);white-space:nowrap}
+.modal th:first-child,.modal td:first-child{text-align:left}
+.modal tr.tot td{font-weight:800;border-top:2px solid var(--edge)}
+.modal tr.gt td{font-weight:800;color:var(--line)}
+.modal .btns{display:flex;gap:8px;flex-wrap:wrap}
+.modal .btns button{flex:1}
+.primary{background:var(--line);color:#2a2000;border-color:var(--line)}
+.cfrow{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.cfrow .mc{--cw:70px}
+.opt{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.opt .lbl{font-weight:800;font-size:.9rem}
+.seg{display:flex;flex-wrap:wrap;background:rgba(0,0,0,.25);border:1px solid var(--edge);border-radius:12px;padding:3px;gap:2px}
+.seg button{flex:1 1 auto;border:0;background:transparent;padding:7px 8px;border-radius:9px;color:var(--muted);font-size:.85rem}
+.seg button[aria-pressed="true"]{background:var(--line);color:#2a2000}
+.seg .off{font-weight:600;font-size:.72rem;opacity:.85}
+@media (max-width:480px){.tools .t{display:none}.tab,.tab.me{--cw:54px}}
+@media (prefers-reduced-motion:reduce){.road .fill,.road .car,.hand .mc{transition:none}.toast{animation:none}}
+</style>
+
+<div class="app">
+  <div class="top">
+    <h1><svg viewBox="0 0 40 50" aria-hidden="true"><path d="M8 48V20a12 12 0 0 1 24 0v28z" fill="#f4f1ea" stroke="#9a968c" stroke-width="1.5"/><path d="M8 20a12 12 0 0 1 24 0v3H8z" fill="#d32f2f"/></svg><span>1000 Bornes</span></h1>
+    <div class="tools">
+      <button id="setbtn" aria-label="Réglages">⚙️<span class="t"> Réglages</span></button>
+      <button id="scorebtn" aria-label="Scores">📋<span class="t"> Scores</span></button>
+      <button id="snd" aria-label="Activer ou couper le son"></button>
+    </div>
+  </div>
+  <div class="bar"><div id="status" aria-live="polite"></div><span id="roundno"></span></div>
+  <div class="opps" id="opps"></div>
+  <div class="mid">
+    <div class="pile">Pioche<div id="deck"></div><span id="deckn"></span></div>
+    <div class="pile">Défausse<div id="disc"></div><span id="discn"></span></div>
+  </div>
+  <div class="mewrap">
+    <div id="metab"></div>
+    <div class="actions" id="actions"></div>
+    <div class="hand" id="hand"></div>
+    <div class="curtain" id="curtain" hidden><h2 id="ctitle"></h2><p>Passez l'appareil. Les autres joueurs ne doivent pas regarder cette main.</p><button id="ready">Voir mes cartes</button></div>
+  </div>
+  <div class="foot"><button id="newg">Nouvelle partie</button></div>
+  <details class="rules">
+    <summary>Règles du jeu</summary>
+    <ul>
+      <li>À votre tour, vous piochez une carte puis vous en <b>posez</b> ou en <b>défaussez</b> une. Le but : parcourir exactement <b>1000 km</b> (700 km à 3 joueurs, ou à 4 en chacun pour soi). À 4, on joue en deux équipes de deux qui partagent la même route.</li>
+      <li>Pour avancer avec des <b>bornes</b>, il faut un <b>feu vert</b> sur sa pile. Sous <b>limitation de vitesse</b>, seules les bornes de 25 et 50 km sont permises. Deux bornes de 200 km au plus par manche.</li>
+      <li>Les <b>attaques</b> (feu rouge, panne, crevaison, accident) se posent sur un adversaire qui roule. Il doit poser la <b>parade</b> correspondante, puis un feu vert pour repartir. La limitation de vitesse peut se poser à tout moment.</li>
+      <li>Une <b>botte</b> protège pour toute la manche et fait rejouer. Posée aussitôt qu'on vous attaque avec l'attaque correspondante, c'est un <b>coup fourré</b> : l'attaque est annulée, vous marquez 300 points de plus et c'est à vous de jouer.</li>
+      <li>Points : 1 par km, 100 par botte (+300 pour les 4), 300 par coup fourré, 400 pour le voyage réussi, +300 sans borne de 200, +300 si la pioche était vide, +500 si un adversaire n'a parcouru aucun km. La partie se joue en 5000 points.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="modal" id="cfbox" hidden><div class="box"><h2>Coup fourré !</h2><div class="cfrow" id="cfrow"></div><p id="cftext"></p>
+  <div class="btns"><button id="cfno">Laisser passer</button><button id="cfyes" class="primary">Jouer la botte</button></div></div></div>
+<div class="modal" id="scores" hidden><div class="box"><h2 id="sct"></h2><div class="tbl"><table id="sctbl"></table></div><p id="scnote"></p><div class="btns" id="scbtns"></div></div></div>
+<div class="modal" id="settings" hidden><div class="box" role="dialog" aria-labelledby="sett">
+  <h2 id="sett">Réglages</h2>
+  <div class="opt"><span class="lbl">Joueurs</span><div class="seg" data-k="n"><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button></div></div>
+  <div class="opt"><span class="lbl">Adversaires</span><div class="seg" data-k="who"><button data-v="ai">Ordinateurs</button><button data-v="hot">Tous sur cet écran</button></div></div>
+  <div class="opt" id="optteams"><span class="lbl">À 4 joueurs</span><div class="seg" data-k="teams"><button data-v="1">2 équipes de 2 <span class="off">· officiel</span></button><button data-v="0">Chacun pour soi</button></div></div>
+  <div class="opt" id="optlvl"><span class="lbl">Niveau des ordinateurs</span><div class="seg" data-k="lvl"><button data-v="1">Facile</button><button data-v="2">Moyen</button><button data-v="3">Difficile</button></div></div>
+  <div class="opt"><span class="lbl">Distance à parcourir</span><div class="seg" data-k="goal"><button data-v="0">Auto <span class="off">· 1000 km, ou 700 km à 3 et à 4 chacun pour soi</span></button><button data-v="700">700 km</button><button data-v="1000">1000 km</button></div></div>
+  <div class="opt"><span class="lbl">Fin de partie</span><div class="seg" data-k="end"><button data-v="0">1 manche</button><button data-v="2500">2500 points</button><button data-v="5000">5000 <span class="off">· officiel</span></button></div></div>
+  <div class="opt"><span class="lbl">Après une parade</span><div class="seg" data-k="green"><button data-v="1">Feu vert nécessaire <span class="off">· officiel</span></button><button data-v="0">On repart aussitôt</button></div></div>
+  <div class="opt"><span class="lbl">Coup fourré</span><div class="seg" data-k="cf"><button data-v="1">Autorisé <span class="off">· officiel</span></button><button data-v="0">Non</button></div></div>
+  <div class="opt"><span class="lbl">Bornes de 200 km</span><div class="seg" data-k="lim200"><button data-v="1">2 au plus <span class="off">· officiel</span></button><button data-v="0">Sans limite</button></div></div>
+  <p>Les changements démarrent une nouvelle partie.</p>
+  <div class="btns"><button id="setcancel">Annuler</button><button id="setok" class="primary">Appliquer</button></div>
+</div></div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const load = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const save = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const D = ms => reduced ? Math.min(ms, 120) : ms;
+const PCOL = ["#f2c230", "#7dd3fc", "#86efac", "#f9a8d4"];
+
+/* ================= CARTES ================= */
+const KINDS = {
+  red:   {k: "haz", name: "Feu rouge", short: "Feu rouge", rem: "green", safe: "prio", n: 5},
+  lim:   {k: "haz", name: "Limitation de vitesse", short: "Limite 50", rem: "endlim", safe: "prio", n: 4},
+  gas:   {k: "haz", name: "Panne d'essence", short: "Panne", rem: "fuel", safe: "tank", n: 3},
+  flat:  {k: "haz", name: "Crevaison", short: "Crevaison", rem: "spare", safe: "proof", n: 3},
+  acc:   {k: "haz", name: "Accident", short: "Accident", rem: "repair", safe: "ace", n: 3},
+  green: {k: "rem", name: "Feu vert", short: "Feu vert", n: 14},
+  endlim:{k: "rem", name: "Fin de limitation", short: "Fin limite", n: 6},
+  fuel:  {k: "rem", name: "Essence", short: "Essence", n: 6},
+  spare: {k: "rem", name: "Roue de secours", short: "Roue", n: 6},
+  repair:{k: "rem", name: "Réparations", short: "Réparations", n: 6},
+  prio:  {k: "safe", name: "Véhicule prioritaire", short: "Prioritaire", n: 1},
+  tank:  {k: "safe", name: "Citerne d'essence", short: "Citerne", n: 1},
+  proof: {k: "safe", name: "Increvable", short: "Increvable", n: 1},
+  ace:   {k: "safe", name: "As du volant", short: "As du volant", n: 1}
+};
+const REM_OF = {red: "green", gas: "fuel", flat: "spare", acc: "repair"};
+const HAZ_OF_REM = {green: "red", fuel: "gas", spare: "flat", repair: "acc", endlim: "lim"};
+const SAFE_COVERS = {prio: ["red", "lim"], tank: ["gas"], proof: ["flat"], ace: ["acc"]};
+const CAR = '<path d="M5 25h3l3-6.5c.6-1.2 1.7-2 3-2h11.5c1.3 0 2.4.8 3 2L32 25h3v6H5z" fill="#1f5fbf"/><path d="M13 23l2.3-4.6h9.4L27 23z" fill="#bfe0ff"/><circle cx="12" cy="31" r="3.4" fill="#222"/><circle cx="28" cy="31" r="3.4" fill="#222"/>';
+const TIRE = '<circle cx="20" cy="21" r="13" fill="#2b2d31"/><circle cx="20" cy="21" r="13" fill="none" stroke="#45484f" stroke-width="2" stroke-dasharray="3 2.5"/><circle cx="20" cy="21" r="5.5" fill="#b7bcc4"/>';
+const PUMP = '<rect x="9" y="9" width="14" height="25" rx="2.5" fill="#3b3e45"/><rect x="11.5" y="12" width="9" height="7" rx="1" fill="#cfe3f2"/><path d="M23 15h3.5v12a2.5 2.5 0 0 0 5 0V17l-3.5-4" fill="none" stroke="#3b3e45" stroke-width="2.2" stroke-linejoin="round"/>';
+function light(on){ return `<rect x="14" y="4" width="12" height="32" rx="4" fill="#2b2d31"/><circle cx="20" cy="11" r="3.6" fill="${on === "red" ? "#ff3b30" : "#5a2c2c"}"/><circle cx="20" cy="20" r="3.6" fill="#555"/><circle cx="20" cy="29" r="3.6" fill="${on === "green" ? "#30d158" : "#2b4a33"}"/>`; }
+const PICT = {
+  red: light("red"), green: light("green"),
+  lim: '<circle cx="20" cy="20" r="14" fill="#fff" stroke="#d32f2f" stroke-width="4.5"/><text x="20" y="25" text-anchor="middle" font-size="14" font-weight="800" font-family="Barlow Condensed,Arial Narrow,sans-serif" fill="#111">50</text>',
+  endlim: '<circle cx="20" cy="20" r="14" fill="#fff" stroke="#9a9a9a" stroke-width="2"/><text x="20" y="25" text-anchor="middle" font-size="14" font-weight="800" font-family="Barlow Condensed,Arial Narrow,sans-serif" fill="#9a9a9a">50</text><path d="M10 30 30 10M13.5 33 33 13.5M7 26.5 26.5 7" stroke="#222" stroke-width="1.8"/>',
+  gas: PUMP + '<path d="M27 4l8 8M35 4l-8 8" stroke="#d32f2f" stroke-width="3" stroke-linecap="round"/>',
+  fuel: PUMP + '<path d="M31 3c3 4 4.5 6.3 4.5 8a4.5 4.5 0 0 1-9 0c0-1.7 1.5-4 4.5-8z" fill="#2e9d4f"/>',
+  flat: TIRE + '<path d="M29 4l-5 7 6 1-7 9" fill="none" stroke="#f2c230" stroke-width="2.6" stroke-linejoin="round"/>',
+  spare: TIRE + '<circle cx="31" cy="9" r="6" fill="#2e9d4f"/><path d="M31 6v6M28 9h6" stroke="#fff" stroke-width="2"/>',
+  acc: `<g transform="rotate(-18 20 25)">${CAR}</g><path d="M30 5l1.6 4.4 4.4-1.6-2.4 4 4 2.4-4.6.6.6 4.6-3.6-3-3.2 3.4.4-4.6L22 13l4.2-1.4L24 7.6l4 1.2z" fill="#f2c230" stroke="#d32f2f" stroke-width=".8"/>`,
+  repair: '<path d="M28 6a7 7 0 0 0-8.6 8.7L7.5 26.6a2.6 2.6 0 0 0 3.7 3.7l11.9-11.9A7 7 0 0 0 31.7 9.8l-4.2 4.2-3.6-.6-.6-3.6z" fill="#5d6169"/>',
+  prio: CAR + '<path d="M16.5 15.5a3.5 3.5 0 0 1 7 0v1h-7z" fill="#3b82f6"/><path d="M20 8v3M13 10l2 2M27 10l-2 2" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>',
+  tank: '<rect x="4" y="14" width="22" height="12" rx="6" fill="#b0b5bd"/><rect x="7" y="16" width="16" height="2" rx="1" fill="#fff" opacity=".6"/><path d="M26 17h5l4 4v5h-9z" fill="#d32f2f"/><rect x="28" y="18.5" width="3.5" height="3" fill="#cfe3f2"/><circle cx="10" cy="29" r="3.4" fill="#222"/><circle cx="30" cy="29" r="3.4" fill="#222"/>',
+  proof: TIRE + '<path d="M30 3l6 2.5v4.5c0 3.5-2.5 6-6 7.5-3.5-1.5-6-4-6-7.5V5.5z" fill="#2e9d4f" stroke="#fff" stroke-width="1.2"/><path d="M27.5 10l2 2 3.5-4" fill="none" stroke="#fff" stroke-width="1.6"/>',
+  ace: '<circle cx="20" cy="22" r="12.5" fill="none" stroke="#3b3e45" stroke-width="4"/><circle cx="20" cy="22" r="3.6" fill="#3b3e45"/><path d="M20 22v12M20 22l-11.5-4M20 22l11.5-4" stroke="#3b3e45" stroke-width="3"/><path d="M20 1l2 4.4 4.8.5-3.6 3.2 1 4.7L20 11.4l-4.2 2.4 1-4.7L13.2 5.9l4.8-.5z" fill="#d32f2f"/>'
+};
+function milestone(v){
+  return `<svg viewBox="0 0 40 52" aria-hidden="true"><path d="M7 50V21a13 13 0 0 1 26 0v29z" fill="#f4f1ea" stroke="#9a968c" stroke-width="1.4"/><path d="M7 21a13 13 0 0 1 26 0v4H7z" fill="#d32f2f"/>
+    <text x="20" y="40" text-anchor="middle" font-size="${v >= 100 ? 13 : 15}" font-weight="800" font-family="Barlow Condensed,Arial Narrow,sans-serif" fill="#1c1e22">${v}</text><text x="20" y="47" text-anchor="middle" font-size="5.5" font-weight="800" font-family="Barlow Condensed,Arial Narrow,sans-serif" fill="#6a665c">KM</text></svg>`;
+}
+function cardHTML(c, extra = ""){
+  if(!c) return `<span class="mc back${extra}"><span class="ic"><svg viewBox="0 0 40 52" aria-hidden="true"><path d="M7 50V21a13 13 0 0 1 26 0v29z" fill="#f4f1ea"/><path d="M7 21a13 13 0 0 1 26 0v4H7z" fill="#d32f2f"/><text x="20" y="42" text-anchor="middle" font-size="12" font-weight="800" font-family="Barlow Condensed,sans-serif" fill="#1c1e22">1000</text></svg></span></span>`;
+  if(c.t === "km") return `<span class="mc km${extra}" data-id="${c.id}"><span class="band"></span><span class="ic">${milestone(c.v)}</span><span class="tx">${c.v} km</span></span>`;
+  const K = KINDS[c.t];
+  let icon = PICT[c.t];
+  if(K.k === "haz") icon = `<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 1.5 39 35.5H1z" fill="#fff" stroke="#d32f2f" stroke-width="3" stroke-linejoin="round"/><g transform="translate(9.5 13.5) scale(.52)">${PICT[c.t]}</g></svg>`;
+  else if(K.k === "rem") icon = `<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18.5" fill="#e9f7ee" stroke="#2e9d4f" stroke-width="3"/><g transform="translate(6 6) scale(.7)">${PICT[c.t]}</g></svg>`;
+  else icon = `<svg viewBox="0 0 40 44" aria-hidden="true"><path d="M20 1 37 7v13c0 11-7.5 18.5-17 22.5C10.5 38.5 3 31 3 20V7z" fill="#fffaf0" stroke="#b8860b" stroke-width="2.4"/><g transform="translate(6.5 6.5) scale(.68)">${PICT[c.t]}</g></svg>`;
+  return `<span class="mc ${K.k}${extra}" data-id="${c.id}"><span class="band"></span><span class="ic">${icon}</span><span class="tx"${K.short.length > 9 ? ' style="font-size:calc(var(--cw) * .118)"' : ""}>${K.short}</span></span>`;
+}
+const cname = c => c.t === "km" ? `${c.v} km` : KINDS[c.t].name;
+function node(html){ const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; }
+function buildDeck(){
+  const d = []; let id = 0;
+  [[25, 10], [50, 10], [75, 10], [100, 12], [200, 4]].forEach(([v, n]) => { for(let k = 0; k < n; k++) d.push({id: id++, t: "km", v}); });
+  for(const t in KINDS) for(let k = 0; k < KINDS[t].n; k++) d.push({id: id++, t});
+  return d;
+}
+const kindOf = c => c.t === "km" ? "km" : KINDS[c.t].k;
+
+/* ================= SONS ================= */
+const Snd = {
+  ctx: null, on: load("mb_sound") !== "0", nb: null,
+  init(){
+    if(!this.ctx){
+      const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
+      this.ctx = new AC(); this.out = this.ctx.createGain(); this.out.gain.value = .9; this.out.connect(this.ctx.destination);
+      const n = this.ctx.sampleRate * 2, b = this.ctx.createBuffer(1, n, this.ctx.sampleRate), d = b.getChannelData(0);
+      for(let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      this.nb = b;
+    }
+    if(this.ctx.state === "suspended") this.ctx.resume();
+  },
+  ok(){ return this.on && this.ctx; },
+  hit(f, q, peak, dur, delay = 0, type = "bandpass", f2){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.nb; s.loop = true; fl.type = type; fl.frequency.setValueAtTime(f, t); if(f2) fl.frequency.exponentialRampToValueAtTime(f2, t + dur); fl.Q.value = q;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + Math.min(.02, dur / 3)); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    s.connect(fl).connect(g).connect(this.out); s.start(t, Math.random()); s.stop(t + dur + .02);
+  },
+  tone(f0, f1, dur, peak, delay = 0, type = "sine"){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .006); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(this.out); o.start(t); o.stop(t + dur + .02);
+  },
+  card(delay = 0){ this.hit(1800, .8, .12, .12, delay, "bandpass", 3400); this.hit(600, 1, .22, .05, delay + .1, "lowpass"); },
+  draw(delay = 0){ this.hit(3000, .8, .09, .1, delay, "bandpass", 1500); },
+  shuffle(){ for(let i = 0; i < 16; i++) this.hit(2600 + Math.random() * 900, 1, .1, .05, i * .04); },
+  /* moteur qui accélère : plus la borne est grande, plus il monte */
+  engine(v){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + .1, dur = .5 + v / 400, o = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain(), lp = c.createBiquadFilter();
+    o.type = "sawtooth"; o2.type = "square"; lp.type = "lowpass"; lp.frequency.value = 900;
+    o.frequency.setValueAtTime(55, t); o.frequency.exponentialRampToValueAtTime(55 + v * .55, t + dur * .8);
+    o2.frequency.setValueAtTime(27, t); o2.frequency.exponentialRampToValueAtTime(27 + v * .27, t + dur * .8);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.12, t + .08); g.gain.setValueAtTime(.12, t + dur * .7); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(lp); o2.connect(lp); lp.connect(g).connect(this.out); o.start(t); o2.start(t); o.stop(t + dur + .05); o2.stop(t + dur + .05);
+  },
+  horn(){ this.tone(392, 392, .22, .1, .05, "sawtooth"); this.tone(494, 494, .22, .08, .05, "sawtooth"); },
+  brake(){ this.hit(3200, 6, .2, .5, .05, "bandpass", 2400); },
+  crash(){ this.hit(500, .7, .5, .6, .05, "lowpass", 120); this.hit(3500, 2, .2, .25, .07); this.tone(160, 50, .4, .25, .05, "triangle"); },
+  pop(){ this.hit(900, .6, .55, .25, .05, "lowpass", 200); this.hit(2500, 1, .2, .6, .1, "highpass"); },
+  sputter(){ for(let i = 0; i < 5; i++) this.tone(90 + Math.random() * 20, 60, .08, .15, .05 + i * .14 + Math.random() * .05, "sawtooth"); },
+  fix(){ this.hit(2600, 8, .16, .06, .05); this.hit(2900, 8, .14, .06, .2); this.hit(2400, 8, .14, .06, .35); },
+  siren(){ for(let i = 0; i < 3; i++){ this.tone(700, 1000, .25, .07, .05 + i * .5, "triangle"); this.tone(1000, 700, .25, .07, .3 + i * .5, "triangle"); } },
+  boot(){ [523, 659, 784, 1047].forEach((f, i) => this.tone(f, f, .25, .12, .05 + i * .08, "triangle")); },
+  cf(){ this.horn(); [784, 988, 1175, 1568].forEach((f, i) => this.tone(f, f, .3, .14, .25 + i * .09, "triangle")); },
+  nope(){ this.tone(170, 120, .12, .08, 0, "square"); },
+  win(){ [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, f, i === 4 ? .9 : .28, .15, .1 + i * .12, "triangle")); },
+  meh(){ [440, 392, 330].forEach((f, i) => this.tone(f, f, .35, .11, .1 + i * .25, "triangle")); }
+};
+function sndLabel(){ $("snd").textContent = Snd.on ? "🔊" : "🔇"; $("snd").title = Snd.on ? "Son activé" : "Son coupé"; }
+$("snd").onclick = () => { Snd.on = !Snd.on; save("mb_sound", Snd.on ? "1" : "0"); Snd.init(); sndLabel(); };
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => Snd.init(), {capture: true}));
+sndLabel();
+function playSound(c){
+  if(c.t === "km") return Snd.engine(c.v);
+  ({red: () => Snd.brake(), lim: () => Snd.brake(), gas: () => Snd.sputter(), flat: () => Snd.pop(), acc: () => Snd.crash(),
+    green: () => Snd.horn(), endlim: () => Snd.horn(), fuel: () => Snd.fix(), spare: () => Snd.fix(), repair: () => Snd.fix(),
+    prio: () => Snd.siren(), tank: () => Snd.boot(), proof: () => Snd.boot(), ace: () => Snd.boot()})[c.t]();
+}
+
+/* ================= RÉGLAGES ================= */
+let cfg = {n: 2, who: "ai", lvl: 2, teams: 1, goal: 0, end: 5000, green: 1, cf: 1, lim200: 1};
+try{ const o = JSON.parse(load("mb_cfg") || "null"); if(o) cfg = Object.assign(cfg, o); }catch(e){}
+
+/* ================= ÉTAT ET RÈGLES =================
+   Chaque joueur a sa main ; la route (piles, bornes, bottes) appartient à un « camp » :
+   un joueur seul, ou une équipe de deux à 4 joueurs. */
+let S = null, token = 0, busy = false, sel = null;
+const teamMode = () => cfg.n === 4 && cfg.teams;
+const GOAL = () => cfg.goal || (cfg.n === 2 || teamMode() ? 1000 : 700);
+function shuffle(a){ for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+const N = () => S.players.length;
+const P = () => S.players[S.cur];
+const SD = i => S.sides[S.players[i].side];
+const topB = s => s.battle[s.battle.length - 1];
+const topS = s => s.speed[s.speed.length - 1];
+const hasSafe = (s, t) => s.safes.some(x => x.t === t);
+const immune = (s, h) => s.safes.some(x => SAFE_COVERS[x.t].includes(h));
+function rolling(s){
+  const t = topB(s);
+  if(t && KINDS[t.t].k === "haz") return false;
+  if(hasSafe(s, "prio")) return true;
+  if(!t) return false;
+  if(t.t === "green") return true;
+  return !cfg.green;   // variante : on repart aussitôt après une parade
+}
+const limited = s => !hasSafe(s, "prio") && topS(s) && topS(s).t === "lim";
+/* où peut aller cette carte ? "self" (son camp) ou l'index d'un camp adverse */
+function targets(i, c){
+  const M = SD(i), out = [], k = kindOf(c);
+  if(k === "km"){
+    if(rolling(M) && (!limited(M) || c.v <= 50) && M.km + c.v <= GOAL() && !(c.v === 200 && cfg.lim200 && M.n200 >= 2)) out.push("self");
+  } else if(k === "safe") out.push("self");
+  else if(k === "rem"){
+    const t = topB(M);
+    if(c.t === "endlim"){ if(topS(M) && topS(M).t === "lim" && !hasSafe(M, "prio")) out.push("self"); }
+    else if(c.t === "green"){ if(!hasSafe(M, "prio") && (!t || t.t === "red" || (KINDS[t.t].k === "rem" && t.t !== "green"))) out.push("self"); }
+    else if(t && t.t === HAZ_OF_REM[c.t]) out.push("self");
+  } else {
+    S.sides.forEach((q, j) => {
+      if(q === M || immune(q, c.t)) return;
+      if(c.t === "lim"){ if(!(topS(q) && topS(q).t === "lim")) out.push(j); }
+      else if(rolling(q)) out.push(j);
+    });
+  }
+  return out;
+}
+function drawOne(){ return S.deck.length ? S.deck.pop() : null; }
+
+/* ================= AFFICHAGE ================= */
+function mainIdx(){ return cfg.who === "ai" ? 0 : (S.view ?? 0); }
+const CARSVG = c => `<svg class="car" viewBox="0 0 40 26" aria-hidden="true" style="left:${c.pct}%"><g transform="translate(0 -9)">${CAR.replace('fill="#1f5fbf"', `fill="${c.col}"`)}</g></svg>`;
+function tabHTML(si, me){
+  const s = S.sides[si], pct = Math.min(100, s.km / GOAL() * 100);
+  const b = topB(s), sp = topS(s), m = mainIdx();
+  const boots = ["prio", "tank", "proof", "ace"].map(t => { const x = s.safes.find(z => z.t === t); return x ? cardHTML(x.card, x.cf ? " cf" : "") : '<span class="bs"></span>'; }).join("");
+  const st = !rolling(s) ? (b && KINDS[b.t].k === "haz" ? `<b style="color:#ff8a80">${KINDS[b.t].name}</b>` : "<b>À l'arrêt</b>") : limited(s) ? "<b style='color:#ffd27a'>Roule, limité à 50</b>" : "<b style='color:#86efac'>Roule</b>";
+  const hands = s.members.filter(j => j !== m).map(j => `${teamMode() ? S.players[j].name + " : " : ""}${S.players[j].hand.length} cartes`).join(" · ");
+  const act = S.phase !== "end" && S.cur >= 0 && S.players[S.cur].side === si;
+  return `<div class="tab${me ? " me" : ""}${act ? " act" : ""}" data-s="${si}" style="--tw:var(--cw)">
+    <div class="th"><span class="nm" style="color:${s.col}">${s.name}</span><span class="km">${s.km} <small>/ ${GOAL()} km</small></span></div>
+    <div class="road"><div class="fill" style="width:${pct}%"></div>${CARSVG({pct: Math.max(4, Math.min(96, pct)), col: s.col})}<svg class="flag" viewBox="0 0 14 22" aria-hidden="true"><path d="M2 1v21" stroke="#ddd" stroke-width="1.5"/><path d="M2 2h10v7H2z" fill="#fff"/><path d="M2 2h2.5v2.3H2zM7 2h2.5v2.3H7zM4.5 4.3H7v2.4H4.5zM9.5 4.3H12v2.4H9.5zM2 6.7h2.5V9H2zM7 6.7h2.5V9H7z" fill="#111"/></svg></div>
+    <div class="meta">${st} · ${hands ? hands + " · " : ""}200 km : ${s.n200}/2 · ${s.score} pts</div>
+    <div class="state">
+      <span class="slotc">${b ? cardHTML(b) : '<span class="empty"></span>'}Bataille</span>
+      <span class="slotc">${sp ? cardHTML(sp) : '<span class="empty"></span>'}Vitesse</span>
+      <span class="slotc boots-w"><span class="boots" title="Bottes">${boots}</span>Bottes</span>
+    </div></div>`;
+}
+function render(){
+  if(!S) return;
+  const ms = S.players[mainIdx()].side;
+  $("opps").innerHTML = S.sides.map((s, j) => j === ms ? "" : tabHTML(j, false)).join("");
+  $("metab").innerHTML = tabHTML(ms, true);
+  if(sel && humanTurn()){
+    const tg = targets(S.cur, sel);
+    document.querySelectorAll(".tab").forEach(t => { const j = +t.dataset.s; if(tg.includes(j)){ t.classList.add("target"); t.onclick = () => humanPlay(sel, j); } });
+  }
+  $("deck").innerHTML = S.deck.length ? cardHTML(null) + cardHTML(null) + cardHTML(null) : '<span class="empty" style="--cw:54px"></span>';
+  $("deckn").textContent = S.deck.length;
+  const d = S.discard[S.discard.length - 1];
+  $("disc").innerHTML = d ? cardHTML(d) : '<span class="empty" style="--cw:54px"></span>';
+  $("discn").textContent = S.discard.length;
+  renderHand(); renderActions(); renderStatus();
+}
+const humanTurn = () => S && S.cur >= 0 && !P().ai && S.phase === "play" && !busy && $("curtain").hidden;
+function renderHand(){
+  const m = mainIdx(), p = S.players[m], h = $("hand"); h.innerHTML = "";
+  const order = c => ({km: 0, rem: 1, haz: 2, safe: 3})[kindOf(c)] * 1000 + (c.t === "km" ? c.v : Object.keys(KINDS).indexOf(c.t));
+  const active = humanTurn() && S.cur === m;
+  p.hand.slice().sort((a, b) => order(a) - order(b)).forEach(c => {
+    const el = node(cardHTML(c)); el.tabIndex = 0; el.setAttribute("role", "button"); el.setAttribute("aria-label", cname(c));
+    if(active){
+      if(!targets(m, c).length) el.classList.add("dim");
+      if(sel === c) el.classList.add("sel");
+      if(c === S.fresh) el.classList.add("new");
+      el.onclick = () => { sel = sel === c ? null : c; render(); };
+      el.onkeydown = e => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); el.click(); } };
+    } else el.classList.add("dim");
+    h.appendChild(el);
+  });
+}
+function renderActions(){
+  const a = $("actions"); a.innerHTML = "";
+  if(!humanTurn()) return;
+  if(!sel){ a.innerHTML = `<span class="hint">Touchez une carte pour la jouer ou la défausser.</span>`; return; }
+  const tg = targets(S.cur, sel);
+  const mk = (txt, cls, fn) => { const b = document.createElement("button"); b.className = cls; b.textContent = txt; b.onclick = fn; a.appendChild(b); };
+  const k = kindOf(sel);
+  if(tg.includes("self")) mk(k === "km" ? `Avancer de ${sel.v} km` : k === "safe" ? "Jouer la botte" : `Poser : ${KINDS[sel.t].name}`, "go", () => humanPlay(sel, "self"));
+  tg.filter(t => t !== "self").forEach(j => mk(`Attaquer ${S.sides[j].name}`, "atk", () => humanPlay(sel, j)));
+  mk("Défausser", "", () => humanDiscard(sel));
+  if(!tg.length){ const s = document.createElement("span"); s.className = "hint"; s.textContent = whyNot(S.cur, sel); a.prepend(s); }
+}
+function whyNot(i, c){
+  const M = SD(i), k = kindOf(c);
+  if(k === "km"){
+    if(!rolling(M)) return topB(M) && KINDS[topB(M).t].k === "haz" ? "Réparez d'abord." : "Il vous faut un feu vert.";
+    if(limited(M) && c.v > 50) return "Limitation : 50 km au plus.";
+    if(M.km + c.v > GOAL()) return `Vous dépasseriez ${GOAL()} km.`;
+    if(c.v === 200) return "Déjà deux bornes de 200 km.";
+  }
+  if(k === "haz") return "Aucun adversaire ne peut recevoir cette attaque.";
+  if(k === "rem") return "Inutile pour l'instant.";
+  return "";
+}
+function renderStatus(){
+  const who = i => `<span class="who" style="color:${PCOL[i]}">${S.players[i].name}</span>`;
+  let t = S.msg;
+  if(!t){
+    if(S.phase === "deal") t = "Distribution…";
+    else if(S.phase === "end") t = "Fin de la manche";
+    else if(P().ai) t = `${who(S.cur)} réfléchit…`;
+    else t = `${who(S.cur)} : jouez une carte, ou défaussez-en une.` + (S.deck.length ? "" : " (Pioche vide.)");
+  }
+  $("status").innerHTML = t;
+  $("roundno").textContent = `Manche ${S.round}` + (cfg.end ? ` · partie en ${cfg.end} pts` : "");
+}
+window.addEventListener("resize", () => { if(S) render(); });
+
+/* ================= ANIMATIONS ================= */
+function rectOf(q){ const e = document.querySelector(q); return e ? e.getBoundingClientRect() : $("deck").getBoundingClientRect(); }
+const sideRect = si => rectOf(`.tab[data-s="${si}"] .state`);
+const playerRect = i => i === mainIdx() && !S.players[i].ai ? $("hand").getBoundingClientRect() : sideRect(S.players[i].side);
+async function fly(html, from, to, dur = 380){
+  if(reduced) return;
+  const n = node(html); n.classList.add("fly"); n.style.setProperty("--cw", Math.max(40, Math.min(70, from.width)) + "px");
+  n.style.left = from.left + "px"; n.style.top = from.top + "px"; document.body.appendChild(n);
+  await n.animate([{transform: "translate(0,0)"}, {transform: `translate(${to.left + to.width / 2 - from.left - 25}px,${to.top + to.height / 2 - from.top - 35}px) rotate(${(Math.random() - .5) * 14}deg)`}],
+    {duration: D(dur), easing: "cubic-bezier(.3,.7,.3,1)", fill: "forwards"}).finished.catch(() => {});
+  n.remove();
+}
+function toast(si, txt){
+  const t = document.querySelector(`.tab[data-s="${si}"]`); if(!t) return;
+  const e = document.createElement("span"); e.className = "toast"; e.textContent = txt; t.appendChild(e);
+  setTimeout(() => e.remove(), 1700);
+}
+
+/* ================= DÉROULEMENT ================= */
+function newGame(){
+  token++;
+  const names = Array.from({length: cfg.n}, (_, i) => cfg.who === "ai" ? (i === 0 ? "Vous" : (cfg.n === 2 ? "L'ordinateur" : "Ordi " + i)) : "Joueur " + (i + 1));
+  const players = names.map((name, i) => ({name, ai: cfg.who === "ai" && i > 0, side: teamMode() ? i % 2 : i}));
+  const sides = teamMode()
+    ? [0, 1].map(k => ({members: [k, k + 2], name: names[k] + " & " + names[k + 2], col: PCOL[k], score: 0}))
+    : players.map((p, i) => ({members: [i], name: p.name, col: PCOL[i], score: 0}));
+  S = {players, sides, round: 0, first: Math.floor(Math.random() * cfg.n)};
+  newRound();
+}
+async function newRound(){
+  const my = ++token; busy = true; sel = null;
+  ["scores", "cfbox"].forEach(id => $(id).hidden = true); $("curtain").hidden = true;
+  S.round++; S.deck = shuffle(buildDeck()); S.discard = []; S.msg = ""; S.phase = "deal"; S.cur = -1; S.fresh = null; S.done = -1; S.delayed = false;
+  S.players.forEach(p => p.hand = []);
+  S.sides.forEach(s => Object.assign(s, {battle: [], speed: [], safes: [], km: 0, n200: 0, cfs: 0}));
+  S.first = (S.first + 1) % N(); S.view = cfg.who === "ai" ? 0 : S.first;
+  render(); Snd.shuffle();
+  await sleep(D(400)); if(my !== token) return;
+  for(let r = 0; r < 6; r++){ S.players.forEach(p => p.hand.push(S.deck.pop())); Snd.draw(); render(); await sleep(D(80)); if(my !== token) return; }
+  S.cur = S.first; S.phase = "play"; busy = false;
+  startTurn();
+}
+async function startTurn(){
+  const my = token, p = P();
+  sel = null; S.fresh = null;
+  if(S.players.every(q => !q.hand.length) && !S.deck.length) return endRound();
+  if(!p.hand.length && !S.deck.length) return nextPlayer();
+  if(!p.ai && cfg.who === "hot" && S.view !== S.cur){
+    S.view = S.cur; render(); $("ctitle").textContent = "Au tour de " + p.name; $("curtain").hidden = false;
+    await new Promise(res => { $("ready").onclick = () => { $("curtain").hidden = true; res(); }; });
+    if(my !== token) return;
+  }
+  if(!p.ai) S.view = S.cur;
+  busy = true; render();
+  const c = drawOne();
+  if(c){
+    Snd.draw();
+    await fly(cardHTML(p.ai || S.cur !== mainIdx() ? null : c), $("deck").getBoundingClientRect(), playerRect(S.cur), 300);
+    if(my !== token) return;
+    p.hand.push(c); if(!p.ai) S.fresh = c;
+  }
+  busy = false; render();
+  if(p.ai){ busy = true; render(); await sleep(D(800)); if(my !== token) return; busy = false; aiTurn(); }
+}
+function nextPlayer(){ S.cur = (S.cur + 1) % N(); startTurn(); }
+
+async function humanPlay(c, tgt){
+  if(!humanTurn()) return;
+  if(!targets(S.cur, c).includes(tgt)){ Snd.nope(); return; }
+  busy = true; sel = null;
+  await play(S.cur, c, tgt);
+}
+async function humanDiscard(c){
+  if(!humanTurn()) return;
+  busy = true; sel = null;
+  await discard(S.cur, c);
+}
+function fromRect(i, c){
+  return i === mainIdx() && !S.players[i].ai ? (document.querySelector(`#hand .mc[data-id="${c.id}"]`) || $("hand")).getBoundingClientRect() : sideRect(S.players[i].side);
+}
+async function discard(i, c){
+  const my = token, p = S.players[i], from = fromRect(i, c);
+  p.hand.splice(p.hand.indexOf(c), 1); render();
+  Snd.card(); await fly(cardHTML(c), from, $("disc").getBoundingClientRect()); if(my !== token) return;
+  S.discard.push(c);
+  S.msg = `${p.name} défausse : ${cname(c)}.`; render();
+  await sleep(D(700)); if(my !== token) return;
+  S.msg = ""; busy = false; nextPlayer();
+}
+async function play(i, c, tgt){
+  const my = token, p = S.players[i], from = fromRect(i, c);
+  p.hand.splice(p.hand.indexOf(c), 1); render();
+  const ti = tgt === "self" ? p.side : tgt, T = S.sides[ti];
+  Snd.card();
+  await fly(cardHTML(c), from, sideRect(ti)); if(my !== token) return;
+  const k = kindOf(c);
+  if(k === "km"){
+    T.km += c.v; if(c.v === 200) T.n200++;
+    playSound(c); S.msg = `${p.name} avance de ${c.v} km.`;
+    render(); toast(ti, `+${c.v} km`);
+    if(T.km === GOAL()){ S.done = ti; S.delayed = !S.deck.length; await sleep(D(900)); if(my !== token) return; return endRound(); }
+  } else if(k === "safe"){
+    T.safes.push({t: c.t, cf: false, card: c});
+    const b = topB(T); if(b && SAFE_COVERS[c.t].includes(b.t)) S.discard.push(T.battle.pop());
+    if(c.t === "prio"){ const s = topS(T); if(s && s.t === "lim") S.discard.push(T.speed.pop()); }
+    playSound(c); S.msg = `${p.name} joue une botte : ${KINDS[c.t].name}. Il rejoue !`; render(); toast(ti, "Botte !");
+    await sleep(D(1200)); if(my !== token) return;
+    S.msg = ""; busy = false; return startTurn();
+  } else if(k === "rem"){
+    if(c.t === "endlim") T.speed.push(c); else T.battle.push(c);
+    playSound(c); S.msg = `${p.name} pose : ${KINDS[c.t].name}.`; render();
+  } else {
+    if(c.t === "lim") T.speed.push(c); else T.battle.push(c);
+    playSound(c); S.msg = `${p.name} attaque ${T.name} : ${KINDS[c.t].name} !`; render(); toast(ti, KINDS[c.t].short + " !");
+    await sleep(D(700)); if(my !== token) return;
+    // coup fourré : un membre du camp attaqué qui a la botte (un humain d'abord)
+    const holders = T.members.filter(j => S.players[j].hand.some(x => x.t === KINDS[c.t].safe)).sort((a, b) => S.players[a].ai - S.players[b].ai);
+    if(cfg.cf && holders.length){
+      const hj = holders[0], H = S.players[hj], boot = H.hand.find(x => x.t === KINDS[c.t].safe);
+      const yes = await askCF(hj, ti, i, c, boot); if(my !== token) return;
+      if(yes){
+        if(c.t === "lim") T.speed.pop(); else T.battle.pop();
+        S.discard.push(c);
+        H.hand.splice(H.hand.indexOf(boot), 1); T.safes.push({t: boot.t, cf: true, card: boot}); T.cfs++;
+        if(boot.t === "prio"){ const s = topS(T); if(s && s.t === "lim") S.discard.push(T.speed.pop()); const b = topB(T); if(b && b.t === "red") S.discard.push(T.battle.pop()); }
+        Snd.cf(); S.msg = `Coup fourré de ${H.name} ! L'attaque est annulée et c'est à lui de jouer.`; render(); toast(ti, "Coup fourré !");
+        const extra = drawOne(); if(extra) H.hand.push(extra);
+        await sleep(D(1600)); if(my !== token) return;
+        S.msg = ""; busy = false; S.cur = hj; return startTurn();
+      }
+    }
+  }
+  await sleep(D(700)); if(my !== token) return;
+  S.msg = ""; busy = false; nextPlayer();
+}
+function askCF(hj, ti, by, c, boot){
+  const H = S.players[hj];
+  if(H.ai) return sleep(D(400)).then(() => cfg.lvl > 1 || Math.random() < .7);
+  return new Promise(res => {
+    const go = () => {
+      $("cfrow").innerHTML = cardHTML(c) + '<span style="font-size:1.6rem">→</span>' + cardHTML(boot);
+      $("cftext").textContent = `${S.players[by].name} attaque ${S.sides[ti].name} avec ${KINDS[c.t].name}, mais ${H.name === "Vous" ? "vous avez" : H.name + " a"} la botte ${KINDS[boot.t].name} ! La jouer maintenant annule l'attaque, rapporte 300 points de plus, et ${H.name === "Vous" ? "c'est à vous" : "c'est à " + H.name} de jouer.`;
+      $("cfbox").hidden = false;
+      $("cfyes").onclick = () => { $("cfbox").hidden = true; res(true); };
+      $("cfno").onclick = () => { $("cfbox").hidden = true; res(false); };
+    };
+    if(cfg.who === "hot" && S.view !== hj){ S.view = hj; render(); $("ctitle").textContent = `${H.name}, prenez l'appareil`; $("curtain").hidden = false; $("ready").onclick = () => { $("curtain").hidden = true; render(); go(); }; }
+    else go();
+  });
+}
+
+/* ================= ORDINATEURS ================= */
+function aiTurn(){
+  const i = S.cur, p = P(), M = SD(i), lvl = cfg.lvl;
+  const opts = [];
+  const need = GOAL() - M.km;
+  for(const c of p.hand){
+    const tg = targets(i, c), k = kindOf(c);
+    for(const t of tg){
+      let v = 0;
+      if(k === "km"){ v = 35 + c.v / 4; if(c.v === need) v += 200; if(c.v === 200 && lvl === 3 && need > 300 && M.n200 === 0) v -= 12; }
+      else if(k === "rem") v = c.t === "green" ? 70 : c.t === "endlim" ? (p.hand.some(x => x.t === "km" && x.v > 50) ? 55 : 12) : 80;
+      else if(k === "safe"){
+        const b = topB(M), cures = (b && SAFE_COVERS[c.t].includes(b.t)) || (c.t === "prio" && (limited(M) || !rolling(M)));
+        v = cures ? 90 : lvl === 3 ? (S.deck.length < 12 ? 40 : -5) : lvl === 2 ? 25 : 50;
+      }
+      else {
+        const q = S.sides[t];
+        v = 28 + q.km / 25 + (GOAL() - q.km <= 300 ? 45 : 0) + (c.t === "lim" ? -8 : 0);
+        if(rolling(M) && p.hand.some(x => kindOf(x) === "km" && targets(i, x).includes("self"))) v -= 12;   // avancer d'abord
+        if(lvl === 1) v -= 15;
+      }
+      if(lvl === 1) v += Math.random() * 30;
+      opts.push({c, t, v});
+    }
+  }
+  opts.sort((a, b) => b.v - a.v);
+  if(opts.length && opts[0].v > 0) return play(i, opts[0].c, opts[0].t);
+  // défausser la carte la moins utile : on garde un feu vert et une parade de chaque sorte
+  const count = t => p.hand.filter(x => x.t === t).length;
+  const anyTarget = h => S.sides.some(q => q !== M && !immune(q, h));
+  const useless = c => {
+    const k = kindOf(c);
+    if(k === "safe") return -100;
+    if(k === "km"){
+      if(c.v > need || (c.v === 200 && cfg.lim200 && M.n200 >= 2)) return 95;
+      return 40 - c.v / 10 + (count(c.t) > 3 ? 5 : 0);
+    }
+    if(k === "rem"){
+      if(c.t === "green") return hasSafe(M, "prio") ? 98 : count("green") >= 3 ? 34 : 3;
+      if(c.t === "endlim") return hasSafe(M, "prio") ? 98 : count("endlim") >= 2 ? 50 : 22;
+      if(M.safes.some(s => SAFE_COVERS[s.t].includes(HAZ_OF_REM[c.t]))) return 99;
+      return count(c.t) >= 2 ? 45 : 10;
+    }
+    if(!anyTarget(c.t)) return 92;
+    return c.t === "lim" ? 42 : 30;
+  };
+  const worst = p.hand.slice().sort((a, b) => useless(b) - useless(a))[0];
+  if(worst) return discard(i, worst);
+  busy = false; nextPlayer();
+}
+
+/* ================= FIN DE MANCHE ================= */
+function roundPoints(si){
+  const s = S.sides[si], r = {km: s.km, safes: s.safes.length * 100, all: s.safes.length === 4 ? 300 : 0, cf: s.cfs * 300, trip: 0, safe: 0, delayed: 0, shut: 0};
+  if(S.done === si){
+    r.trip = 400; if(s.n200 === 0) r.safe = 300; if(S.delayed) r.delayed = 300;
+    if(S.sides.some((q, j) => j !== si && q.km === 0)) r.shut = 500;
+  }
+  r.total = Object.values(r).reduce((a, b) => a + b, 0);
+  return r;
+}
+async function endRound(){
+  const my = token; busy = true; S.phase = "end";
+  S.msg = S.done >= 0 ? `${S.sides[S.done].name} : ${GOAL()} km parcourus !` : "Plus aucune carte : fin de la manche."; render();
+  if(S.done >= 0) Snd.horn();
+  await sleep(D(1100)); if(my !== token) return;
+  S.res = S.sides.map((_, i) => roundPoints(i));
+  S.sides.forEach((s, i) => s.score += S.res[i].total);
+  S.over = !cfg.end || S.sides.some(s => s.score >= cfg.end);
+  busy = false; showScores(true);
+}
+function showScores(end){
+  const ss = S.sides;
+  const best = Math.max(...ss.map(s => s.score)), winners = ss.filter(s => s.score === best);
+  const wname = w => w.name === "Vous" ? "Vous gagnez" : w.name.startsWith("Vous &") ? "Votre équipe gagne" : w.name + (w.members.length > 1 ? " gagnent" : " gagne");
+  let title = "Scores";
+  if(end) title = S.over ? (winners.length > 1 ? "Égalité !" : wname(winners[0]) + " la partie !") : `Fin de la manche ${S.round}`;
+  $("sct").textContent = title;
+  const head = `<tr><th></th>${ss.map(s => `<th style="color:${s.col}">${s.name}</th>`).join("")}</tr>`;
+  let rows = "";
+  if(end){
+    const L = [["Kilomètres", "km"], ["Bottes (100 chacune)", "safes"], ["Les 4 bottes", "all"], ["Coups fourrés", "cf"], ["Voyage réussi", "trip"], ["Sans borne de 200", "safe"], ["Pioche vide", "delayed"], ["Capot (adversaire à 0 km)", "shut"]];
+    rows = L.filter(([, k]) => S.res.some(r => r[k])).map(([l, k]) => `<tr><td>${l}</td>${S.res.map(r => `<td>${r[k] || "—"}</td>`).join("")}</tr>`).join("");
+    rows += `<tr class="tot"><td>Manche</td>${S.res.map(r => `<td>${r.total}</td>`).join("")}</tr>`;
+  }
+  rows += `<tr class="gt"><td>Total</td>${ss.map(s => `<td>${s.score}</td>`).join("")}</tr>`;
+  $("sctbl").innerHTML = head + rows;
+  $("scnote").textContent = cfg.end ? `La partie se joue en ${cfg.end} points.` : "Partie en une manche.";
+  const btns = $("scbtns"); btns.innerHTML = "";
+  const mk = (t, fn, cls) => { const b = document.createElement("button"); b.textContent = t; if(cls) b.className = cls; b.onclick = fn; btns.appendChild(b); };
+  if(!end) mk("Fermer", () => $("scores").hidden = true, "primary");
+  else if(S.over) mk("Nouvelle partie", () => newGame(), "primary");
+  else mk("Manche suivante", () => newRound(), "primary");
+  $("scores").hidden = false;
+  if(end){
+    const hs = S.players[0].side;
+    const good = cfg.who === "hot" || (S.over ? winners.includes(ss[hs]) : S.res[hs].total === Math.max(...S.res.map(r => r.total)));
+    good ? Snd.win() : Snd.meh();
+  }
+}
+$("scorebtn").onclick = () => { if(S && S.phase !== "end") showScores(false); };
+$("newg").onclick = () => newGame();
+
+/* ================= RÉGLAGES ================= */
+let draft = null;
+function paintSettings(){
+  document.querySelectorAll("#settings .seg").forEach(seg => seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(draft[seg.dataset.k]) === b.dataset.v)));
+  $("optlvl").hidden = draft.who !== "ai";
+  $("optteams").hidden = draft.n !== 4;
+}
+$("setbtn").onclick = () => { draft = Object.assign({}, cfg); paintSettings(); $("settings").hidden = false; };
+document.querySelectorAll("#settings .seg").forEach(seg => seg.addEventListener("click", e => {
+  const b = e.target.closest("button"); if(!b) return;
+  draft[seg.dataset.k] = seg.dataset.k === "who" ? b.dataset.v : +b.dataset.v; paintSettings();
+}));
+$("setcancel").onclick = () => { $("settings").hidden = true; };
+$("setok").onclick = () => { cfg = draft; save("mb_cfg", JSON.stringify(cfg)); $("settings").hidden = true; newGame(); };
+document.addEventListener("keydown", e => { if(e.key === "Escape"){ $("settings").hidden = true; if(S && S.phase !== "end") $("scores").hidden = true; if(sel){ sel = null; render(); } } });
+
+newGame();
+})();
+</script>

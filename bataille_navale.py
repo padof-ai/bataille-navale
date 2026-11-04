@@ -23,6 +23,11 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+try:   # belote en ligne (fichier belote_en_ligne.py posé à côté)
+    import belote_en_ligne
+except ImportError:
+    belote_en_ligne = None
+
 PORT = int(os.environ.get("PORT", "8000"))
 ONLINE = "PORT" in os.environ         # True chez l'hébergeur
 CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"   # sans O/0 ni I/1
@@ -413,6 +418,9 @@ class Handler(BaseHTTPRequestHandler):
             self.send_body(200, SERVICE_WORKER, "text/javascript")
         elif p in ICONS:
             self.send_raw(200, ICONS[p], "image/png", cache=True)
+        elif p == "/api/belote/state" and belote_en_ligne:
+            st, obj = belote_en_ligne.get_state(parse_qs(url.query))
+            self.send_json(st, obj)
         elif p == "/api/state":
             q = parse_qs(url.query)
             code = norm_code(q.get("code", [""])[0])
@@ -441,6 +449,9 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError
         except Exception:
             return self.send_json(400, {"error": "Requête invalide."})
+        if url.path.startswith("/api/belote/") and belote_en_ligne:
+            st, obj = belote_en_ligne.post(url.path[len("/api/belote/"):], body)
+            return self.send_json(st, obj)
         with lock:
             cleanup_rooms()
             if url.path == "/api/create":
@@ -570,6 +581,31 @@ ART = {
       <g transform="rotate(-14 52 54)"><rect x="37" y="32" width="30" height="42" rx="5" fill="#fffdf7" stroke="#3a74d1" stroke-width="2.4"/><text x="52" y="61" text-anchor="middle" font-size="20" font-weight="800" fill="#3a74d1" font-family="Fredoka,Nunito,sans-serif">3</text></g>
       <g><rect x="65" y="26" width="30" height="42" rx="5" fill="#fffdf7" stroke="#3a74d1" stroke-width="2.4"/><text x="80" y="55" text-anchor="middle" font-size="20" font-weight="800" fill="#3a74d1" font-family="Fredoka,Nunito,sans-serif">3</text></g>
       <g transform="rotate(14 108 54)"><rect x="93" y="32" width="30" height="42" rx="5" fill="#24356b" stroke="#fff8ec" stroke-width="2.4"/><text x="108" y="59" text-anchor="middle" font-size="16" font-weight="800" fill="#fff8ec" font-family="Nunito,sans-serif">&#8646;</text></g>''',
+    "skyjo": '''
+      <g transform="rotate(-10 58 52)"><rect x="40" y="24" width="36" height="52" rx="6" fill="#2fa84f" stroke="#fff" stroke-width="2.4"/><text x="58" y="58" text-anchor="middle" font-size="22" font-weight="800" fill="#fff" font-family="Fredoka,Nunito,sans-serif">4</text></g>
+      <g><rect x="62" y="20" width="36" height="52" rx="6" fill="#2a63d4" stroke="#fff" stroke-width="2.4"/><text x="80" y="54" text-anchor="middle" font-size="20" font-weight="800" fill="#fff" font-family="Fredoka,Nunito,sans-serif">-2</text></g>
+      <g transform="rotate(10 102 52)"><rect x="84" y="24" width="36" height="52" rx="6" fill="#e2453c" stroke="#fff" stroke-width="2.4"/><text x="102" y="58" text-anchor="middle" font-size="20" font-weight="800" fill="#fff" font-family="Fredoka,Nunito,sans-serif">12</text></g>''',
+    "uno": '''
+      <g transform="rotate(-12 62 52)"><rect x="44" y="20" width="38" height="58" rx="6" fill="#e3242b" stroke="#fff" stroke-width="3"/><ellipse cx="63" cy="49" rx="14" ry="20" fill="#fff" transform="rotate(25 63 49)"/><text x="63" y="57" text-anchor="middle" font-size="22" font-weight="800" fill="#e3242b" font-family="Fredoka,Nunito,sans-serif">7</text></g>
+      <g transform="rotate(10 98 50)"><rect x="78" y="20" width="38" height="58" rx="6" fill="#1b1b22" stroke="#fff" stroke-width="3"/>
+        <circle cx="91" cy="41" r="6" fill="#e3242b"/><circle cx="103" cy="41" r="6" fill="#f7c600"/><circle cx="91" cy="55" r="6" fill="#2a63d4"/><circle cx="103" cy="55" r="6" fill="#2fa84f"/></g>''',
+    "mille-bornes": '''
+      <rect x="20" y="66" width="120" height="14" rx="3" fill="#3b3b44"/><path d="M28 73 H44 M56 73 H72 M84 73 H100 M112 73 H128" stroke="#f6f0e4" stroke-width="2.4"/>
+      <path d="M62 20 h36 a10 10 0 0 1 10 10 v30 h-56 v-30 a10 10 0 0 1 10 -10 z" fill="#fffaf0" stroke="#c4142c" stroke-width="3"/>
+      <rect x="52" y="22" width="56" height="12" rx="4" fill="#c4142c"/>
+      <text x="80" y="54" text-anchor="middle" font-size="17" font-weight="800" fill="#1b1b22" font-family="Nunito,sans-serif">1000</text>''',
+    "belote": '''
+      <rect x="10" y="8" width="140" height="84" rx="14" fill="#145a3a" stroke="#d6b26a" stroke-width="2"/>
+      <g transform="rotate(-14 62 54)"><rect x="44" y="24" width="36" height="52" rx="5" fill="#fffdf7" stroke="#cfc7b5"/><text x="62" y="47" text-anchor="middle" font-size="16" font-weight="700" fill="#c8202c" font-family="Georgia,serif">R</text><text x="62" y="66" text-anchor="middle" font-size="16" fill="#c8202c">&#9829;</text></g>
+      <g transform="rotate(12 98 52)"><rect x="80" y="22" width="36" height="52" rx="5" fill="#fffdf7" stroke="#cfc7b5"/><text x="98" y="45" text-anchor="middle" font-size="16" font-weight="700" fill="#c8202c" font-family="Georgia,serif">D</text><text x="98" y="64" text-anchor="middle" font-size="16" fill="#c8202c">&#9829;</text></g>''',
+    "rummikub": '''
+      <rect x="18" y="62" width="124" height="16" rx="4" fill="#b88a4a" stroke="#6b4a1f" stroke-width="2"/>
+      <rect x="24" y="24" width="26" height="36" rx="4" fill="#fbf6e9" stroke="#d8ccae" stroke-width="1.5"/><text x="37" y="49" text-anchor="middle" font-size="17" font-weight="800" fill="#c4142c" font-family="Nunito,sans-serif">7</text><rect x="53" y="24" width="26" height="36" rx="4" fill="#fbf6e9" stroke="#d8ccae" stroke-width="1.5"/><text x="66" y="49" text-anchor="middle" font-size="17" font-weight="800" fill="#1f3fa6" font-family="Nunito,sans-serif">7</text><rect x="82" y="24" width="26" height="36" rx="4" fill="#fbf6e9" stroke="#d8ccae" stroke-width="1.5"/><text x="95" y="49" text-anchor="middle" font-size="17" font-weight="800" fill="#1b1b22" font-family="Nunito,sans-serif">7</text><rect x="111" y="24" width="26" height="36" rx="4" fill="#fbf6e9" stroke="#d8ccae" stroke-width="1.5"/><text x="124" y="49" text-anchor="middle" font-size="17" font-weight="800" fill="#e08a00" font-family="Nunito,sans-serif">7</text>
+      <path d="M128 24 l0 0" />''',
+    "tarot": '''
+      <rect x="10" y="8" width="140" height="84" rx="14" fill="#16335c" stroke="#d9b25f" stroke-width="2"/>
+      <g transform="rotate(-12 60 52)"><rect x="42" y="18" width="34" height="62" rx="5" fill="#f6ecd0" stroke="#c9b27a"/><circle cx="59" cy="49" r="12" fill="#fffaf0" stroke="#c8202c" stroke-width="4" stroke-dasharray="4 3"/><text x="59" y="54" text-anchor="middle" font-size="13" font-weight="700" fill="#2a3f8f" font-family="Georgia,serif">21</text></g>
+      <g transform="rotate(10 100 50)"><rect x="83" y="18" width="34" height="62" rx="5" fill="#f6dca0" stroke="#c9b27a"/><text x="100" y="58" text-anchor="middle" font-size="26" fill="#7a4a0a">&#9733;</text></g>''',
 }
 
 GAMES = [
@@ -592,6 +628,18 @@ GAMES = [
      "hook": "Damier de 10 × 10, règles françaises.", "facts": "1–2 joueurs · 30 min", "modes": ["Contre l'ordi", "Même écran"]},
     {"slug": "decal", "file": "decal.html", "name": "Décal", "lid": "#e2572c",
      "hook": "Glissez vos cartes, formez des paires.", "facts": "1–4 joueurs · 15 min", "modes": ["Contre l'ordi", "Même écran"]},
+    {"slug": "skyjo", "file": "skyjo.html", "name": "Skyjo", "lid": "#2fa84f",
+     "hook": "Retournez, échangez, faites le plus petit total.", "facts": "1–4 joueurs · 20 min", "modes": ["Contre l'ordi", "Même écran"], "new": "Nouveau"},
+    {"slug": "uno", "file": "uno.html", "name": "Uno", "lid": "#e3242b",
+     "hook": "Couleur ou chiffre, et n'oubliez pas de dire Uno !", "facts": "1–4 joueurs · 15 min", "modes": ["Contre l'ordi", "Même écran"], "new": "Nouveau"},
+    {"slug": "mille-bornes", "file": "mille_bornes.html", "name": "1000 Bornes", "lid": "#c4142c",
+     "hook": "Feux rouges, crevaisons et as du volant.", "facts": "1–4 joueurs · 25 min", "modes": ["Contre l'ordi", "Même écran"], "new": "Nouveau"},
+    {"slug": "belote", "file": "belote.html", "name": "Belote", "lid": "#145a3a",
+     "hook": "Belote, rebelote et dix de der, à quatre en ligne ou avec l'ordinateur.", "facts": "1–4 joueurs · 30 min", "modes": ["En ligne", "Contre l'ordi"], "new": "Nouveau : en ligne"},
+    {"slug": "rummikub", "file": "rummikub.html", "name": "Rummikub", "lid": "#b88a4a",
+     "hook": "Suites et séries de tuiles, la table se réarrange.", "facts": "1–4 joueurs · 30 min", "modes": ["Contre l'ordi", "Même écran"], "new": "Nouveau"},
+    {"slug": "tarot", "file": "tarot.html", "name": "Tarot", "lid": "#16335c",
+     "hook": "Petite, garde, garde sans… et le petit au bout.", "facts": "3–4 joueurs · 30 min", "modes": ["Contre l'ordi"], "new": "Nouveau"},
 ]
 STATIC_GAMES = {"/" + g["slug"]: g for g in GAMES if g["file"]}
 

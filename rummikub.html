@@ -1,0 +1,670 @@
+<title>Rummikub</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Nunito:wght@600;800&display=swap">
+<style>
+/* Layout : une table de salon en bois clair ; les combinaisons posées au centre, les adversaires au-dessus, son chevalet en bois sombre en bas. */
+:root{
+  color-scheme:light;
+  --table:#e9d7b5;        /* bois clair */
+  --table2:#cdb284;
+  --rack:#5b3a1e;         /* chevalet */
+  --rack2:#3b240f;
+  --tile:#fffaf0;         /* tuile ivoire */
+  --k0:#1d1d22; --k1:#d32f2f; --k2:#1e5bd8; --k3:#e88300;   /* noir, rouge, bleu, orange */
+  --ink:#2b1d0e; --muted:#6e5638; --line:rgba(43,29,14,.18);
+  --panel:rgba(255,250,240,.75);
+  --ok:#2e8b57; --bad:#d32f2f; --gold:#d79a1e;
+  --display:"Archivo Black","Arial Black",sans-serif;
+  --ui:"Nunito","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0;font-family:var(--ui);color:var(--ink);-webkit-tap-highlight-color:transparent;
+  background:repeating-linear-gradient(93deg,rgba(120,80,30,.06) 0 2px,transparent 2px 11px),repeating-linear-gradient(87deg,rgba(255,255,255,.12) 0 1px,transparent 1px 29px),
+    radial-gradient(ellipse 80% 60% at 50% 30%,#f3e4c6 0,var(--table) 55%,var(--table2) 100%) fixed,var(--table)}
+.app{max-width:900px;margin:0 auto;padding-block:10px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:10px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(1.6rem,6.5vw,2.3rem);line-height:1;letter-spacing:-.01em;display:flex;gap:2px;white-space:nowrap}
+h1 span{display:inline-grid;place-items:center;background:var(--tile);border-radius:6px;padding:0 .14em;box-shadow:0 3px 0 #cbbf9e,0 4px 6px rgba(0,0,0,.2)}
+h1 span:nth-child(4n+1){color:var(--k1)}h1 span:nth-child(4n+2){color:var(--k2)}h1 span:nth-child(4n+3){color:var(--k3)}h1 span:nth-child(4n+4){color:var(--k0)}
+.tools{display:flex;gap:8px}
+button{font:inherit;font-weight:800;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:8px 12px;cursor:pointer}
+button:hover:not(:disabled){border-color:rgba(43,29,14,.45)}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+.bar{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:9px 12px}
+#status{flex:1;min-width:200px;font-weight:800;line-height:1.35}
+#status .who{font-family:var(--display);font-weight:400}
+#timer{height:6px;border-radius:3px;background:rgba(43,29,14,.12);overflow:hidden;width:100%}
+#timer i{display:block;height:100%;background:var(--ok);transition:width .25s linear}
+#timer.low i{background:var(--bad)}
+.players{display:flex;gap:6px;flex-wrap:wrap}
+.pl{display:flex;align-items:center;gap:6px;padding:5px 9px;border-radius:12px;background:var(--panel);border:2px solid transparent;font-weight:800;font-size:.88rem}
+.pl.act{border-color:var(--gold)}
+.pl .nm{font-family:var(--display);font-weight:400;font-size:.95rem}
+.pl .mini{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:30px;padding:0 5px;border-radius:5px;background:var(--tile);box-shadow:0 2px 0 #cbbf9e;font-family:var(--display);font-size:.9rem}
+.pl .st{color:var(--muted);font-size:.78rem}
+.pool{margin-left:auto}
+
+/* Table */
+.tablezone{position:relative;min-height:180px;border-radius:16px;padding:12px;background:rgba(255,250,240,.35);border:2px dashed rgba(43,29,14,.12);
+  display:flex;flex-wrap:wrap;gap:10px 12px;align-content:flex-start;--tw:clamp(26px,7.2vw,36px)}
+.tablezone .empty{color:var(--muted);font-weight:700;margin:auto;text-align:center;max-width:32ch}
+.set{position:relative;display:flex;gap:2px;padding:4px;border-radius:9px;background:rgba(255,255,255,.35);border:2px solid transparent;transition:border-color .15s,background .15s}
+.set.bad{border-color:var(--bad);background:rgba(211,47,47,.08)}
+.set.target{cursor:pointer;border-color:var(--gold);background:rgba(215,154,30,.14)}
+.set .add{display:none;align-items:center;justify-content:center;width:calc(var(--tw) * .8);border-radius:6px;border:2px dashed var(--gold);color:var(--gold);font-weight:800;font-size:1.1rem;background:transparent;padding:0}
+.set.target .add{display:flex}
+.newset{display:flex;align-items:center;justify-content:center;gap:6px;min-width:120px;height:calc(var(--tw) * 1.32 + 12px);border-radius:9px;border:2px dashed var(--gold);color:#8a5a00;font-weight:800;background:rgba(215,154,30,.08);padding:0 12px}
+
+/* Tuiles */
+.tl{position:relative;width:var(--tw);height:calc(var(--tw) * 1.32);border-radius:calc(var(--tw) * .14);border:0;padding:0;cursor:pointer;
+  background:linear-gradient(180deg,#fffdf6,var(--tile) 60%,#efe4cc);box-shadow:0 calc(var(--tw) * .08) 0 #c9bb98,0 calc(var(--tw) * .1) calc(var(--tw) * .14) rgba(0,0,0,.25);
+  display:flex;align-items:flex-start;justify-content:center;padding-top:calc(var(--tw) * .14);font-family:var(--display);font-size:calc(var(--tw) * .6);line-height:1;color:var(--tc);flex:none;transition:transform .12s}
+.tl::after{content:"";position:absolute;left:50%;bottom:calc(var(--tw) * .16);width:calc(var(--tw) * .36);height:calc(var(--tw) * .2);transform:translateX(-50%);border-radius:50%;background:radial-gradient(ellipse,rgba(0,0,0,.12),transparent 70%)}
+.tl.c0{--tc:var(--k0)}.tl.c1{--tc:var(--k1)}.tl.c2{--tc:var(--k2)}.tl.c3{--tc:var(--k3)}
+.tl.jk{font-size:calc(var(--tw) * .62);background:linear-gradient(180deg,#fffdf6,#fff1d6)}
+.tl.jk b{background:conic-gradient(var(--k1) 0 25%,var(--k2) 0 50%,var(--k3) 0 75%,var(--k0) 0);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tl.sel{transform:translateY(-22%);box-shadow:0 0 0 3px var(--gold),0 calc(var(--tw) * .2) calc(var(--tw) * .25) rgba(0,0,0,.3)}
+.tl.fresh::before{content:"";position:absolute;top:4%;right:6%;width:calc(var(--tw) * .16);height:calc(var(--tw) * .16);border-radius:50%;background:var(--gold)}
+.tl.lock{cursor:default}
+.tl.hint{animation:hint 1s ease-in-out 2}
+@keyframes hint{50%{transform:translateY(-14%);box-shadow:0 0 0 3px var(--ok),0 4px 8px rgba(0,0,0,.3)}}
+.tl:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+/* Chevalet */
+.rackwrap{position:sticky;bottom:0;z-index:20;display:flex;flex-direction:column;gap:6px;padding-top:14px;padding-bottom:max(6px,env(safe-area-inset-bottom,0px));
+  background:linear-gradient(180deg,rgba(205,178,132,0),var(--table2) 14px)}
+#newbar{background:var(--gold);color:#2a1a00;border-color:var(--gold)}
+.meld{font-weight:800;font-size:.85rem;color:var(--muted);text-align:center;line-height:1.3}
+.meld b{color:var(--ink)}
+.rack{border-radius:14px;padding:8px 8px 12px;background:linear-gradient(180deg,#7a5230,var(--rack) 45%,var(--rack2));box-shadow:inset 0 2px 0 rgba(255,255,255,.18),0 10px 18px rgba(0,0,0,.35);
+  display:flex;flex-wrap:wrap;gap:6px 3px;justify-content:center;min-height:70px;--tw:clamp(32px,9.4vw,48px)}
+.rack.target{box-shadow:0 0 0 3px var(--gold),0 10px 18px rgba(0,0,0,.35);cursor:pointer}
+.acts{display:flex;gap:6px}
+.acts button{flex:1 1 0;min-width:0;padding:8px 4px;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#validate{background:var(--ok);color:#fff;border-color:var(--ok)}
+#drawbtn{background:var(--k2);color:#fff;border-color:var(--k2)}
+.curtain{position:absolute;inset:-4px;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;background:rgba(59,36,15,.97);color:#fff;border-radius:16px;padding:16px}
+.curtain h2{margin:0;font-family:var(--display);font-weight:400;font-size:1.5rem}
+.curtain p{margin:0;opacity:.85;max-width:32ch}
+.curtain button{background:var(--gold);color:#2a1a00;border-color:var(--gold);padding:12px 22px}
+.rules{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:.9rem;line-height:1.5;color:var(--muted)}
+.rules summary{cursor:pointer;font-weight:800;color:var(--ink)}
+.rules ul{margin:8px 0 0;padding-left:18px}
+.rules b{color:var(--ink)}
+.foot{display:flex;justify-content:center}
+
+.modal{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(30,18,6,.55);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px}
+.modal .box{background:#fffaf0;border:1px solid var(--line);border-radius:16px;padding:20px;width:100%;max-width:440px;max-height:100%;overflow:auto;box-shadow:0 20px 40px rgba(0,0,0,.35)}
+.modal h2{margin:0 0 12px;font-family:var(--display);font-weight:400;font-size:1.5rem;line-height:1.15}
+.modal p{margin:0 0 12px;color:var(--muted);line-height:1.45;font-size:.92rem}
+.modal table{width:100%;border-collapse:collapse;margin-bottom:12px;font-variant-numeric:tabular-nums}
+.modal th,.modal td{padding:7px 6px;text-align:right;border-bottom:1px solid var(--line)}
+.modal th:first-child,.modal td:first-child{text-align:left}
+.modal tr.best td{background:rgba(215,154,30,.16)}
+.modal .row{display:flex;gap:8px;flex-wrap:wrap}
+.modal .row button{flex:1}
+.primary{background:var(--gold);color:#2a1a00;border-color:var(--gold)}
+.opt{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.opt .lbl{font-weight:800;font-size:.9rem}
+.seg{display:flex;flex-wrap:wrap;background:rgba(43,29,14,.06);border:1px solid var(--line);border-radius:12px;padding:3px;gap:2px}
+.seg button{flex:1 1 auto;border:0;background:transparent;padding:7px 8px;border-radius:9px;color:var(--muted);font-size:.85rem}
+.seg button[aria-pressed="true"]{background:var(--gold);color:#2a1a00}
+.seg .off{font-weight:600;font-size:.72rem;opacity:.85}
+@media (max-width:480px){.tools .t{display:none}}
+@media (prefers-reduced-motion:reduce){.tl{transition:none}.tl.hint{animation:none}}
+</style>
+
+<div class="app">
+  <div class="top">
+    <h1 aria-label="Rummikub"><span>R</span><span>U</span><span>M</span><span>M</span><span>I</span><span>K</span><span>U</span><span>B</span></h1>
+    <div class="tools">
+      <button id="setbtn" aria-label="Réglages">⚙️<span class="t"> Réglages</span></button>
+      <button id="snd" aria-label="Activer ou couper le son"></button>
+    </div>
+  </div>
+  <div class="bar"><div id="status" aria-live="polite"></div><div id="timer" hidden><i></i></div></div>
+  <div class="players" id="players"></div>
+  <div class="tablezone" id="table"></div>
+  <div class="rackwrap">
+    <div class="meld" id="meld"></div>
+    <button id="newbar" hidden>＋ Nouvelle combinaison avec ces tuiles</button>
+    <div class="acts" id="acts">
+      <button id="sortbtn" aria-label="Changer le tri du chevalet">⇅ Trier</button>
+      <button id="undo" aria-label="Annuler tout ce que j'ai fait ce tour">↶ Annuler</button>
+      <button id="drawbtn">Piocher</button><button id="validate">✓ Terminer</button>
+    </div>
+    <div class="rack" id="rack"></div>
+    <div class="curtain" id="curtain" hidden><h2 id="ctitle"></h2><p>Passez l'appareil. Les autres joueurs ne doivent pas regarder ce chevalet.</p><button id="ready">Voir mes tuiles</button></div>
+  </div>
+  <div class="foot"><button id="newg">Nouvelle partie</button></div>
+  <details class="rules">
+    <summary>Règles du jeu</summary>
+    <ul>
+      <li>Chacun reçoit 14 tuiles. On forme des <b>suites</b> (au moins 3 nombres qui se suivent, même couleur) ou des <b>groupes</b> (3 ou 4 fois le même nombre, couleurs différentes). Le 1 ne suit pas le 13. Le joker remplace n'importe quelle tuile.</li>
+      <li>La <b>première pose</b> doit valoir au moins 30 points, avec vos seules tuiles.</li>
+      <li>Ensuite, vous pouvez compléter et réorganiser toutes les combinaisons de la table, à condition de poser au moins une tuile de votre chevalet et que tout soit valide à la fin du tour. Les tuiles de la table ne reviennent jamais dans un chevalet.</li>
+      <li>Si vous ne posez rien, vous piochez une tuile.</li>
+      <li>Le premier qui pose toutes ses tuiles gagne et marque les points restant chez les autres (joker : 30). Si la pioche est vide et qu'on ne peut plus jouer, le plus petit total gagne.</li>
+    </ul>
+    <p style="margin:8px 0 0"><b>Pour jouer ici :</b> touchez des tuiles pour les sélectionner, puis touchez <b>+</b> au bout d'une combinaison, ou la zone « Nouvelle combinaison ». Les tuiles se rangent toutes seules.</p>
+  </details>
+</div>
+
+<div class="modal" id="scores" hidden><div class="box"><h2 id="sct"></h2><p id="scnote"></p><table id="sctbl"></table><div class="row" id="scbtns"></div></div></div>
+<div class="modal" id="settings" hidden><div class="box" role="dialog" aria-labelledby="sett">
+  <h2 id="sett">Réglages</h2>
+  <div class="opt"><span class="lbl">Joueurs</span><div class="seg" data-k="n"><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button></div></div>
+  <div class="opt"><span class="lbl">Adversaires</span><div class="seg" data-k="who"><button data-v="ai">Ordinateurs</button><button data-v="hot">Tous sur cet écran</button></div></div>
+  <div class="opt" id="optlvl"><span class="lbl">Niveau des ordinateurs</span><div class="seg" data-k="lvl"><button data-v="1">Facile</button><button data-v="2">Moyen</button><button data-v="3">Difficile</button></div></div>
+  <div class="opt"><span class="lbl">Première pose</span><div class="seg" data-k="first"><button data-v="30">30 points <span class="off">· officiel</span></button><button data-v="0">Libre</button><button data-v="50">50 points</button></div></div>
+  <div class="opt"><span class="lbl">Sablier</span><div class="seg" data-k="timer"><button data-v="0">Sans</button><button data-v="60">1 minute <span class="off">· officiel</span></button><button data-v="120">2 minutes</button></div></div>
+  <div class="opt"><span class="lbl">Partie</span><div class="seg" data-k="rounds"><button data-v="1">1 manche</button><button data-v="3">3 manches</button><button data-v="5">5 manches</button></div></div>
+  <p>Avec le sablier, si le temps s'écoule alors que la table n'est pas valide, tout revient en place et vous piochez 3 tuiles de pénalité.</p>
+  <div class="row"><button id="setcancel">Annuler</button><button id="setok" class="primary">Appliquer</button></div>
+</div></div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const load = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const save = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const CN = ["noir", "rouge", "bleu", "orange"];
+const PCOL = ["#b8860b", "#1e5bd8", "#2e8b57", "#c2185b"];
+
+/* ================= SONS ================= */
+const Snd = {
+  ctx: null, on: load("rk_sound") !== "0", nb: null,
+  init(){
+    if(!this.ctx){
+      const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
+      this.ctx = new AC(); this.out = this.ctx.createGain(); this.out.gain.value = .9; this.out.connect(this.ctx.destination);
+      const n = this.ctx.sampleRate, b = this.ctx.createBuffer(1, n, n), d = b.getChannelData(0);
+      for(let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      this.nb = b;
+    }
+    if(this.ctx.state === "suspended") this.ctx.resume();
+  },
+  ok(){ return this.on && this.ctx; },
+  hit(f, q, peak, dur, delay = 0, type = "bandpass", f2){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.nb; fl.type = type; fl.frequency.setValueAtTime(f, t); if(f2) fl.frequency.exponentialRampToValueAtTime(f2, t + dur); fl.Q.value = q;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    s.connect(fl).connect(g).connect(this.out); s.start(t, Math.random() * .5); s.stop(t + dur + .02);
+  },
+  tone(f0, f1, dur, peak, delay = 0, type = "sine"){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(this.out); o.start(t); o.stop(t + dur + .02);
+  },
+  /* tuile en plastique dur posée sur la table */
+  clack(delay = 0, k = 1){ const p = 1 + (Math.random() - .5) * .15; this.hit(2600 * p, 3, .3 * k, .03, delay); this.tone(1250 * p, 800 * p, .045, .16 * k, delay, "triangle"); this.hit(500, 1, .18 * k, .04, delay + .005, "lowpass"); },
+  pick(){ this.hit(3400, 4, .12, .025); this.tone(1700, 2100, .03, .05, 0, "triangle"); },
+  rattle(){ for(let i = 0; i < 22; i++) this.clack(i * .03 + Math.random() * .02, .35 + Math.random() * .3); },
+  draw(){ this.hit(1800, 1, .14, .12, 0, "bandpass", 3200); this.clack(.12, .7); },
+  nope(){ this.tone(170, 120, .12, .08, 0, "square"); },
+  tick(){ this.tone(1800, 1800, .03, .04, 0, "triangle"); },
+  done(){ [659, 784, 988].forEach((f, i) => this.tone(f, f, .2, .1, i * .07, "triangle")); },
+  win(){ [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, f, i === 4 ? .9 : .28, .15, .1 + i * .12, "triangle")); },
+  meh(){ [440, 392, 330].forEach((f, i) => this.tone(f, f, .35, .11, .1 + i * .25, "triangle")); }
+};
+function sndLabel(){ $("snd").textContent = Snd.on ? "🔊" : "🔇"; $("snd").title = Snd.on ? "Son activé" : "Son coupé"; }
+$("snd").onclick = () => { Snd.on = !Snd.on; save("rk_sound", Snd.on ? "1" : "0"); Snd.init(); sndLabel(); };
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => Snd.init(), {capture: true}));
+sndLabel();
+
+/* ================= RÉGLAGES ================= */
+let cfg = {n: 2, who: "ai", lvl: 2, first: 30, timer: 0, rounds: 1};
+try{ const o = JSON.parse(load("rk_cfg") || "null"); if(o) cfg = Object.assign(cfg, o); }catch(e){}
+
+/* ================= TUILES ET COMBINAISONS ================= */
+let T = [];   // T[id] = {c, n} ; joker : {j: true}
+function buildTiles(){ T = []; for(let k = 0; k < 2; k++) for(let c = 0; c < 4; c++) for(let n = 1; n <= 13; n++) T.push({c, n}); T.push({j: true}); T.push({j: true}); return T.map((_, i) => i); }
+const isJ = id => !!T[id].j;
+const tval = id => isJ(id) ? 30 : T[id].n;
+/* analyse d'une combinaison : valide ? valeur ? ordre d'affichage ? */
+function analyze(ids){
+  const n = ids.length, js = ids.filter(isJ), real = ids.filter(id => !isJ(id));
+  if(n < 3) return {ok: false, order: ids.slice()};
+  let best = null;
+  // groupe
+  if(n <= 4 && real.length && real.every(id => T[id].n === T[real[0]].n) && new Set(real.map(id => T[id].c)).size === real.length){
+    const num = T[real[0]].n;
+    best = {ok: true, kind: "groupe", value: num * n, order: real.slice().sort((a, b) => T[a].c - T[b].c).concat(js)};
+  }
+  // suite
+  if(n <= 13 && real.length && real.every(id => T[id].c === T[real[0]].c) && new Set(real.map(id => T[id].n)).size === real.length){
+    const ns = real.map(id => T[id].n).sort((a, b) => a - b), lo0 = ns[0], hi0 = ns[ns.length - 1];
+    const gaps = hi0 - lo0 + 1 - real.length;
+    if(gaps <= js.length){
+      let extra = js.length - gaps, hi = Math.min(13, hi0 + extra); extra -= hi - hi0; const lo = lo0 - extra;
+      if(lo >= 1){
+        const byN = {}; real.forEach(id => byN[T[id].n] = id);
+        const jq = js.slice(), order = [];
+        let value = 0;
+        for(let k = lo; k <= hi; k++){ order.push(byN[k] !== undefined ? byN[k] : jq.pop()); value += k; }
+        if(!best || value > best.value) best = {ok: true, kind: "suite", value, order};
+      }
+    }
+  }
+  if(!real.length) best = null;
+  return best || {ok: false, order: ids.slice()};
+}
+const rackSum = ids => ids.reduce((a, id) => a + tval(id), 0);
+function tileHTML(id, cls = ""){
+  if(isJ(id)) return `<button type="button" class="tl jk ${cls}" data-id="${id}" aria-label="Joker"><b>★</b></button>`;
+  const t = T[id];
+  return `<button type="button" class="tl c${t.c} ${cls}" data-id="${id}" aria-label="${t.n} ${CN[t.c]}">${t.n}</button>`;
+}
+
+/* ================= ÉTAT ================= */
+let S = null, token = 0, busy = false, sel = new Set(), timerInt = null;
+function shuffle(a){ for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+const P = () => S.players[S.cur];
+function newGame(){
+  token++;
+  const names = Array.from({length: cfg.n}, (_, i) => cfg.who === "ai" ? (i === 0 ? "Vous" : (cfg.n === 2 ? "L'ordinateur" : "Ordi " + i)) : "Joueur " + (i + 1));
+  S = {players: names.map((name, i) => ({name, ai: cfg.who === "ai" && i > 0, total: 0})), round: 0, starter: Math.floor(Math.random() * cfg.n) - 1};
+  newRound();
+}
+function newRound(){
+  token++; busy = false; sel.clear();
+  $("scores").hidden = true; $("curtain").hidden = true;
+  S.round++;
+  S.pool = shuffle(buildTiles()); S.table = []; S.passes = 0; S.msg = "";
+  S.players.forEach(p => { p.rack = S.pool.splice(0, 14); p.melded = false; p.sort = "c"; });
+  S.starter = (S.starter + 1) % S.players.length; S.cur = S.starter; S.view = cfg.who === "ai" ? 0 : S.cur;
+  Snd.rattle();
+  startTurn();
+}
+const mainIdx = () => cfg.who === "ai" ? 0 : S.view;
+const humanTurn = () => S && !P().ai && !busy && $("curtain").hidden && S.phase === "turn";
+
+/* ----- tour humain : on travaille sur une copie, qu'on peut annuler ----- */
+function snapshot(){ S.snap = {table: S.table.map(s => s.slice()), rack: P().rack.slice()}; S.fromRack = new Set(); }
+function restore(){ S.table = S.snap.table.map(s => s.slice()); P().rack = S.snap.rack.slice(); S.fromRack = new Set(); sel.clear(); }
+const lockedTable = () => !P().melded;   // avant la première pose, on ne touche pas à la table
+function turnState(){
+  const sets = S.table.map(analyze), allOk = sets.every(a => a.ok);
+  const played = S.fromRack.size;
+  let meldPts = 0;
+  if(!P().melded){ S.table.forEach((s, k) => { if(s.some(id => S.fromRack.has(id))) meldPts += sets[k].ok ? sets[k].value : 0; }); }
+  const meldOk = P().melded || meldPts >= cfg.first;
+  return {sets, allOk, played, meldPts, meldOk, canEnd: allOk && played > 0 && meldOk};
+}
+
+/* ================= AFFICHAGE ================= */
+function render(){
+  if(!S) return;
+  const m = mainIdx(), me = S.players[m], my = humanTurn() && S.cur === m;
+  // joueurs
+  $("players").innerHTML = S.players.map((p, i) => `<span class="pl${i === S.cur && S.phase !== "end" ? " act" : ""}"><span class="nm" style="color:${PCOL[i]}">${p.name}</span><span class="mini">${p.rack.length}</span><span class="st">${p.melded ? "✓ posé" : ""}${cfg.rounds > 1 ? ` · ${p.total} pts` : ""}</span></span>`).join("")
+    + `<span class="pl pool">Pioche <span class="mini">${S.pool.length}</span></span>`;
+  // table
+  const tz = $("table"); tz.innerHTML = "";
+  const st = my ? turnState() : null;
+  if(!S.table.length && !(my && sel.size)) tz.innerHTML = '<p class="empty">Aucune combinaison pour l\'instant. La première pose doit valoir au moins ' + (cfg.first || 0) + ' points.</p>';
+  S.table.forEach((set, k) => {
+    const a = st ? st.sets[k] : analyze(set);
+    const el = document.createElement("div"); el.className = "set" + (a.ok ? "" : " bad");
+    const canTarget = my && sel.size && (!lockedTable() || set.every(id => S.fromRack.has(id)));
+    if(canTarget) el.classList.add("target");
+    el.innerHTML = a.order.map(id => tileHTML(id, (sel.has(id) ? "sel " : "") + (S.fromRack && S.fromRack.has(id) ? "fresh " : "") + (S.lastPlay && S.lastPlay.has(id) ? "fresh " : "") + (my && !(lockedTable() && !S.fromRack.has(id)) ? "" : "lock"))).join("") + `<button type="button" class="add" aria-label="Ajouter ici">+</button>`;
+    el.querySelectorAll(".tl").forEach(b => b.onclick = e => { e.stopPropagation(); tapTile(+b.dataset.id, "table"); });
+    if(canTarget){ el.onclick = () => moveTo(k); }
+    tz.appendChild(el);
+  });
+  if(my && sel.size){
+    const ns = document.createElement("button"); ns.type = "button"; ns.className = "newset"; ns.textContent = "＋ Nouvelle combinaison";
+    ns.onclick = () => moveTo(-1); tz.appendChild(ns);
+  }
+  // chevalet
+  const rk = $("rack"); rk.innerHTML = "";
+  const order = me.sort === "c" ? (a, b) => (isJ(a) - isJ(b)) || (T[a].c - T[b].c) || (T[a].n - T[b].n) : (a, b) => (isJ(a) - isJ(b)) || (T[a].n - T[b].n) || (T[a].c - T[b].c);
+  me.rack.slice().sort(order).forEach(id => rk.insertAdjacentHTML("beforeend", tileHTML(id, sel.has(id) ? "sel" : "")));
+  rk.querySelectorAll(".tl").forEach(b => b.onclick = e => { e.stopPropagation(); tapTile(+b.dataset.id, "rack"); });
+  const backOk = my && sel.size && [...sel].every(id => S.fromRack.has(id));
+  rk.classList.toggle("target", !!backOk);
+  rk.onclick = backOk ? () => moveTo("rack") : null;
+  // aide à la première pose
+  if(my){
+    $("meld").innerHTML = !me.melded ? (cfg.first ? `Première pose : <b>${st.meldPts}</b> / ${cfg.first} points` : "Première pose libre") + (st.played ? "" : " — formez des combinaisons avec vos tuiles.") :
+      st.played ? `${st.played} tuile${st.played > 1 ? "s" : ""} posée${st.played > 1 ? "s" : ""} ce tour${st.allOk ? "" : " — une combinaison n'est pas valide"}` : "Posez au moins une tuile, ou piochez.";
+  } else $("meld").textContent = "";
+  $("acts").hidden = !my;
+  $("newbar").hidden = !(my && sel.size);
+  $("meld").hidden = my && sel.size > 0;
+  $("sortbtn").textContent = me.sort === "c" ? "⇅ Nombres" : "⇅ Couleurs";
+  if(my){
+    $("validate").disabled = !st.canEnd;
+    $("undo").disabled = !st.played && S.table.flat().length === S.snap.table.flat().length && sameTable();
+    $("drawbtn").textContent = S.pool.length ? (st.played ? "Annuler et piocher" : "Piocher") : "Passer";
+  }
+  renderStatus(st);
+}
+function sameTable(){ return JSON.stringify(S.table) === JSON.stringify(S.snap.table); }
+function renderStatus(st){
+  const who = i => `<span class="who" style="color:${PCOL[i]}">${S.players[i].name}</span>`;
+  let t = S.msg;
+  if(!t){
+    if(S.phase === "end") t = "Fin de la manche";
+    else if(P().ai) t = `${who(S.cur)} réfléchit…`;
+    else if(sel.size) t = `${sel.size} tuile${sel.size > 1 ? "s" : ""} sélectionnée${sel.size > 1 ? "s" : ""} : touchez <b>+</b> sur une combinaison, ou « Nouvelle combinaison ».`;
+    else if(st && st.canEnd) t = `${who(S.cur)} : tout est valide, vous pouvez terminer votre tour.`;
+    else t = `${who(S.cur)} : touchez des tuiles pour les poser, ou piochez.`;
+  }
+  $("status").innerHTML = t;
+}
+
+/* ================= ACTIONS DU JOUEUR ================= */
+function tapTile(id, where){
+  if(!humanTurn()) return;
+  if(where === "table" && lockedTable() && !S.fromRack.has(id)){ Snd.nope(); flash(`Faites d'abord votre première pose (${cfg.first} points) avec vos seules tuiles.`); return; }
+  if(sel.has(id)) sel.delete(id); else sel.add(id);
+  Snd.pick(); render();
+}
+function moveTo(dest){
+  if(!humanTurn() || !sel.size) return;
+  const ids = [...sel], me = P();
+  if(dest === "rack"){
+    if(!ids.every(id => S.fromRack.has(id))){ Snd.nope(); return; }
+    ids.forEach(id => { S.table.forEach(s => { const k = s.indexOf(id); if(k >= 0) s.splice(k, 1); }); me.rack.push(id); S.fromRack.delete(id); });
+  } else {
+    // on retire les tuiles de leur place actuelle
+    const targetSet = dest >= 0 ? S.table[dest] : null;
+    ids.forEach(id => {
+      const r = me.rack.indexOf(id); if(r >= 0){ me.rack.splice(r, 1); S.fromRack.add(id); }
+      S.table.forEach(s => { if(s === targetSet) return; const k = s.indexOf(id); if(k >= 0) s.splice(k, 1); });
+    });
+    if(targetSet) ids.forEach(id => { if(!targetSet.includes(id)) targetSet.push(id); });
+    else S.table.push(ids.slice());
+  }
+  S.table = S.table.filter(s => s.length);
+  // les combinaisons se rangent toutes seules
+  S.table = S.table.map(s => analyze(s).order);
+  sel.clear(); Snd.clack(); render();
+}
+let flashT = null;
+function flash(m){ S.msg = m; render(); clearTimeout(flashT); flashT = setTimeout(() => { S.msg = ""; render(); }, 2200); }
+$("sortbtn").onclick = () => { if(!S) return; const p = S.players[mainIdx()]; p.sort = p.sort === "c" ? "n" : "c"; render(); };
+$("newbar").onclick = () => moveTo(-1);
+$("undo").onclick = () => { if(!humanTurn()) return; restore(); Snd.pick(); render(); };
+$("validate").onclick = () => { if(!humanTurn()) return; const st = turnState(); if(!st.canEnd){ Snd.nope(); return; } endHumanTurn(); };
+$("drawbtn").onclick = () => { if(!humanTurn()) return; restore(); drawAndPass(1); };
+
+async function endHumanTurn(){
+  stopTimer();
+  const me = P();
+  if(!me.melded) me.melded = true;
+  S.lastPlay = new Set(S.fromRack); S.fromRack = new Set();
+  S.passes = 0; Snd.done();
+  afterTurn();
+}
+async function drawAndPass(n, why){
+  stopTimer();
+  const my = token; busy = true;
+  const me = P();
+  if(!S.pool.length){
+    S.msg = `${me.name} ne peut plus jouer et la pioche est vide.`; render();
+    await sleep(1200); if(my !== token) return;
+    return endRound(-1);
+  }
+  const got = S.pool.splice(0, n); me.rack.push(...got);
+  S.lastPlay = null;
+  Snd.draw(); if(n > 1) setTimeout(() => Snd.draw(), 180);
+  S.msg = why || `${me.name} pioche une tuile.`; sel.clear(); render();
+  await sleep(900); if(my !== token) return;
+  S.msg = ""; busy = false; nextTurn();
+}
+function afterTurn(){
+  const me = P();
+  if(!me.rack.length) return endRound(S.cur);
+  nextTurn();
+}
+function nextTurn(){ S.cur = (S.cur + 1) % S.players.length; startTurn(); }
+async function startTurn(){
+  const my = token, p = P();
+  S.phase = "turn"; sel.clear();
+  if(!p.ai && cfg.who === "hot" && S.view !== S.cur){
+    S.view = S.cur; render(); $("ctitle").textContent = "Au tour de " + p.name; $("curtain").hidden = false;
+    await new Promise(res => { $("ready").onclick = () => { $("curtain").hidden = true; res(); }; });
+    if(my !== token) return;
+  }
+  if(p.ai){ busy = true; render(); await sleep(900); if(my !== token) return; return aiTurn(); }
+  S.view = S.cur; snapshot(); busy = false; render(); startTimer();
+}
+
+/* ----- sablier ----- */
+function startTimer(){
+  stopTimer();
+  if(!cfg.timer) { $("timer").hidden = true; return; }
+  const t0 = performance.now(), my = token, dur = cfg.timer * 1000;
+  $("timer").hidden = false;
+  timerInt = setInterval(() => {
+    if(my !== token){ stopTimer(); return; }
+    const left = Math.max(0, dur - (performance.now() - t0)), f = left / dur;
+    $("timer").firstChild.style.width = (f * 100) + "%"; $("timer").classList.toggle("low", f < .2);
+    if(left < 10000 && Math.floor(left / 1000) !== Math.floor((left + 250) / 1000)) Snd.tick();
+    if(left <= 0){
+      stopTimer();
+      const st = turnState();
+      if(st.canEnd) endHumanTurn();
+      else if(st.played || !sameTable()){ restore(); drawAndPass(3, "Temps écoulé ! Tout revient en place et vous piochez 3 tuiles de pénalité."); }
+      else { restore(); drawAndPass(1, "Temps écoulé : vous piochez une tuile."); }
+    }
+  }, 250);
+}
+function stopTimer(){ clearInterval(timerInt); timerInt = null; }
+
+/* ================= ORDINATEURS ================= */
+/* toutes les combinaisons possibles avec un ensemble de tuiles */
+function candidates(ids, must){
+  const byKey = {}, jokers = ids.filter(isJ);
+  ids.filter(id => !isJ(id)).forEach(id => { const k = T[id].c * 20 + T[id].n; (byKey[k] = byKey[k] || []).push(id); });
+  const out = [];
+  const J = jokers.length;
+  // groupes
+  for(let n = 1; n <= 13; n++){
+    const cols = [0, 1, 2, 3].filter(c => byKey[c * 20 + n]);
+    for(let mask = 1; mask < 16; mask++){
+      const pick = [0, 1, 2, 3].filter(c => mask >> c & 1);
+      if(!pick.every(c => cols.includes(c))) continue;
+      for(let j = 0; j <= Math.min(J, 2); j++){ const size = pick.length + j; if(size < 3 || size > 4 || pick.length < 2) continue; out.push({keys: pick.map(c => c * 20 + n), j, value: n * size}); }
+    }
+  }
+  // suites
+  for(let c = 0; c < 4; c++) for(let a = 1; a <= 11; a++) for(let b = a + 2; b <= 13; b++){
+    const keys = [], miss = []; let value = 0;
+    for(let n = a; n <= b; n++){ value += n; if(byKey[c * 20 + n]) keys.push(c * 20 + n); else miss.push(n); }
+    if(miss.length > J || keys.length < 2) continue;
+    if(b - a + 1 > 3 && miss.length && keys.length < 3) continue;
+    out.push({keys, j: miss.length, value});
+  }
+  // on matérialise avec des tuiles réelles
+  const res = [];
+  for(const cd of out){
+    const used = new Set(), ids2 = [];
+    let ok = true;
+    for(const k of cd.keys){ const id = byKey[k].find(x => !used.has(x)); if(id === undefined){ ok = false; break; } used.add(id); ids2.push(id); }
+    if(!ok) continue;
+    for(let q = 0; q < cd.j; q++) ids2.push(jokers[q]);
+    if(must !== undefined && !ids2.includes(must)) continue;
+    res.push({ids: ids2, keys: cd.keys, j: cd.j, value: cd.value});
+  }
+  return res;
+}
+/* meilleur ensemble de combinaisons disjointes */
+function bestPacking(ids, minValue = 0){
+  const cands = candidates(ids).sort((a, b) => b.ids.length - a.ids.length || b.value - a.value);
+  const keyCount = {}; let J = 0;
+  ids.forEach(id => { if(isJ(id)) J++; else { const k = T[id].c * 20 + T[id].n; keyCount[k] = (keyCount[k] || 0) + 1; } });
+  let best = {score: -1, pick: []}, nodes = 0;
+  const cur = [];
+  function dfs(start, tiles, value, jUsed){
+    if(++nodes > 30000) return;
+    if(value >= minValue){ const sc = tiles * 1000 + value - jUsed * 15; if(sc > best.score) best = {score: sc, pick: cur.slice()}; }
+    for(let i = start; i < cands.length; i++){
+      const cd = cands[i];
+      if(cd.j + jUsed > J) continue;
+      if(!cd.keys.every(k => keyCount[k] > 0)) continue;
+      const tmp = {}; let okk = true;
+      cd.keys.forEach(k => { tmp[k] = (tmp[k] || 0) + 1; }); for(const k in tmp) if(keyCount[k] < tmp[k]) okk = false;
+      if(!okk) continue;
+      for(const k in tmp) keyCount[k] -= tmp[k];
+      cur.push(cd); dfs(i, tiles + cd.ids.length, value + cd.value, jUsed + cd.j); cur.pop();
+      for(const k in tmp) keyCount[k] += tmp[k];
+    }
+  }
+  dfs(0, 0, 0, 0);
+  // on attribue de vraies tuiles aux combinaisons choisies
+  const pool = {}; const jk = ids.filter(isJ);
+  ids.filter(id => !isJ(id)).forEach(id => { const k = T[id].c * 20 + T[id].n; (pool[k] = pool[k] || []).push(id); });
+  return best.pick.map(cd => cd.keys.map(k => pool[k].shift()).concat(Array.from({length: cd.j}, () => jk.shift())));
+}
+function aiPlan(i){
+  const p = S.players[i], lvl = cfg.lvl;
+  let rack = p.rack.slice(), table = S.table.map(s => s.slice()), played = [];
+  const take = ids => { ids.forEach(id => { const k = rack.indexOf(id); if(k >= 0){ rack.splice(k, 1); played.push(id); } }); };
+  if(!p.melded){
+    const sets = bestPacking(rack, cfg.first);
+    const val = sets.reduce((a, s) => a + analyze(s).value, 0);
+    if(!sets.length || val < cfg.first) return null;
+    if(lvl === 1 && Math.random() < .25) return null;
+    sets.forEach(s => { table.push(analyze(s).order); take(s); });
+    return {table, rack, played, meld: true};
+  }
+  // 1. nouvelles combinaisons depuis le chevalet
+  const keepJ = lvl === 3 && rack.length > 6;
+  const sets = bestPacking(keepJ ? rack.filter(id => !isJ(id)) : rack);
+  sets.forEach(s => { table.push(analyze(s).order); take(s); });
+  // 2. compléter les combinaisons de la table
+  let changed = true, guard = 0;
+  while(changed && guard++ < 40){
+    changed = false;
+    for(const id of rack.slice()){
+      if(isJ(id) && rack.length > 3 && lvl < 3) continue;
+      for(let k = 0; k < table.length; k++){
+        const a = analyze(table[k].concat([id]));
+        if(a.ok){ table[k] = a.order; take([id]); changed = true; break; }
+      }
+      if(lvl === 1 && changed) break;
+    }
+  }
+  // 3. emprunter une tuile à la table pour former une nouvelle combinaison
+  if(lvl >= 2){
+    let tries = 0;
+    outer: while(tries++ < 6){
+      for(let k = 0; k < table.length; k++){
+        const set = table[k], a = analyze(set);
+        if(!a.ok) continue;
+        const ord = a.order;
+        const opts = [];
+        if(a.kind === "groupe" && ord.length === 4) ord.forEach((id, x) => opts.push({take: id, rest: [ord.filter((_, y) => y !== x)]}));
+        if(a.kind === "suite"){
+          if(ord.length >= 4){ opts.push({take: ord[0], rest: [ord.slice(1)]}); opts.push({take: ord[ord.length - 1], rest: [ord.slice(0, -1)]}); }
+          for(let x = 3; x <= ord.length - 4; x++) opts.push({take: ord[x], rest: [ord.slice(0, x), ord.slice(x + 1)]});
+        }
+        for(const o of opts){
+          if(isJ(o.take)) continue;
+          if(!o.rest.every(r => analyze(r).ok)) continue;
+          const cs = candidates(rack.concat([o.take]), o.take).filter(c => c.ids.length >= 3).sort((a2, b2) => b2.ids.length - a2.ids.length);
+          if(cs.length){
+            const ns = cs[0].ids;
+            table.splice(k, 1, ...o.rest.map(r => analyze(r).order));
+            table.push(analyze(ns).order);
+            take(ns.filter(id => id !== o.take));
+            continue outer;
+          }
+        }
+      }
+      break;
+    }
+    // 4. récupérer un joker en le remplaçant par la vraie tuile
+    if(lvl === 3){
+      for(let k = 0; k < table.length; k++){
+        const set = table[k]; if(!set.some(isJ)) continue;
+        const jid = set.find(isJ);
+        for(const id of rack.filter(x => !isJ(x))){
+          const repl = set.map(x => x === jid ? id : x);
+          if(!analyze(repl).ok) continue;
+          const cs = candidates(rack.filter(x => x !== id).concat([jid]), jid).filter(c => c.ids.length >= 3);
+          if(cs.length){
+            table[k] = analyze(repl).order; take([id]);
+            table.push(analyze(cs[0].ids).order); take(cs[0].ids.filter(x => x !== jid));
+            break;
+          }
+        }
+      }
+    }
+  }
+  if(!played.length) return null;
+  if(!table.every(s => analyze(s).ok)) return null;   // sécurité
+  return {table, rack, played};
+}
+async function aiTurn(){
+  const my = token, i = S.cur, p = P();
+  const plan = aiPlan(i);
+  if(!plan){ busy = false; return drawAndPass(1); }
+  S.table = plan.table; p.rack = plan.rack; if(plan.meld) p.melded = true;
+  S.lastPlay = new Set(plan.played);
+  plan.played.forEach((_, k) => Snd.clack(k * .07, .8));
+  S.msg = `${p.name} pose ${plan.played.length} tuile${plan.played.length > 1 ? "s" : ""}${plan.meld ? " (première pose)" : ""}.`;
+  S.passes = 0; render();
+  await sleep(1400 + plan.played.length * 60); if(my !== token) return;
+  S.msg = ""; busy = false; afterTurn();
+}
+
+/* ================= FIN DE MANCHE ================= */
+function endRound(w){
+  stopTimer();
+  busy = true; S.phase = "end"; render();
+  const sums = S.players.map(p => rackSum(p.rack));
+  let winner = w, res;
+  if(w >= 0){
+    res = sums.map((s, i) => i === w ? 0 : -s);
+    res[w] = sums.reduce((a, s, i) => a + (i === w ? 0 : s), 0);
+  } else {
+    const min = Math.min(...sums); winner = sums.indexOf(min);
+    res = sums.map((s, i) => i === winner ? 0 : -(s - min));
+    res[winner] = sums.reduce((a, s, i) => a + (i === winner ? 0 : s - min), 0);
+  }
+  S.players.forEach((p, i) => p.total += res[i]);
+  const over = S.round >= cfg.rounds;
+  const ranked = S.players.map((p, i) => ({p, i})).sort((a, b) => b.p.total - a.p.total);
+  const wn = S.players[winner].name;
+  $("sct").textContent = over && cfg.rounds > 1 ? (ranked[0].p.name === "Vous" ? "Vous gagnez la partie !" : ranked[0].p.name + " gagne la partie !") : (wn === "Vous" ? "Rummikub ! Vous gagnez" : wn + " gagne la manche");
+  $("scnote").textContent = w >= 0 ? `${wn} a posé toutes ses tuiles et marque les points restant chez les adversaires (joker : 30).` : `La pioche est vide : ${wn} a le plus petit total et marque la différence avec chaque adversaire.`;
+  $("sctbl").innerHTML = `<tr><th>Joueur</th><th>Tuiles restantes</th><th>Manche</th><th>Total</th></tr>` +
+    ranked.map(({p, i}) => `<tr class="${i === winner ? "best" : ""}"><td><span style="color:${PCOL[i]};font-weight:800">●</span> ${p.name}</td><td>${p.rack.length} (${sums[i]})</td><td>${res[i] > 0 ? "+" : ""}${res[i]}</td><td>${p.total}</td></tr>`).join("");
+  const b = $("scbtns"); b.innerHTML = "";
+  const mk = (t, fn, cls) => { const x = document.createElement("button"); x.textContent = t; if(cls) x.className = cls; x.onclick = fn; b.appendChild(x); };
+  if(over) mk("Nouvelle partie", () => newGame(), "primary"); else mk(`Manche suivante (${S.round + 1}/${cfg.rounds})`, () => newRound(), "primary");
+  $("scores").hidden = false;
+  (!S.players[winner].ai ? Snd.win : Snd.meh).call(Snd);
+}
+$("newg").onclick = () => newGame();
+
+/* ================= RÉGLAGES ================= */
+let draft = null;
+function paintSettings(){
+  document.querySelectorAll("#settings .seg").forEach(seg => seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(draft[seg.dataset.k]) === b.dataset.v)));
+  $("optlvl").hidden = draft.who !== "ai";
+}
+$("setbtn").onclick = () => { draft = Object.assign({}, cfg); paintSettings(); $("settings").hidden = false; };
+document.querySelectorAll("#settings .seg").forEach(seg => seg.addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; draft[seg.dataset.k] = seg.dataset.k === "who" ? b.dataset.v : +b.dataset.v; paintSettings(); }));
+$("setcancel").onclick = () => { $("settings").hidden = true; };
+$("setok").onclick = () => { cfg = draft; save("rk_cfg", JSON.stringify(cfg)); $("settings").hidden = true; newGame(); };
+document.addEventListener("keydown", e => { if(e.key === "Escape"){ $("settings").hidden = true; if(sel.size){ sel.clear(); render(); } } });
+
+newGame();
+})();
+</script>

@@ -1,0 +1,717 @@
+<title>Skyjo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@600;800&display=swap">
+<style>
+/* Layout : un ciel du soir ; en haut les grilles des adversaires, au centre pioche, défausse et carte en main, en bas sa propre grille de 3 × 4. */
+:root{
+  color-scheme:dark;
+  --sky1:#1b2457;         /* haut du ciel */
+  --sky2:#3b3a8a;
+  --sky3:#b0628f;         /* horizon */
+  --ink:#fff8f0; --muted:#cfd2f0; --line:rgba(255,248,240,.22);
+  --panel:rgba(16,20,56,.55);
+  --gold:#ffd166;
+  --neg:#4b3fb5; --zero:#3fa7d6; --low:#2fae66; --mid:#f2bd1d; --high:#e2483d;   /* couleurs des cartes */
+  --back:#1d2552;
+  --display:"Baloo 2","Arial Rounded MT Bold","Trebuchet MS",sans-serif;
+  --ui:"Nunito","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0;font-family:var(--ui);color:var(--ink);-webkit-tap-highlight-color:transparent;
+  background:
+    radial-gradient(ellipse 30% 10% at 18% 30%,rgba(255,255,255,.07),transparent 70%),
+    radial-gradient(ellipse 40% 12% at 80% 55%,rgba(255,255,255,.06),transparent 70%),
+    radial-gradient(ellipse 50% 14% at 30% 82%,rgba(255,220,200,.08),transparent 70%),
+    linear-gradient(180deg,var(--sky1) 0,var(--sky2) 55%,var(--sky3) 130%) fixed,var(--sky1)}
+.app{max-width:860px;margin:0 auto;padding-block:10px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:12px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+h1{margin:0;font-family:var(--display);font-weight:800;font-size:clamp(2rem,8vw,2.7rem);line-height:1;letter-spacing:.01em;
+  background:linear-gradient(90deg,var(--neg),var(--zero),var(--low),var(--mid),var(--high));-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 3px 0 rgba(10,12,40,.6))}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;font-weight:800;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:8px 12px;cursor:pointer}
+button:hover:not(:disabled){border-color:rgba(255,248,240,.5)}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+
+.bar{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 14px;backdrop-filter:blur(3px)}
+#status{flex:1;min-width:200px;font-weight:800;font-size:1rem;line-height:1.35}
+#status .who{font-family:var(--display);font-weight:800}
+.roundno{font-family:var(--display);font-weight:800;color:var(--muted);white-space:nowrap}
+
+/* Table */
+.table{position:relative;display:flex;flex-direction:column;align-items:center;gap:14px}
+.opps{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;width:100%}
+.opp{display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px;border-radius:12px;background:rgba(16,20,56,.35);border:2px solid transparent;transition:border-color .2s,background .2s}
+.opp.act{border-color:var(--gold);background:rgba(16,20,56,.6)}
+.name{font-family:var(--display);font-weight:800;font-size:.95rem;display:flex;align-items:center;gap:6px;white-space:nowrap;line-height:1}
+.name .pts{font-family:var(--ui);font-weight:800;font-size:.78rem;color:var(--muted)}
+.name .fin{font-size:.9rem}
+.mini{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;width:clamp(78px,20vw,120px)}
+.mini .slot{aspect-ratio:.7;border-radius:4px}
+.center{display:flex;align-items:flex-end;gap:clamp(12px,4vw,28px);justify-content:center}
+.pile{display:flex;flex-direction:column;align-items:center;gap:5px}
+.pile .lbl{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:800}
+.pile .slot{width:clamp(58px,15vw,80px);aspect-ratio:.7;border-radius:9px;border:2px dashed rgba(255,248,240,.25)}
+.pile .slot.stack{border:0;background:transparent}
+.pile .slot.go{box-shadow:0 0 0 3px var(--gold),0 0 18px rgba(255,209,102,.6);cursor:pointer;animation:glow 1s ease-in-out infinite alternate}
+@keyframes glow{from{box-shadow:0 0 0 2px var(--gold),0 0 8px rgba(255,209,102,.35)}to{box-shadow:0 0 0 3px var(--gold),0 0 20px rgba(255,209,102,.75)}}
+.pile.hand .slot{border-color:rgba(255,209,102,.5)}
+.deckstack{position:relative;display:block;width:100%;height:100%}
+.deckstack i{position:absolute;inset:0;border-radius:9px;background:var(--back);border:2px solid #fff8f0;box-shadow:0 2px 3px rgba(0,0,0,.35)}
+.deckstack i:nth-child(1){transform:translate(-3px,3px)}.deckstack i:nth-child(2){transform:translate(-1.5px,1.5px)}
+.deckstack i:nth-child(3){background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.25) 0 1px,transparent 2px) 0 0/12px 12px,radial-gradient(circle at 70% 60%,rgba(255,255,255,.18) 0 1px,transparent 2px) 0 0/16px 16px,var(--back)}
+.deckstack b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;color:rgba(255,248,240,.75);font-size:.85rem;z-index:2}
+.me{display:flex;flex-direction:column;align-items:center;gap:6px;width:100%}
+.me .name{font-size:1.15rem}
+.mgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(6px,2vw,10px);width:min(100%,400px)}
+.mgrid .slot{aspect-ratio:.7;border-radius:10px;background:rgba(16,20,56,.35);box-shadow:inset 0 2px 5px rgba(0,0,0,.3)}
+.slot.gone{background:transparent!important;box-shadow:none!important;border:2px dashed rgba(255,248,240,.12)}
+
+/* Cartes */
+.layer{position:absolute;inset:0;pointer-events:none;z-index:5}
+.card{position:absolute;left:0;top:0;pointer-events:auto;perspective:700px;border:0;padding:0;background:transparent;border-radius:9px;
+  transition:transform .42s cubic-bezier(.3,.8,.3,1),width .42s,height .42s;cursor:default}
+.card.notrans{transition:none}
+.card .in{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .45s ease}
+.card.up .in{transform:rotateY(180deg)}
+.card .f,.card .b{position:absolute;inset:0;border-radius:inherit;backface-visibility:hidden;-webkit-backface-visibility:hidden;box-shadow:0 3px 6px rgba(5,8,30,.45)}
+.card .b{background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.28) 0 1px,transparent 2px) 0 0/12px 12px,radial-gradient(circle at 70% 60%,rgba(255,255,255,.2) 0 1px,transparent 2px) 0 0/17px 17px,
+  radial-gradient(ellipse at 50% 120%,#4a3f9c,var(--back) 70%);border:3px solid #fff8f0}
+.card .b::after{content:"";position:absolute;inset:22%;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ffe8a3,var(--gold) 55%,#d18b1a);opacity:.85;
+  -webkit-mask:radial-gradient(circle at 70% 35%,transparent 38%,#000 40%);mask:radial-gradient(circle at 70% 35%,transparent 38%,#000 40%)}
+.card .f{transform:rotateY(180deg);background:radial-gradient(ellipse at 50% 30%,rgba(255,255,255,.35),transparent 65%),var(--vc);border:3px solid #fff8f0;
+  display:flex;align-items:center;justify-content:center;overflow:hidden}
+.card .f::before{content:"";position:absolute;inset:14%;border-radius:50%;background:rgba(255,255,255,.2)}
+.card .f .v{position:relative;font-family:var(--display);font-weight:800;font-size:calc(var(--w) * .5);line-height:1;color:#fff;
+  -webkit-text-stroke:calc(var(--w) * .022) rgba(10,12,40,.55);paint-order:stroke;text-shadow:0 calc(var(--w) * .03) 0 rgba(10,12,40,.35)}
+.card .f .c{position:absolute;font-family:var(--display);font-weight:800;font-size:calc(var(--w) * .17);color:#fff;line-height:1;text-shadow:0 1px 0 rgba(0,0,0,.35)}
+.card .f .c.a{left:9%;top:6%}.card .f .c.z{right:9%;bottom:6%}
+.card.pick{cursor:pointer}
+.card.pick:hover{filter:brightness(1.08)}
+.card.pick .b,.card.pick .f{box-shadow:0 0 0 3px rgba(255,209,102,.85),0 4px 8px rgba(5,8,30,.45)}
+.card.held{z-index:4}
+.card.held .f,.card.held .b{box-shadow:0 0 0 3px var(--gold),0 10px 18px rgba(5,8,30,.55)}
+.card.pair .f{box-shadow:0 0 0 3px #7dffb3,0 3px 6px rgba(5,8,30,.45)}
+.card.zap{animation:zap .5s ease-out}
+@keyframes zap{40%{filter:brightness(1.8) saturate(1.4)}}
+.card:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+.foot{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.rules{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:.9rem;line-height:1.5;color:var(--muted)}
+.rules summary{cursor:pointer;font-weight:800;color:var(--ink)}
+.rules ul{margin:8px 0 0;padding-left:18px}
+.rules b{color:var(--ink)}
+
+/* Fenêtres */
+.modal{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(8,10,30,.6);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px}
+.modal .box{background:#20285e;border:1px solid var(--line);border-radius:16px;padding:20px;width:100%;max-width:420px;max-height:100%;overflow:auto;box-shadow:0 20px 40px rgba(0,0,0,.5)}
+.modal h2{margin:0 0 12px;font-family:var(--display);font-weight:800;font-size:1.6rem;line-height:1.1}
+.modal table{width:100%;border-collapse:collapse;margin-bottom:12px;font-variant-numeric:tabular-nums}
+.modal th,.modal td{padding:7px 6px;text-align:left;border-bottom:1px solid var(--line)}
+.modal td.n,.modal th.n{text-align:right}
+.modal td.n{font-weight:800}
+.modal tr.best td{background:rgba(255,209,102,.18)}
+.modal .note{font-size:.85rem;color:var(--muted);margin:0 0 12px;line-height:1.45}
+.modal .btns{display:flex;gap:8px;flex-wrap:wrap}
+.modal .btns button{flex:1}
+.primary{background:var(--gold);color:#3a2600;border-color:var(--gold)}
+.opt{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.opt .lbl{font-weight:800;font-size:.9rem}
+.opt .hint{font-size:.8rem;color:var(--muted);line-height:1.4}
+.seg{display:flex;flex-wrap:wrap;background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:12px;padding:3px;gap:2px}
+.seg button{flex:1 1 auto;border:0;background:transparent;padding:7px 8px;border-radius:9px;color:var(--muted);font-size:.85rem}
+.seg button[aria-pressed="true"]{background:var(--gold);color:#3a2600}
+.seg button .off{font-weight:600;font-size:.72rem;opacity:.8}
+@media (max-width:480px){.tools .t{display:none}.top{flex-wrap:nowrap}.mgrid{width:min(100%,340px)}}
+@media (prefers-reduced-motion:reduce){.card,.card .in{transition:none}.card.zap,.pile .slot.go{animation:none}}
+</style>
+
+<div class="app">
+  <div class="top">
+    <h1>Skyjo</h1>
+    <div class="tools">
+      <button id="setbtn" aria-label="Réglages">⚙️<span class="t"> Réglages</span></button>
+      <button id="scorebtn" aria-label="Scores">📋<span class="t"> Scores</span></button>
+      <button id="snd" aria-label="Activer ou couper le son"></button>
+    </div>
+  </div>
+
+  <div class="bar"><div id="status" aria-live="polite"></div><span class="roundno" id="roundno"></span></div>
+
+  <div class="table" id="table">
+    <div class="opps" id="opps"></div>
+    <div class="center" id="center"></div>
+    <div class="me" id="me"></div>
+    <div class="layer" id="layer"></div>
+  </div>
+
+  <div class="foot"><button id="newg">Nouvelle partie</button></div>
+  <details class="rules">
+    <summary>Règles du jeu</summary>
+    <ul>
+      <li>Chacun a 12 cartes faces cachées en 3 rangées de 4, et en retourne 2 au départ. Le plus gros total visible commence.</li>
+      <li>À votre tour, prenez la carte de la <b>défausse</b> et échangez-la avec une de vos cartes, ou piochez : vous pouvez alors l'échanger, ou la jeter et <b>retourner une de vos cartes cachées</b>.</li>
+      <li>Trois cartes identiques visibles dans une même colonne sont défaussées.</li>
+      <li>Quand un joueur a toutes ses cartes visibles, les autres jouent une dernière fois. Puis on compte : le plus petit score est le meilleur.</li>
+      <li>Celui qui a terminé la manche voit son score doublé s'il n'a pas strictement le plus petit total (et que son score est positif).</li>
+      <li>La partie s'arrête quand un joueur atteint 100 points : le plus petit total gagne.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="modal" id="settings" hidden><div class="box" role="dialog" aria-labelledby="sett">
+  <h2 id="sett">Réglages</h2>
+  <div class="opt"><span class="lbl">Joueurs</span><div class="seg" data-k="n">
+    <button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button><button data-v="6">6</button></div></div>
+  <div class="opt"><span class="lbl">Adversaires</span><div class="seg" data-k="who">
+    <button data-v="ai">Ordinateurs</button><button data-v="hot">Tous sur cet écran</button></div></div>
+  <div class="opt" id="optlvl"><span class="lbl">Niveau des ordinateurs</span><div class="seg" data-k="lvl">
+    <button data-v="1">Facile</button><button data-v="2">Moyen</button><button data-v="3">Difficile</button></div></div>
+  <div class="opt"><span class="lbl">Fin de partie</span><div class="seg" data-k="goal">
+    <button data-v="50">50 points</button><button data-v="100">100 points <span class="off">· officiel</span></button><button data-v="150">150 points</button></div></div>
+  <div class="opt"><span class="lbl">Score doublé pour celui qui termine</span><div class="seg" data-k="dbl">
+    <button data-v="1">Oui <span class="off">· officiel</span></button><button data-v="0">Non</button></div>
+    <span class="hint">S'il n'a pas strictement le plus petit score de la manche, et que son score est positif.</span></div>
+  <div class="opt"><span class="lbl">Colonne de 3 cartes identiques</span><div class="seg" data-k="col">
+    <button data-v="1">Défaussée <span class="off">· officiel</span></button><button data-v="0">Gardée</button></div></div>
+  <div class="opt"><span class="lbl">Ligne de 4 cartes identiques</span><div class="seg" data-k="row">
+    <button data-v="0">Gardée <span class="off">· officiel</span></button><button data-v="1">Défaussée <span class="off">· variante</span></button></div></div>
+  <p class="note">Les changements démarrent une nouvelle partie.</p>
+  <div class="btns"><button id="setcancel">Annuler</button><button id="setok" class="primary">Appliquer</button></div>
+</div></div>
+
+<div class="modal" id="scores" hidden><div class="box" role="dialog" aria-labelledby="sct">
+  <h2 id="sct">Fin de la manche</h2>
+  <table id="sctbl"></table>
+  <p class="note" id="scnote"></p>
+  <div class="btns" id="scbtns"></div>
+</div></div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const load = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const save = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const D = ms => reduced ? Math.min(ms, 120) : ms;
+const PCOL = ["#ffd166", "#7dd3fc", "#86efac", "#f9a8d4", "#fdba74", "#c4b5fd"];
+const EV = 760 / 150;   // valeur moyenne d'une carte cachée
+const vcol = v => v < 0 ? "var(--neg)" : v === 0 ? "var(--zero)" : v <= 4 ? "var(--low)" : v <= 8 ? "var(--mid)" : "var(--high)";
+
+/* ================= SONS ================= */
+const Snd = {
+  ctx: null, on: load("sk_sound") !== "0", nb: null,
+  init(){
+    if(!this.ctx){
+      const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
+      this.ctx = new AC(); this.out = this.ctx.createGain(); this.out.gain.value = .9; this.out.connect(this.ctx.destination);
+      const n = this.ctx.sampleRate, b = this.ctx.createBuffer(1, n, n), d = b.getChannelData(0);
+      for(let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      this.nb = b;
+    }
+    if(this.ctx.state === "suspended") this.ctx.resume();
+  },
+  ok(){ return this.on && this.ctx; },
+  hit(f, q, peak, dur, delay = 0, type = "bandpass", f2){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.nb; fl.type = type; fl.frequency.setValueAtTime(f, t); if(f2) fl.frequency.exponentialRampToValueAtTime(f2, t + dur); fl.Q.value = q;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + Math.min(.015, dur / 3)); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    s.connect(fl).connect(g).connect(this.out); s.start(t, Math.random() * .5); s.stop(t + dur + .02);
+  },
+  tone(f0, f1, dur, peak, delay = 0, type = "sine"){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(this.out); o.start(t); o.stop(t + dur + .02);
+  },
+  flip(delay = 0){ this.hit(2600, 1.4, .28, .05, delay, "bandpass", 1300); this.hit(520, 1, .12, .05, delay + .02, "lowpass"); },
+  slide(delay = 0, dur = .22){ this.hit(1700, .7, .1, dur, delay, "bandpass", 3200); },
+  tap(delay = 0){ this.hit(800, 1, .22, .04, delay, "lowpass"); this.tone(320, 200, .05, .12, delay, "triangle"); },
+  deal(n){ for(let i = 0; i < n; i++) this.slide(i * .045, .07); },
+  shuffle(){ for(let i = 0; i < 14; i++) this.hit(2600 + Math.random() * 900, 1, .1, .05, i * .045); },
+  nope(){ this.tone(170, 120, .12, .08, 0, "square"); },
+  column(){ this.hit(900, .6, .25, .45, 0, "bandpass", 3500); [784, 988, 1319].forEach((f, i) => this.tone(f, f, .25, .12, .15 + i * .08, "triangle")); },
+  last(){ [659, 523].forEach((f, i) => this.tone(f, f, .3, .13, i * .22, "triangle")); },
+  win(){ [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, f, i === 4 ? .9 : .28, .15, .1 + i * .12, "triangle")); },
+  round(){ [523, 659, 784].forEach((f, i) => this.tone(f, f, .3, .12, .1 + i * .12, "triangle")); },
+  meh(){ [440, 392, 330].forEach((f, i) => this.tone(f, f, .35, .11, .1 + i * .25, "triangle")); }
+};
+function sndLabel(){ $("snd").textContent = Snd.on ? "🔊" : "🔇"; $("snd").title = Snd.on ? "Son activé" : "Son coupé"; }
+$("snd").onclick = () => { Snd.on = !Snd.on; save("sk_sound", Snd.on ? "1" : "0"); Snd.init(); sndLabel(); };
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => Snd.init(), {capture: true}));
+sndLabel();
+
+/* ================= RÉGLAGES ================= */
+let cfg = {n: 3, who: "ai", lvl: 2, goal: 100, dbl: 1, col: 1, row: 0};
+try{ const o = JSON.parse(load("sk_cfg") || "null"); if(o) cfg = Object.assign(cfg, o); }catch(e){}
+
+/* ================= ÉTAT ================= */
+let C = [], G = null, busy = false, token = 0;
+const els = [];
+function namesFor(){
+  return Array.from({length: cfg.n}, (_, i) => cfg.who === "ai" ? (i === 0 ? "Vous" : (cfg.n === 2 ? "L'ordinateur" : "Ordi " + i)) : "Joueur " + (i + 1));
+}
+function newGame(){
+  token++; busy = false;
+  G = {players: namesFor().map((name, i) => ({name, ai: cfg.who === "ai" && i > 0, grid: [], total: 0, hist: []})), round: 0, over: false};
+  newRound();
+}
+function shuffle(a){ for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+async function newRound(){
+  const my = ++token; busy = true;
+  $("scores").hidden = true;
+  G.round++;
+  C = [];
+  [[-2, 5], [-1, 10], [0, 15]].forEach(([v, n]) => { for(let k = 0; k < n; k++) C.push({v, up: false}); });
+  for(let v = 1; v <= 12; v++) for(let k = 0; k < 10; k++) C.push({v, up: false});
+  $("layer").innerHTML = ""; els.length = 0;
+  G.deck = shuffle(C.map((_, i) => i));
+  G.discard = []; G.held = null; G.from = null; G.cur = -1; G.finisher = -1; G.phase = "deal"; G.flips = {}; G.last = null;
+  G.players.forEach(p => { p.grid = Array(12).fill(null); });
+  render(); Snd.shuffle();
+  await sleep(D(300)); if(my !== token) return;
+  // distribution, carte par carte
+  for(let k = 0; k < 12; k++){
+    for(const p of G.players) p.grid[k] = G.deck.pop();
+    render(); Snd.deal(G.players.length);
+    await sleep(D(70)); if(my !== token) return;
+  }
+  const top = G.deck.pop(); C[top].up = true; G.discard.push(top);
+  render(); Snd.flip();
+  await sleep(D(450)); if(my !== token) return;
+  G.phase = "setup"; busy = false;
+  setupStep();
+}
+
+/* ================= OUTILS DE RÈGLES ================= */
+const cols = c => [c, c + 4, c + 8];
+const rows = r => [r * 4, r * 4 + 1, r * 4 + 2, r * 4 + 3];
+const hiddenOf = p => p.grid.map((id, k) => id !== null && !C[id].up ? k : -1).filter(k => k >= 0);
+const allUp = p => p.grid.every(id => id === null || C[id].up);
+const visibleSum = p => p.grid.reduce((s, id) => s + (id !== null && C[id].up ? C[id].v : 0), 0);
+const fullSum = p => p.grid.reduce((s, id) => s + (id !== null ? C[id].v : 0), 0);
+/* lignes complètes de cartes identiques visibles, à défausser */
+function eliminations(grid, up = id => C[id].up, val = id => C[id].v){
+  const out = [];
+  if(cfg.col) for(let c = 0; c < 4; c++){ const ks = cols(c); if(ks.every(k => grid[k] !== null && up(grid[k])) && ks.every(k => val(grid[k]) === val(grid[ks[0]]))) out.push(ks); }
+  if(cfg.row) for(let r = 0; r < 3; r++){ const ks = rows(r); if(ks.every(k => grid[k] !== null && up(grid[k])) && ks.every(k => val(grid[k]) === val(grid[ks[0]]))) out.push(ks); }
+  return out;
+}
+function drawCard(){
+  if(!G.deck.length){
+    const top = G.discard.pop();
+    G.deck = shuffle(G.discard.map(id => { C[id].up = false; return id; }));
+    G.discard = [top];
+    Snd.shuffle();
+  }
+  return G.deck.pop();
+}
+
+/* ================= AFFICHAGE ================= */
+const humanIdx = () => G.players.findIndex(p => !p.ai);
+function mainIdx(){
+  if(cfg.who === "ai") return 0;
+  if(G.phase === "setup") return G.setupWho ?? 0;
+  if(G.cur >= 0) return G.cur;
+  return 0;
+}
+const isHumanTurn = () => G && G.cur >= 0 && !G.players[G.cur].ai && (G.phase === "turn" || G.phase === "flip");
+function render(){
+  if(!G) return;
+  const m = mainIdx();
+  const opps = $("opps"); opps.innerHTML = "";
+  G.players.forEach((p, i) => {
+    if(i === m) return;
+    const o = document.createElement("div"); o.className = "opp" + (i === G.cur ? " act" : "");
+    o.innerHTML = `<div class="name" style="color:${PCOL[i]}">${p.name}${G.finisher === i ? ' <span class="fin" title="A terminé la manche">🏁</span>' : ""}<span class="pts">${visibleSum(p)} · total ${p.total}</span></div>
+      <div class="mini">${Array.from({length: 12}, (_, k) => `<span class="slot${p.grid[k] === null && G.phase !== "deal" ? " gone" : ""}" data-p="${i}" data-k="${k}"></span>`).join("")}</div>`;
+    opps.appendChild(o);
+  });
+  const deckGo = isHumanTurn() && G.phase === "turn" && G.held === null && !busy;
+  const discGo = isHumanTurn() && G.phase === "turn" && !busy && (G.held === null ? G.discard.length > 0 : G.from === "deck");
+  $("center").innerHTML = `
+    <div class="pile"><span class="lbl">Pioche</span><span class="slot stack${deckGo ? " go" : ""}" id="deckslot" role="button" tabindex="${deckGo ? 0 : -1}" aria-label="Piocher une carte"><span class="deckstack"><i></i><i></i><i></i><b>${G.deck.length}</b></span></span></div>
+    <div class="pile"><span class="lbl">${G.held !== null && G.from === "deck" && isHumanTurn() ? "Jeter ici" : "Défausse"}</span><span class="slot${discGo ? " go" : ""}" id="discslot" role="button" tabindex="${discGo ? 0 : -1}" aria-label="Défausse"></span></div>
+    <div class="pile hand"><span class="lbl">En main</span><span class="slot" id="heldslot"></span></div>`;
+  $("deckslot").onclick = () => humanDraw();
+  $("discslot").onclick = () => humanDiscard();
+  ["deckslot", "discslot"].forEach(id => $(id).addEventListener("keydown", e => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); $(id).click(); } }));
+  const p = G.players[m];
+  $("me").innerHTML = `<div class="name" style="color:${PCOL[m]}">${p.name}${G.finisher === m ? ' <span class="fin" title="A terminé la manche">🏁</span>' : ""}<span class="pts">${visibleSum(p)} visibles · total ${p.total}</span></div>
+    <div class="mgrid">${Array.from({length: 12}, (_, k) => `<span class="slot${p.grid[k] === null && G.phase !== "deal" ? " gone" : ""}" data-p="${m}" data-k="${k}"></span>`).join("")}</div>`;
+  renderStatus();
+  requestAnimationFrame(place);
+}
+function renderStatus(){
+  const st = $("status"), who = i => `<span class="who" style="color:${PCOL[i]}">${G.players[i].name}</span>`;
+  let t = "";
+  if(G.phase === "deal") t = "Distribution des cartes…";
+  else if(G.phase === "setup"){ const w = G.setupWho; t = w !== undefined ? `${who(w)} : retournez 2 cartes de votre grille (${2 - (G.flips[w] || 0)} restante${2 - (G.flips[w] || 0) > 1 ? "s" : ""}).` : "Chacun retourne 2 cartes…"; }
+  else if(G.phase === "turn" || G.phase === "flip"){
+    const p = G.players[G.cur];
+    if(p.ai) t = `${who(G.cur)} réfléchit…`;
+    else if(G.phase === "flip") t = `${who(G.cur)} : retournez une de vos cartes cachées.`;
+    else if(G.held === null) t = `${who(G.cur)} : piochez, ou prenez la carte de la défausse.`;
+    else if(G.from === "discard") t = `${who(G.cur)} : touchez la carte de votre grille à remplacer.`;
+    else t = `${who(G.cur)} : remplacez une carte de votre grille, ou jetez celle-ci sur la défausse.`;
+    if(G.finisher >= 0) t += ` <span style="color:var(--gold)">Dernier tour !</span>`;
+  }
+  else if(G.phase === "end") t = "Fin de la manche : on retourne les cartes…";
+  st.innerHTML = t;
+  $("roundno").textContent = `Manche ${G.round} · objectif ${cfg.goal}`;
+}
+function cardEl(id){
+  if(els[id]) return els[id];
+  const c = C[id], b = document.createElement("button");
+  b.type = "button"; b.className = "card notrans"; b.tabIndex = -1;
+  b.style.setProperty("--vc", vcol(c.v));
+  b.innerHTML = `<span class="in"><span class="b"></span><span class="f"><span class="c a">${c.v}</span><span class="v">${c.v}</span><span class="c z">${c.v}</span></span></span>`;
+  b.addEventListener("click", () => onCard(id));
+  b.addEventListener("keydown", e => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); onCard(id); } });
+  $("layer").appendChild(b); els[id] = b;
+  // nouvelle carte : elle part de la pioche
+  const ds = $("deckslot"); if(ds) setBox(b, ds, $("layer").getBoundingClientRect());
+  b.getBoundingClientRect(); b.classList.remove("notrans");
+  return b;
+}
+function setBox(el, slot, base){
+  const r = slot.getBoundingClientRect();
+  el.style.width = r.width + "px"; el.style.height = r.height + "px";
+  el.style.transform = `translate(${r.left - base.left}px,${r.top - base.top}px)`;
+  el.style.setProperty("--w", r.width + "px");
+  el.style.borderRadius = Math.max(4, r.width * .12) + "px";
+}
+function place(){
+  if(!G) return;
+  const base = $("layer").getBoundingClientRect(), seen = new Set(), m = mainIdx();
+  const put = (id, slot, cls = "") => {
+    if(!slot) return;
+    const el = cardEl(id);
+    setBox(el, slot, base);
+    el.classList.toggle("up", !!C[id].up);
+    ["pick", "held", "pair"].forEach(k => el.classList.toggle(k, cls.split(" ").includes(k)));
+    el.tabIndex = cls.includes("pick") ? 0 : -1;
+    el.hidden = false; seen.add(id);
+  };
+  const humanTurn = isHumanTurn() && !busy;
+  G.players.forEach((p, i) => {
+    const pairs = new Set(); eliminations(p.grid).forEach(ks => ks.forEach(k => pairs.add(k)));
+    p.grid.forEach((id, k) => {
+      if(id === null) return;
+      let cls = pairs.has(k) ? "pair" : "";
+      if(i === m && !p.ai){
+        if(G.phase === "setup" && G.setupWho === i && !C[id].up && !busy) cls += " pick";
+        if(humanTurn && i === G.cur && G.held !== null) cls += " pick";
+        if(humanTurn && i === G.cur && G.phase === "flip" && !C[id].up) cls += " pick";
+      }
+      put(id, document.querySelector(`.slot[data-p="${i}"][data-k="${k}"]`), cls);
+    });
+  });
+  const ds = $("discslot");
+  const discPick = isHumanTurn() && G.phase === "turn" && !busy && (G.held === null || G.from === "deck");
+  G.discard.slice(-2).forEach((id, k, a) => put(id, ds, k === a.length - 1 && discPick ? "pick" : ""));
+  if(G.held !== null) put(G.held, $("heldslot"), "held");
+  // ordre d'empilement de la défausse
+  G.discard.slice(-2).forEach((id, k) => { els[id].style.zIndex = k + 1; });
+  els.forEach((el, id) => { if(el && !seen.has(id)) el.hidden = true; });
+}
+window.addEventListener("resize", () => { if(G) place(); });
+
+/* ================= DÉBUT DE MANCHE : 2 CARTES CHACUN ================= */
+async function setupStep(){
+  const my = token;
+  // les ordinateurs retournent leurs deux cartes
+  for(const [i, p] of G.players.entries()){
+    if(!p.ai || (G.flips[i] || 0) >= 2) continue;
+    const ks = shuffle(hiddenOf(p)).slice(0, 2);
+    ks.forEach(k => C[p.grid[k]].up = true); G.flips[i] = 2;
+  }
+  const waiting = G.players.findIndex((p, i) => !p.ai && (G.flips[i] || 0) < 2);
+  if(waiting >= 0){ G.setupWho = waiting; render(); return; }
+  G.setupWho = undefined; render(); Snd.flip(); Snd.flip(.08);
+  busy = true;
+  await sleep(D(700)); if(my !== token) return;
+  // le plus gros total visible commence
+  const sums = G.players.map(visibleSum), max = Math.max(...sums);
+  const cands = sums.map((s, i) => s === max ? i : -1).filter(i => i >= 0);
+  G.cur = cands[Math.floor(Math.random() * cands.length)];
+  G.phase = "turn"; busy = false;
+  render();
+  nextTurn();
+}
+
+/* ================= ACTIONS DU JOUEUR ================= */
+function onCard(id){
+  if(busy || !G) return;
+  const m = mainIdx(), p = G.players[m];
+  if(G.phase === "setup"){
+    if(G.setupWho !== m) return;
+    const k = p.grid.indexOf(id); if(k < 0 || C[id].up) return;
+    C[id].up = true; G.flips[m] = (G.flips[m] || 0) + 1; Snd.flip();
+    if(G.flips[m] >= 2) setupStep(); else render();
+    return;
+  }
+  if(!isHumanTurn() || G.cur !== m) return;
+  if(G.discard.length && id === G.discard[G.discard.length - 1] && G.phase === "turn"){ humanDiscard(); return; }
+  const k = p.grid.indexOf(id); if(k < 0) return;
+  if(G.phase === "flip"){ if(C[id].up){ Snd.nope(); return; } doFlip(G.cur, k); return; }
+  if(G.held !== null){ doSwap(G.cur, k); return; }
+  Snd.nope();
+}
+function humanDraw(){
+  if(busy || !isHumanTurn() || G.phase !== "turn" || G.held !== null) return;
+  doDraw();
+}
+function humanTakeDiscard(){
+  if(busy || !isHumanTurn() || G.phase !== "turn" || G.held !== null || !G.discard.length) return;
+  G.held = G.discard.pop(); G.from = "discard"; Snd.slide(); render();
+}
+function humanDiscard(){
+  if(busy || !isHumanTurn() || G.phase !== "turn") return;
+  if(G.held === null){ humanTakeDiscard(); return; }
+  if(G.from !== "deck"){ Snd.nope(); return; }
+  doThrow();
+}
+function doDraw(){
+  const id = drawCard(); C[id].up = true; G.held = id; G.from = "deck";
+  Snd.slide(); Snd.flip(.15); render();
+}
+function doThrow(){
+  G.discard.push(G.held); G.held = null; G.from = null; Snd.slide();
+  if(hiddenOf(G.players[G.cur]).length){ G.phase = "flip"; render(); }
+  else { render(); endAction(); }
+}
+async function doSwap(i, k){
+  busy = true;
+  const p = G.players[i], old = p.grid[k];
+  p.grid[k] = G.held; G.held = null; G.from = null;
+  C[old].up = true; G.discard.push(old);
+  Snd.slide(); Snd.flip(.12); Snd.tap(.3);
+  render();
+  await sleep(D(420));
+  busy = false; endAction();
+}
+async function doFlip(i, k){
+  busy = true;
+  C[G.players[i].grid[k]].up = true; Snd.flip();
+  G.phase = "turn"; render();
+  await sleep(D(380));
+  busy = false; endAction();
+}
+
+/* ================= FIN D'UNE ACTION ================= */
+async function endAction(){
+  const my = token, i = G.cur, p = G.players[i];
+  busy = true;
+  // colonnes (et lignes) identiques
+  let elim = eliminations(p.grid);
+  while(elim.length){
+    const ks = [...new Set(elim.flat())];
+    ks.forEach(k => { const e = els[p.grid[k]]; if(e){ e.classList.remove("zap"); void e.offsetWidth; e.classList.add("zap"); } });
+    Snd.column(); render();
+    await sleep(D(520)); if(my !== token) return;
+    ks.forEach(k => { G.discard.push(p.grid[k]); p.grid[k] = null; });
+    render(); Snd.slide(0, .3);
+    await sleep(D(450)); if(my !== token) return;
+    elim = eliminations(p.grid);
+  }
+  if(G.finisher < 0 && allUp(p)){
+    G.finisher = i; Snd.last();
+  }
+  busy = false;
+  G.cur = (G.cur + 1) % G.players.length;
+  if(G.cur === G.finisher) return endRound();
+  G.phase = "turn"; render();
+  nextTurn();
+}
+function nextTurn(){
+  if(G.players[G.cur].ai) aiTurn();
+  else render();
+}
+
+/* ================= ORDINATEURS ================= */
+function estScore(grid, ups){
+  // score attendu d'une grille, après élimination des colonnes complètes
+  const up = id => ups.has(id), val = id => C[id].v;
+  const g = grid.slice();
+  let e = eliminations(g, up, val);
+  while(e.length){ new Set(e.flat()).forEach(k => g[k] = null); e = eliminations(g, up, val); }
+  let s = 0, pairBonus = 0;
+  g.forEach(id => { if(id !== null) s += up(id) ? val(id) : EV; });
+  if(cfg.col) for(let c = 0; c < 4; c++){
+    const vs = cols(c).map(k => g[k]).filter(id => id !== null && up(id)).map(val);
+    if(vs.length === 2 && vs[0] === vs[1] && vs[0] > 0) pairBonus += vs[0] * .35;
+  }
+  return {s: s - pairBonus, all: g.every(id => id === null || up(id))};
+}
+function othersBest(i){
+  return Math.min(...G.players.map((p, j) => j === i ? Infinity : p.grid.reduce((s, id) => s + (id === null ? 0 : C[id].up ? C[id].v : EV), 0)));
+}
+function upsSet(){ return new Set(C.map((c, id) => c.up ? id : -1).filter(id => id >= 0)); }
+/* évalue tous les coups possibles avec une carte en main */
+function options(i, card, fromDeck){
+  const p = G.players[i], ups = upsSet(); ups.add(card);
+  const base = estScore(p.grid, ups).s, out = [];
+  p.grid.forEach((id, k) => {
+    if(id === null) return;
+    const g = p.grid.slice(); g[k] = card;
+    const u = new Set(ups); u.delete(id);
+    const r = estScore(g, u);
+    out.push({type: "swap", k, delta: r.s - base, ends: r.all, score: r.s});
+  });
+  if(fromDeck){
+    const hid = hiddenOf(p);
+    if(!hid.length) out.push({type: "throw", delta: 0, ends: true, score: base});
+    hid.forEach(k => {
+      // retourner une carte cachée : neutre en moyenne, mais révèle de l'information
+      const ends = hid.length === 1;
+      out.push({type: "throw", k, delta: .4 + Math.random() * .3, ends, score: base});
+    });
+  }
+  return out;
+}
+function choose(i, card, fromDeck){
+  const lvl = cfg.lvl, opts = options(i, card, fromDeck);
+  const finalTurn = G.finisher >= 0;
+  opts.forEach(o => {
+    o.val = o.delta;
+    if(lvl === 1) o.val += (Math.random() - .5) * 6;
+    // ne pas terminer la manche sans être en tête (score doublé)
+    if(o.ends && !finalTurn && lvl >= 2){
+      const best = othersBest(i);
+      if(o.score >= best - (lvl === 3 ? 2 : 0)) o.val += 25;
+      else o.val -= 3;
+    }
+    // ne pas offrir une carte utile au joueur suivant
+    if(lvl === 3 && o.type === "swap"){
+      const next = G.players[(i + 1) % G.players.length], gone = G.players[i].grid[o.k], gv = C[gone].v;
+      if(cfg.col && C[gone].up !== undefined) for(let c = 0; c < 4; c++){
+        const vs = cols(c).map(k => next.grid[k]).filter(id => id !== null && C[id].up).map(id => C[id].v);
+        if(vs.length === 2 && vs[0] === vs[1] && vs[0] === gv) o.val += 2.5;
+      }
+    }
+  });
+  opts.sort((a, b) => a.val - b.val);
+  return opts[0];
+}
+async function aiTurn(){
+  const my = token, i = G.cur; busy = true; render();
+  await sleep(D(650)); if(my !== token) return;
+  // prendre la défausse ?
+  const top = G.discard[G.discard.length - 1];
+  let takeDiscard = false;
+  if(top !== undefined){
+    const o = choose(i, top, false);
+    const thr = cfg.lvl === 1 ? -3.5 : -1.2;
+    takeDiscard = o.val < thr || (C[top].v <= 0 && o.val < 0);
+  }
+  if(takeDiscard){
+    G.held = G.discard.pop(); G.from = "discard"; Snd.slide(); render();
+  } else {
+    const id = drawCard(); C[id].up = true; G.held = id; G.from = "deck"; Snd.slide(); Snd.flip(.15); render();
+  }
+  await sleep(D(800)); if(my !== token) return;
+  const o = choose(i, G.held, G.from === "deck");
+  if(o.type === "swap"){
+    busy = false; await doSwap(i, o.k);
+  } else {
+    G.discard.push(G.held); G.held = null; G.from = null; Snd.slide(); render();
+    await sleep(D(450)); if(my !== token) return;
+    if(o.k !== undefined){ busy = false; await doFlip(i, o.k); }
+    else { busy = false; endAction(); }
+  }
+}
+
+/* ================= FIN DE MANCHE ================= */
+async function endRound(){
+  const my = token; G.phase = "end"; busy = true; G.cur = -1; render();
+  await sleep(D(500));
+  let n = 0;
+  for(const p of G.players) for(const id of p.grid) if(id !== null && !C[id].up){ C[id].up = true; Snd.flip(n * .05); n++; }
+  render();
+  await sleep(D(900 + n * 40)); if(my !== token) return;
+  const raw = G.players.map(fullSum), f = G.finisher;
+  const res = G.players.map((p, i) => {
+    let s = raw[i], doubled = false;
+    if(i === f && cfg.dbl && s > 0 && raw.some((r, j) => j !== i && r <= s)){ s *= 2; doubled = true; }
+    p.total += s; p.hist.push(s);
+    return {i, raw: raw[i], s, doubled};
+  });
+  G.lastRes = res;
+  G.over = G.players.some(p => p.total >= cfg.goal);
+  busy = false;
+  showScores(true);
+}
+function showScores(endOfRound){
+  if(!G) return;
+  const res = endOfRound ? G.lastRes : null;
+  const ps = G.players.map((p, i) => ({p, i}));
+  const ranked = ps.slice().sort((a, b) => a.p.total - b.p.total);
+  const bestTotal = ranked[0].p.total;
+  let title = "Scores";
+  if(endOfRound){
+    if(G.over){
+      const winners = ranked.filter(x => x.p.total === bestTotal);
+      title = winners.length > 1 ? "Égalité !" : winners[0].p.name === "Vous" ? "Vous gagnez la partie !" : winners[0].p.name + " gagne la partie !";
+    } else {
+      const minR = Math.min(...res.map(r => r.s)), w = res.filter(r => r.s === minR);
+      title = w.length > 1 ? `Fin de la manche ${G.round}` : (G.players[w[0].i].name === "Vous" ? "Vous gagnez la manche !" : G.players[w[0].i].name + " gagne la manche");
+    }
+  }
+  $("sct").textContent = title;
+  $("sctbl").innerHTML = `<tr><th>Joueur</th>${endOfRound ? '<th class="n">Manche</th>' : ""}<th class="n">Total</th></tr>` +
+    ranked.map(({p, i}) => {
+      const r = res && res.find(x => x.i === i);
+      return `<tr class="${p.total === bestTotal ? "best" : ""}"><td><span style="color:${PCOL[i]};font-weight:800">●</span> ${p.name}${G.finisher === i ? " 🏁" : ""}</td>` +
+        (endOfRound ? `<td class="n">${r.doubled ? `<small style="color:var(--muted);font-weight:600">${r.raw} × 2 =</small> ` : ""}${r.s}</td>` : "") + `<td class="n">${p.total}</td></tr>`;
+    }).join("");
+  const dbl = res && res.find(r => r.doubled);
+  $("scnote").textContent = !endOfRound ? `Manche ${G.round}. La partie s'arrête quand un joueur atteint ${cfg.goal} points ; le plus petit total gagne.`
+    : dbl ? `${G.players[dbl.i].name} a terminé la manche sans avoir strictement le plus petit score : ses points sont doublés.`
+    : G.over ? `${G.players.find(p => p.total >= cfg.goal).name} a atteint ${cfg.goal} points : la partie est finie.` : `Prochaine manche : la partie s'arrête à ${cfg.goal} points.`;
+  const btns = $("scbtns"); btns.innerHTML = "";
+  const mk = (t, fn, cls = "") => { const b = document.createElement("button"); b.textContent = t; b.className = cls; b.onclick = fn; btns.appendChild(b); };
+  if(!endOfRound) mk("Fermer", () => $("scores").hidden = true, "primary");
+  else if(G.over){ mk("Nouvelle partie", () => newGame(), "primary"); }
+  else mk("Manche suivante", () => newRound(), "primary");
+  $("scores").hidden = false;
+  if(endOfRound){
+    const hi = humanIdx();
+    if(G.over){ const w = ranked[0]; (cfg.who === "hot" || w.i === hi) ? Snd.win() : Snd.meh(); }
+    else Snd.round();
+  }
+}
+$("scorebtn").onclick = () => { if(G && G.phase !== "end") showScores(false); };
+$("newg").onclick = () => newGame();
+
+/* ================= FENÊTRE DES RÉGLAGES ================= */
+let draft = null;
+function paintSettings(){
+  document.querySelectorAll("#settings .seg").forEach(seg => {
+    const k = seg.dataset.k;
+    seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(draft[k]) === b.dataset.v));
+  });
+  $("optlvl").hidden = draft.who !== "ai";
+}
+$("setbtn").onclick = () => { draft = Object.assign({}, cfg); paintSettings(); $("settings").hidden = false; };
+document.querySelectorAll("#settings .seg").forEach(seg => seg.addEventListener("click", e => {
+  const b = e.target.closest("button"); if(!b) return;
+  const k = seg.dataset.k, v = b.dataset.v;
+  draft[k] = k === "who" ? v : +v; paintSettings();
+}));
+$("setcancel").onclick = () => { $("settings").hidden = true; };
+$("setok").onclick = () => { cfg = draft; save("sk_cfg", JSON.stringify(cfg)); $("settings").hidden = true; newGame(); };
+document.addEventListener("keydown", e => { if(e.key === "Escape"){ $("settings").hidden = true; if(G && G.phase !== "end") $("scores").hidden = true; } });
+
+newGame();
+})();
+</script>

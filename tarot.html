@@ -1,0 +1,728 @@
+<title>Tarot du club</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Nunito:wght@600;800&display=swap">
+<style>
+/* Layout : un tapis bleu nuit de club de tarot ; les trois adversaires autour, le pli (ou le chien) au centre, sa main de 18 cartes en deux rangées dessous. */
+:root{
+  color-scheme:dark;
+  --felt:#16335c;         /* tapis bleu */
+  --felt2:#0a1a33;
+  --room:#140f1d; --room2:#0a0710;
+  --gold:#d9b25f;
+  --ink:#f3eee3; --muted:#b9b3c8; --line:rgba(243,238,227,.18);
+  --red:#c8202c; --black:#1b1b1f; --trump:#2a3f8f;
+  --display:"Cinzel","Trajan Pro","Times New Roman",serif;
+  --ui:"Nunito","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0;font-family:var(--ui);color:var(--ink);-webkit-tap-highlight-color:transparent;
+  background:radial-gradient(ellipse 80% 60% at 50% 30%,#2a1f3a 0,var(--room) 55%,var(--room2) 100%) fixed,var(--room)}
+.app{max-width:820px;margin:0 auto;padding-block:10px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:10px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{margin:0;font-family:var(--display);font-weight:700;font-size:clamp(1.7rem,6.5vw,2.4rem);letter-spacing:.14em;line-height:1;color:var(--gold);text-shadow:0 3px 0 #2a1a05,0 8px 16px rgba(0,0,0,.5);white-space:nowrap}
+.tools{display:flex;gap:8px}
+button{font:inherit;font-weight:800;color:var(--ink);background:rgba(0,0,0,.32);border:1px solid var(--line);border-radius:11px;padding:8px 12px;cursor:pointer}
+button:hover:not(:disabled){border-color:rgba(243,238,227,.5)}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+.board{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:14px;padding:8px 12px}
+.board .sc{display:flex;gap:6px;flex-wrap:wrap;flex:1;min-width:0}
+.board .sc span{font-weight:800;font-size:.85rem;padding:3px 8px;border-radius:8px;background:rgba(255,255,255,.06);font-variant-numeric:tabular-nums;white-space:nowrap}
+.board .ct{font-family:var(--display);font-weight:700;color:var(--gold);white-space:nowrap}
+#status{background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:12px;padding:9px 12px;font-weight:800;line-height:1.35;min-height:2.8em}
+#status .who{font-family:var(--display)}
+
+/* Tapis */
+.mat{position:relative;border-radius:22px;padding:10px;background:radial-gradient(ellipse at 50% 45%,#22508c 0,var(--felt) 55%,var(--felt2) 100%);
+  box-shadow:inset 0 0 0 3px var(--gold),inset 0 0 0 9px var(--felt2),inset 0 0 40px rgba(0,0,0,.45),0 14px 28px rgba(0,0,0,.5);
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.7fr) minmax(0,1fr);grid-template-rows:auto minmax(210px,auto) auto;gap:6px;align-items:center;justify-items:center;--cw:clamp(46px,11.5vw,62px)}
+.seat{display:flex;flex-direction:column;align-items:center;gap:4px;position:relative;z-index:1;min-width:0}
+.seat .nm{font-family:var(--display);font-weight:700;font-size:.95rem;padding:2px 10px;border-radius:999px;background:rgba(0,0,0,.3);white-space:nowrap}
+.seat.act .nm{background:var(--gold);color:#241603}
+.seat .tag{font-size:.68rem;font-weight:800;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;text-align:center}
+.seat.taker .nm{box-shadow:0 0 0 2px #ff9e7a}
+.seat.n{grid-column:2;grid-row:1}.seat.w{grid-column:1;grid-row:2}.seat.e{grid-column:3;grid-row:2}.seat.s{grid-column:2;grid-row:3}
+.backs{position:relative;height:calc(var(--cw) * .72);width:calc(var(--cw) * 1.5);--cw0:var(--cw)}
+.backs .tc{position:absolute;top:0;--cw:calc(var(--cw0) * .48)}
+.bubble{position:absolute;z-index:6;top:-6px;left:50%;transform:translate(-50%,-100%);background:var(--ink);color:#1b1b1f;font-weight:800;font-size:.82rem;padding:5px 10px;border-radius:12px;white-space:nowrap;box-shadow:0 3px 8px rgba(0,0,0,.4);animation:pop .3s cubic-bezier(.3,1.7,.5,1)}
+.bubble::after{content:"";position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);border:6px solid transparent;border-top-color:var(--ink);border-bottom:0}
+.bubble.gold{background:var(--gold);color:#241603}.bubble.gold::after{border-top-color:var(--gold)}
+@keyframes pop{from{transform:translate(-50%,-100%) scale(.3)}}
+.center{grid-column:2;grid-row:2;position:relative;width:100%;height:100%;min-height:210px}
+.center .slot{position:absolute;width:var(--cw);aspect-ratio:.56}
+.center .slot.s{left:50%;bottom:3%;transform:translateX(-50%)}
+.center .slot.n{left:50%;top:3%;transform:translateX(-50%)}
+.center .slot.w{left:4%;top:50%;transform:translateY(-50%) rotate(-6deg)}
+.center .slot.e{right:4%;top:50%;transform:translateY(-50%) rotate(6deg)}
+.center .slot .tc{width:100%;--cw:inherit}
+.chien{position:absolute;inset:0;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;gap:4px;z-index:2;--cw:clamp(38px,9vw,52px)}
+.chien .lbl{width:100%;text-align:center;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+/* Cartes (dessin original) : index français R, D, C, V ; atouts en médaillon */
+.tc{--cw:56px;position:relative;width:var(--cw);aspect-ratio:.56;border-radius:calc(var(--cw) * .1);background:#fffdf7;border:1px solid #cfc7b5;box-shadow:0 2px 5px rgba(0,0,0,.45);color:var(--sc);flex:none;overflow:hidden;display:block}
+.tc .ix{position:absolute;left:6%;top:3%;display:flex;flex-direction:column;align-items:center;line-height:.95;font-family:var(--display);font-weight:700;font-size:calc(var(--cw) * .27)}
+.tc .ix small{font-family:var(--ui);font-size:.85em}
+.tc .ix.z{left:auto;top:auto;right:6%;bottom:3%;transform:rotate(180deg)}
+.tc .big{position:absolute;inset:26% 14% 18%;display:flex;align-items:center;justify-content:center;font-size:calc(var(--cw) * .55);line-height:1}
+.tc.fig .big{border:1.5px solid currentColor;border-radius:calc(var(--cw) * .1);flex-direction:column;font-family:var(--display);font-weight:700;font-size:calc(var(--cw) * .4);background:linear-gradient(180deg,rgba(217,178,95,.2),rgba(217,178,95,.05))}
+.tc.fig .big small{font-family:var(--ui);font-size:.55em}
+.tc.at{background:linear-gradient(180deg,#fdf7e6,#f2e6c4);--sc:var(--trump)}
+.tc.at .big{inset:auto;left:50%;top:54%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,#fffaf0 0 52%,transparent 54%),conic-gradient(from 0deg,#d9b25f 0 10%,#b88a35 0 20%,#d9b25f 0 30%,#b88a35 0 40%,#d9b25f 0 50%,#b88a35 0 60%,#d9b25f 0 70%,#b88a35 0 80%,#d9b25f 0 90%,#b88a35 0);
+  font-family:var(--display);font-weight:700;font-size:calc(var(--cw) * .3);color:var(--trump);aspect-ratio:1;width:76%;height:auto}
+.tc.at.bout .big{background:radial-gradient(circle,#fffaf0 0 52%,transparent 54%),conic-gradient(from 0deg,#c8202c 0 10%,#d9b25f 0 20%,#c8202c 0 30%,#d9b25f 0 40%,#c8202c 0 50%,#d9b25f 0 60%,#c8202c 0 70%,#d9b25f 0 80%,#c8202c 0 90%,#d9b25f 0)}
+.tc.ex{background:linear-gradient(180deg,#fff7e0,#f6dca0);--sc:#7a4a0a}
+.tc.ex .big{font-size:calc(var(--cw) * .6)}
+.tc.back{background:repeating-linear-gradient(45deg,#1d2b63 0 6%,#24357a 6% 12%);border:calc(var(--cw) * .05) solid #fffdf7}
+.tc.back::before{content:"";position:absolute;inset:12%;border:1.5px solid rgba(217,178,95,.7);border-radius:calc(var(--cw) * .08)}
+
+/* Main */
+.hand{position:relative;width:100%}
+.hand .tc{position:absolute;transition:transform .16s,filter .16s;cursor:default}
+.hand .tc.ok{cursor:pointer;transform:translateY(-10%)}
+.hand .tc.ok:hover{transform:translateY(-18%)}
+.hand .tc.no{filter:brightness(.55) saturate(.7)}
+.hand .tc.pick{transform:translateY(-22%);box-shadow:0 0 0 3px var(--gold),0 6px 12px rgba(0,0,0,.5)}
+.hand .tc:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.btns{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.btns .bid{background:var(--gold);color:#241603;border-color:var(--gold)}
+.fly{position:fixed;z-index:60;pointer-events:none;margin:0}
+.foot{display:flex;justify-content:center;gap:8px}
+.rules{background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:.9rem;line-height:1.5;color:var(--muted)}
+.rules summary{cursor:pointer;font-weight:800;color:var(--ink)}
+.rules ul{margin:8px 0 0;padding-left:18px}
+.rules b{color:var(--ink)}
+
+.modal{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(6,4,10,.66);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px}
+.modal .box{background:#231b31;border:1px solid var(--line);border-radius:16px;padding:20px;width:100%;max-width:480px;max-height:100%;overflow:auto;box-shadow:0 20px 40px rgba(0,0,0,.5)}
+.modal h2{margin:0 0 12px;font-family:var(--display);font-weight:700;font-size:1.4rem;line-height:1.2;color:var(--gold)}
+.modal p{margin:0 0 12px;color:var(--muted);line-height:1.45;font-size:.92rem}
+.modal .tbl{overflow-x:auto;margin-bottom:12px}
+.modal table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:.88rem}
+.modal th,.modal td{padding:6px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+.modal th:first-child,.modal td:first-child{text-align:left}
+.modal tr.tot td{font-weight:800;border-top:2px solid var(--line)}
+.modal .row{display:flex;gap:8px;flex-wrap:wrap}
+.modal .row button{flex:1}
+.modal .cards{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px}
+.modal .cards .tc{--cw:40px}
+.primary{background:var(--gold);color:#241603;border-color:var(--gold)}
+.opt{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.opt .lbl{font-weight:800;font-size:.9rem}
+.seg{display:flex;flex-wrap:wrap;background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:12px;padding:3px;gap:2px}
+.seg button{flex:1 1 auto;border:0;background:transparent;padding:7px 8px;border-radius:9px;color:var(--muted);font-size:.85rem}
+.seg button[aria-pressed="true"]{background:var(--gold);color:#241603}
+.seg .off{font-weight:600;font-size:.72rem;opacity:.85}
+@media (max-width:480px){.tools .t{display:none}}
+@media (prefers-reduced-motion:reduce){.bubble{animation:none}.hand .tc{transition:none}}
+</style>
+
+<div class="app">
+  <div class="top">
+    <h1>Tarot</h1>
+    <div class="tools">
+      <button id="lastbtn" aria-label="Dernier pli">🂠<span class="t"> Dernier pli</span></button>
+      <button id="setbtn" aria-label="Réglages">⚙️<span class="t"> Réglages</span></button>
+      <button id="snd" aria-label="Activer ou couper le son"></button>
+    </div>
+  </div>
+  <div class="board" id="board" role="button" tabindex="0" aria-label="Voir la feuille de marque"><div class="sc" id="scores0"></div><span class="ct" id="contract"></span></div>
+  <div id="status" aria-live="polite"></div>
+  <div class="mat" id="mat">
+    <div class="seat n" data-v="2"></div>
+    <div class="seat w" data-v="3"></div>
+    <div class="center" id="center"><div class="slot s"></div><div class="slot e"></div><div class="slot n"></div><div class="slot w"></div><div class="chien" id="chien" hidden></div></div>
+    <div class="seat e" data-v="1"></div>
+    <div class="seat s" data-v="0"></div>
+  </div>
+  <div class="btns" id="btns"></div>
+  <div class="hand" id="hand"></div>
+  <div class="foot"><button id="newg">Nouvelle partie</button></div>
+  <details class="rules">
+    <summary>Règles du jeu</summary>
+    <ul>
+      <li>78 cartes : 4 couleurs de 14 cartes (Roi, Dame, Cavalier, Valet, 10 à 1), 21 atouts et l'Excuse. Les trois <b>bouts</b> sont le 21, le Petit (1 d'atout) et l'Excuse.</li>
+      <li>À 4, chacun reçoit 18 cartes, 6 vont au <b>chien</b>. Enchères : Petite (×1), Garde (×2), Garde sans le chien (×4), Garde contre le chien (×6). Le preneur joue seul contre les autres.</li>
+      <li>En Petite et en Garde, le preneur prend le chien et en écarte 6 cartes (ni rois, ni bouts, ni atouts sauf obligation).</li>
+      <li>Il faut fournir la couleur demandée, sinon couper, et toujours monter à l'atout si possible. L'Excuse se joue n'importe quand et ne remporte jamais le pli.</li>
+      <li>Points : bouts et rois 4,5, dames 3,5, cavaliers 2,5, valets 1,5, autres 0,5. Le preneur doit faire 56 points sans bout, 51 avec un, 41 avec deux, 36 avec trois.</li>
+      <li>Marque : (25 + l'écart + petit au bout) × multiplicateur, plus poignée et chelem. Chaque défenseur paie ou reçoit ce montant.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="modal" id="scorebox" hidden><div class="box"><h2 id="sct"></h2><p id="scres"></p><div class="tbl"><table id="sctbl"></table></div><div class="tbl"><table id="hist"></table></div><div class="row" id="scbtns"></div></div></div>
+<div class="modal" id="lastbox" hidden><div class="box"><h2>Dernier pli</h2><div class="cards" id="lastcards"></div><p id="lasttxt"></p><div class="row"><button id="lastclose" class="primary">Fermer</button></div></div></div>
+<div class="modal" id="poignee" hidden><div class="box"><h2 id="pgt"></h2><p id="pgtxt"></p><div class="cards" id="pgcards"></div><div class="row"><button id="pgno">Ne pas la montrer</button><button id="pgyes" class="primary">Montrer la poignée</button></div></div></div>
+<div class="modal" id="settings" hidden><div class="box" role="dialog" aria-labelledby="sett">
+  <h2 id="sett">Réglages</h2>
+  <div class="opt"><span class="lbl">Joueurs</span><div class="seg" data-k="n"><button data-v="3">3</button><button data-v="4">4 <span class="off">· classique</span></button></div></div>
+  <div class="opt"><span class="lbl">Niveau des ordinateurs</span><div class="seg" data-k="lvl"><button data-v="1">Facile</button><button data-v="2">Moyen</button><button data-v="3">Difficile</button></div></div>
+  <div class="opt"><span class="lbl">Nombre de donnes</span><div class="seg" data-k="deals"><button data-v="4">4</button><button data-v="8">8</button><button data-v="12">12</button><button data-v="0">Sans fin</button></div></div>
+  <div class="opt"><span class="lbl">Excuse au dernier pli</span><div class="seg" data-k="exfft"><button data-v="1">Change de camp <span class="off">· FFT</span></button><button data-v="0">Va au gagnant du pli</button></div></div>
+  <div class="opt"><span class="lbl">Petit sec</span><div class="seg" data-k="psec"><button data-v="1">On redistribue <span class="off">· officiel</span></button><button data-v="0">On joue quand même</button></div></div>
+  <p>Les changements démarrent une nouvelle partie.</p>
+  <div class="row"><button id="setcancel">Annuler</button><button id="setok" class="primary">Appliquer</button></div>
+</div></div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const load = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const save = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const D = ms => reduced ? Math.min(ms, 120) : ms;
+
+/* ================= CARTES =================
+   couleur 0..3 (♠ ♥ ♦ ♣), rang 1..14 (11 Valet, 12 Cavalier, 13 Dame, 14 Roi) ; atouts : s = 4, r = 1..21 ; Excuse : s = 5 */
+const SUITS = ["♠", "♥", "♦", "♣"], SN = ["pique", "cœur", "carreau", "trèfle"];
+const FIG = {11: "V", 12: "C", 13: "D", 14: "R"}, FIGN = {11: "Valet", 12: "Cavalier", 13: "Dame", 14: "Roi"};
+const red = s => s === 1 || s === 2;
+const isT = c => c.s === 4, isEx = c => c.s === 5;
+const isBout = c => isEx(c) || (isT(c) && (c.r === 1 || c.r === 21));
+function points(c){ if(isBout(c)) return 4.5; if(isT(c)) return .5; return {14: 4.5, 13: 3.5, 12: 2.5, 11: 1.5}[c.r] || .5; }
+function deck(){ const d = []; let id = 0; for(let s = 0; s < 4; s++) for(let r = 1; r <= 14; r++) d.push({s, r, id: id++}); for(let r = 1; r <= 21; r++) d.push({s: 4, r, id: id++}); d.push({s: 5, r: 0, id: id++}); return d; }
+const cname = c => isEx(c) ? "l'Excuse" : isT(c) ? (c.r === 1 ? "le Petit" : `le ${c.r} d'atout`) : `${FIGN[c.r] || c.r} de ${SN[c.s]}`;
+function cardHTML(c){
+  if(!c) return `<span class="tc back"></span>`;
+  if(isEx(c)) return `<span class="tc ex" data-id="${c.id}"><span class="ix">★</span><span class="big">★</span><span class="ix z">★</span></span>`;
+  if(isT(c)) return `<span class="tc at${isBout(c) ? " bout" : ""}" data-id="${c.id}"><span class="ix">${c.r}</span><span class="big">${c.r}</span><span class="ix z">${c.r}</span></span>`;
+  const f = FIG[c.r], col = red(c.s) ? "var(--red)" : "var(--black)";
+  return `<span class="tc${f ? " fig" : ""}" data-id="${c.id}" style="--sc:${col}"><span class="ix">${f || c.r}<small>${SUITS[c.s]}</small></span><span class="big">${f ? `${f}<small>${SUITS[c.s]}</small>` : SUITS[c.s]}</span><span class="ix z">${f || c.r}<small>${SUITS[c.s]}</small></span></span>`;
+}
+function node(html){ const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; }
+const order = c => isT(c) ? 400 + c.r : isEx(c) ? 500 : [0, 1, 3, 2][c.s] * 20 + c.r;
+
+/* ================= SONS ================= */
+const Snd = {
+  ctx: null, on: load("tar_sound") !== "0", nb: null,
+  init(){
+    if(!this.ctx){
+      const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
+      this.ctx = new AC(); this.out = this.ctx.createGain(); this.out.gain.value = .9; this.out.connect(this.ctx.destination);
+      const n = this.ctx.sampleRate, b = this.ctx.createBuffer(1, n, n), d = b.getChannelData(0);
+      for(let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      this.nb = b;
+    }
+    if(this.ctx.state === "suspended") this.ctx.resume();
+  },
+  ok(){ return this.on && this.ctx; },
+  hit(f, q, peak, dur, delay = 0, type = "bandpass", f2){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.nb; fl.type = type; fl.frequency.setValueAtTime(f, t); if(f2) fl.frequency.exponentialRampToValueAtTime(f2, t + dur); fl.Q.value = q;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + Math.min(.015, dur / 3)); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    s.connect(fl).connect(g).connect(this.out); s.start(t, Math.random() * .5); s.stop(t + dur + .02);
+  },
+  tone(f0, f1, dur, peak, delay = 0, type = "sine"){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .005); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(this.out); o.start(t); o.stop(t + dur + .02);
+  },
+  snap(k = 1){ this.hit(1500, .8, .1 * k, .09, 0, "bandpass", 3000); this.hit(420, 1, .35 * k, .05, .07, "lowpass"); },
+  cut(){ this.snap(1.5); this.tone(220, 150, .12, .15, .07, "triangle"); },
+  shuffle(){ for(let i = 0; i < 22; i++) this.hit(2600 + Math.random() * 900, 1, .1, .05, i * .03); },
+  deal(){ for(let i = 0; i < 3; i++) this.hit(2200, .8, .07, .06, i * .05, "bandpass", 3400); },
+  sweep(){ this.hit(900, .6, .18, .35, 0, "bandpass", 2600); },
+  bid(lv){ for(let i = 0; i <= lv; i++) this.tone(440 + i * 110, 440 + i * 110, .22, .12, i * .1, "triangle"); },
+  pass(){ this.tone(330, 300, .12, .06, 0, "triangle"); },
+  chien(){ for(let i = 0; i < 6; i++) this.snap(.6); },
+  fanfare(){ [523, 659, 784, 1047].forEach((f, i) => this.tone(f, f, .25, .13, i * .08, "triangle")); },
+  petit(){ [784, 988, 1175, 1568].forEach((f, i) => this.tone(f, f, .3, .14, i * .1, "triangle")); },
+  win(){ [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, f, i === 4 ? .9 : .28, .15, .1 + i * .12, "triangle")); },
+  lose(){ [392, 370, 349, 294].forEach((f, i) => this.tone(f, f * .97, .45, .1, .1 + i * .3, "sawtooth")); }
+};
+function sndLabel(){ $("snd").textContent = Snd.on ? "🔊" : "🔇"; $("snd").title = Snd.on ? "Son activé" : "Son coupé"; }
+$("snd").onclick = () => { Snd.on = !Snd.on; save("tar_sound", Snd.on ? "1" : "0"); Snd.init(); sndLabel(); };
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => Snd.init(), {capture: true}));
+sndLabel();
+
+/* ================= RÉGLAGES ================= */
+let cfg = {n: 4, lvl: 2, deals: 8, exfft: 1, psec: 1};
+try{ const o = JSON.parse(load("tar_cfg") || "null"); if(o) cfg = Object.assign(cfg, o); }catch(e){}
+const BIDS = ["Passe", "Petite", "Garde", "Garde sans", "Garde contre"], MULT = [0, 1, 2, 4, 6];
+const TARGET = [56, 51, 41, 36];
+
+/* ================= ÉTAT ================= */
+let S = null, token = 0, busy = false, picks = new Set();
+function shuffle(a){ for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+const N = () => S.n;
+const nextSeat = i => (i + 1) % N();            // sens inverse des aiguilles d'une montre
+const viewPos = i => N() === 4 ? ["s", "e", "n", "w"][i] : ["s", "e", "w"][i];
+function newGame(){
+  token++;
+  const names = cfg.n === 4 ? ["Vous", "Est", "Nord", "Ouest"] : ["Vous", "Est", "Ouest"];
+  S = {n: cfg.n, names, total: names.map(() => 0), hist: [], dealer: Math.floor(Math.random() * cfg.n), donne: 0, over: false};
+  newDeal();
+}
+
+/* ================= RÈGLES ================= */
+function ledSuit(trick){ const f = trick.find(t => !isEx(t.c)); return f ? f.c.s : -1; }
+function winnerIdx(trick){
+  const led = ledSuit(trick); let best = -1, bp = -1;
+  trick.forEach((t, k) => { if(isEx(t.c)) return; const p = isT(t.c) ? 100 + t.c.r : t.c.s === led ? t.c.r : -1; if(p > bp){ bp = p; best = k; } });
+  return best;
+}
+function legal(i){
+  const hand = S.hands[i], tr = S.trick;
+  const ex = hand.filter(isEx), rest = hand.filter(c => !isEx(c));
+  const led = ledSuit(tr);
+  if(led < 0) return hand.slice();
+  const hiT = Math.max(0, ...tr.filter(t => isT(t.c)).map(t => t.c.r));
+  const trumps = rest.filter(isT), over = trumps.filter(c => c.r > hiT);
+  let out;
+  if(led === 4) out = trumps.length ? (over.length ? over : trumps) : rest;
+  else {
+    const follow = rest.filter(c => c.s === led);
+    if(follow.length) out = follow;
+    else if(trumps.length) out = over.length ? over : trumps;
+    else out = rest;
+  }
+  return out.concat(ex);
+}
+function canDiscard(c, hand){
+  if(isBout(c) || (!isT(c) && c.r === 14)) return false;
+  if(isT(c)){ const others = hand.filter(x => !isT(x) && !isEx(x) && x.r !== 14); return others.length < 6; }
+  return true;
+}
+const poigneeSizes = () => N() === 4 ? [10, 13, 15] : [13, 15, 18];
+function trumpsForPoignee(h){ return h.filter(c => isT(c) || isEx(c)); }
+
+/* ================= AFFICHAGE ================= */
+function renderSeats(){
+  document.querySelectorAll(".seat").forEach(el => { el.hidden = true; });
+  for(let i = 0; i < N(); i++){
+    const pos = viewPos(i), el = document.querySelector(`.seat.${pos}`); el.hidden = false;
+    const n = S.hands ? S.hands[i].length : 0;
+    let backs = "";
+    if(i) for(let k = 0; k < Math.min(n, 10); k++) backs += `<span class="tc back" style="left:${k * 6}px"></span>`;
+    el.className = `seat ${pos}${S.cur === i && (S.phase === "play" || S.phase === "bid") ? " act" : ""}${S.taker === i ? " taker" : ""}`;
+    const tags = [S.taker === i ? `Preneur · ${BIDS[S.bid]}` : "", S.dealer === i ? "Donneur" : ""].filter(Boolean).join(" · ");
+    el.innerHTML = `<span class="nm">${S.names[i]}</span><span class="tag">${tags || "&nbsp;"}</span>${i ? `<div class="backs">${backs}</div>` : ""}`;
+    if(S.bub && S.bub[i]) el.insertAdjacentHTML("beforeend", `<span class="bubble${S.bub[i].gold ? " gold" : ""}">${S.bub[i].t}</span>`);
+  }
+}
+function renderCenter(){
+  document.querySelectorAll("#center .slot").forEach(s => s.innerHTML = "");
+  (S.trick || []).forEach(t => { document.querySelector(`#center .slot.${viewPos(t.p)}`).innerHTML = cardHTML(t.c); });
+  const ch = $("chien");
+  if(S.showChien){ ch.hidden = false; ch.innerHTML = `<span class="lbl">Le chien</span>` + S.showChien.map(cardHTML).join(""); }
+  else ch.hidden = true;
+}
+function renderHand(){
+  const h = $("hand"); h.innerHTML = "";
+  if(!S.hands) return;
+  const hand = S.hands[0].slice().sort((a, b) => order(a) - order(b));
+  const W = h.clientWidth || 340, cw = Math.min(66, Math.max(42, window.innerWidth * .12)), ch = cw / .56;
+  const rows = hand.length > 12 && W < 640 ? 2 : 1, per = Math.ceil(hand.length / rows);
+  h.style.height = (ch * (rows === 2 ? 1.62 : 1.15)) + "px";
+  const step = per > 1 ? Math.min(cw * .85, (W - cw) / (per - 1)) : 0;
+  const myPlay = S.phase === "play" && S.cur === 0 && !busy, ok = myPlay ? legal(0) : [];
+  const ecart = S.phase === "ecart" && S.taker === 0 && !busy;
+  hand.forEach((c, k) => {
+    const r = Math.floor(k / per), j = k % per, cnt = r === rows - 1 ? hand.length - per * (rows - 1) : per;
+    const total = (cnt - 1) * step + cw, x0 = (W - total) / 2;
+    const el = node(cardHTML(c)); el.style.setProperty("--cw", cw + "px"); el.style.left = (x0 + j * step) + "px"; el.style.top = (r * ch * .58 + ch * .12) + "px";
+    if(myPlay){
+      const can = ok.includes(c); el.classList.add(can ? "ok" : "no");
+      if(can){ el.tabIndex = 0; el.setAttribute("role", "button"); el.setAttribute("aria-label", "Jouer " + cname(c)); el.onclick = () => humanPlay(c); el.onkeydown = e => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); humanPlay(c); } }; }
+    } else if(ecart){
+      const can = canDiscard(c, S.hands[0]);
+      el.classList.add(picks.has(c) ? "pick" : can ? "ok" : "no");
+      if(can){ el.tabIndex = 0; el.setAttribute("role", "button"); el.setAttribute("aria-label", (picks.has(c) ? "Reprendre " : "Écarter ") + cname(c)); el.onclick = () => togglePick(c); el.onkeydown = e => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); togglePick(c); } }; }
+    }
+    h.appendChild(el);
+  });
+}
+function renderButtons(){
+  const b = $("btns"); b.innerHTML = "";
+  const mk = (t, cls, fn, dis) => { const x = document.createElement("button"); x.textContent = t; x.className = cls; x.onclick = fn; x.disabled = !!dis; b.appendChild(x); };
+  if(S.phase === "bid" && S.cur === 0 && !busy){
+    mk("Passer", "", () => humanBid(0));
+    for(let k = Math.max(1, S.bid + 1); k <= 4; k++) mk(BIDS[k], "bid", () => humanBid(k));
+  }
+  if(S.phase === "ecart" && S.taker === 0 && !busy){
+    mk(`Faire l'écart (${picks.size} / 6)`, "bid", () => humanEcart(), picks.size !== 6);
+  }
+}
+function renderBoard(){
+  $("scores0").innerHTML = S.names.map((n, i) => `<span>${n} ${S.total[i] > 0 ? "+" : ""}${S.total[i]}</span>`).join("");
+  $("contract").textContent = S.taker >= 0 && S.bid ? `${BIDS[S.bid]} · ${S.names[S.taker]}` : (cfg.deals ? `Donne ${S.donne}/${cfg.deals}` : `Donne ${S.donne}`);
+}
+function renderStatus(){
+  const who = i => `<span class="who">${S.names[i]}</span>`;
+  let t = S.msg;
+  if(!t){
+    if(S.phase === "deal") t = "Distribution…";
+    else if(S.phase === "bid") t = S.cur === 0 ? `À vous d'annoncer${S.bid ? ` (au-dessus de ${BIDS[S.bid]})` : ""}, ou de passer.` : `${who(S.cur)} réfléchit…`;
+    else if(S.phase === "ecart") t = S.taker === 0 ? "Choisissez 6 cartes à écarter (ni rois, ni bouts ; des atouts seulement si vous n'avez pas le choix)." : `${who(S.taker)} fait son écart…`;
+    else if(S.phase === "play") t = S.cur === 0 ? (S.trick.length ? "À vous : les cartes permises sont soulevées." : "À vous d'entamer.") : `${who(S.cur)} joue…`;
+    else t = "Fin de la donne";
+  }
+  $("status").innerHTML = t;
+}
+function render(){ if(!S) return; renderSeats(); renderCenter(); renderHand(); renderButtons(); renderBoard(); renderStatus(); }
+window.addEventListener("resize", () => { if(S) render(); });
+function bubble(i, t, gold){ S.bub = S.bub || {}; S.bub[i] = {t, gold}; renderSeats(); const my = token; setTimeout(() => { if(my === token && S.bub && S.bub[i] && S.bub[i].t === t){ delete S.bub[i]; renderSeats(); } }, 1800); }
+function seatRect(i){ return i === 0 ? $("hand").getBoundingClientRect() : document.querySelector(`.seat.${viewPos(i)}`).getBoundingClientRect(); }
+async function fly(html, from, to, dur = 280){
+  if(reduced) return;
+  const n = node(html); n.classList.add("fly"); const cw = to.width || 56; n.style.setProperty("--cw", cw + "px");
+  n.style.left = (from.left + from.width / 2 - cw / 2) + "px"; n.style.top = (from.top + from.height / 2 - cw / .56 / 2) + "px"; document.body.appendChild(n);
+  await n.animate([{transform: "translate(0,0)"}, {transform: `translate(${to.left + to.width / 2 - from.left - from.width / 2}px,${to.top + to.height / 2 - from.top - from.height / 2}px)`}], {duration: D(dur), easing: "cubic-bezier(.3,.7,.3,1)", fill: "forwards"}).finished.catch(() => {});
+  n.remove();
+}
+
+/* ================= DONNE ET ENCHÈRES ================= */
+async function newDeal(){
+  const my = ++token; busy = true; picks.clear();
+  ["scorebox", "lastbox", "poignee"].forEach(id => $(id).hidden = true);
+  S.donne++; S.dealer = nextSeat(S.dealer);
+  const d = shuffle(deck());
+  S.hands = S.names.map(() => []); S.chien = []; S.trick = []; S.won = S.names.map(() => []); S.taker = -1; S.bid = 0; S.bub = {}; S.msg = ""; S.phase = "deal"; S.cur = -1;
+  S.showChien = null; S.ecart = []; S.poignee = S.names.map(() => 0); S.lastTrick = null; S.excuseOwed = null; S.trickNo = 0; S.tricksWon = S.names.map(() => 0); S.poigneeAsked = null; S.petitAuBout = undefined;
+  const per = N() === 4 ? 18 : 24, pk = N() === 4 ? 3 : 4; S.perHand = per;
+  // distribution par paquets ; le chien reçoit ses cartes une à une
+  let p = nextSeat(S.dealer), dealt = 0;
+  while(dealt < per * N()){
+    for(let k = 0; k < pk; k++) S.hands[p].push(d.pop());
+    dealt += pk; p = nextSeat(p);
+    if(S.chien.length < 6 && dealt > pk && dealt % (pk * N()) === 0) S.chien.push(d.pop());
+  }
+  while(S.chien.length < 6) S.chien.push(d.pop());
+  render(); Snd.shuffle();
+  for(let k = 0; k < 6; k++){ Snd.deal(); await sleep(D(110)); if(my !== token) return; }
+  // petit sec : on redistribue
+  if(cfg.psec){
+    const sec = S.hands.findIndex(h => { const t = h.filter(c => isT(c) || isEx(c)); return t.length === 1 && t[0].r === 1 && isT(t[0]); });
+    if(sec >= 0){ S.msg = `${S.names[sec]} a le petit sec : on redistribue.`; render(); await sleep(D(1800)); if(my !== token) return; S.dealer = (S.dealer + N() - 1) % N(); S.donne--; return newDeal(); }
+  }
+  S.phase = "bid"; S.cur = nextSeat(S.dealer); S.bidsDone = 0; busy = false;
+  render(); bidStep();
+}
+async function bidStep(){
+  const my = token;
+  if(S.cur === 0){ busy = false; render(); return; }
+  busy = true; render();
+  await sleep(D(900)); if(my !== token) return;
+  applyBid(S.cur, aiBid(S.cur));
+}
+function humanBid(k){ if(busy || S.cur !== 0 || S.phase !== "bid") return; if(k && k <= S.bid) return; applyBid(0, k); }
+async function applyBid(i, k){
+  const my = token; busy = true;
+  if(k > S.bid){ S.bid = k; S.taker = i; bubble(i, BIDS[k] + " !", true); Snd.bid(k); }
+  else { bubble(i, "Passe"); Snd.pass(); }
+  S.bidsDone++; render();
+  if(S.bidsDone < N()){ S.cur = nextSeat(S.cur); return bidStep(); }
+  await sleep(D(900)); if(my !== token) return;
+  if(!S.bid){ S.msg = "Tout le monde passe : on redistribue."; render(); await sleep(D(1500)); if(my !== token) return; S.donne--; return newDeal(); }
+  S.msg = `${S.taker === 0 ? "Vous prenez" : S.names[S.taker] + " prend"} : ${BIDS[S.bid]}.`; render();
+  await sleep(D(1000)); if(my !== token) return;
+  if(S.bid <= 2){
+    // le chien est montré à tous, puis le preneur fait son écart
+    S.showChien = S.chien.slice(); S.msg = "Voici le chien."; Snd.chien(); render();
+    await sleep(D(2400)); if(my !== token) return;
+    S.showChien = null; S.hands[S.taker].push(...S.chien); S.chien = [];
+    S.phase = "ecart"; S.msg = ""; render();
+    if(S.taker !== 0){
+      await sleep(D(1000)); if(my !== token) return;
+      S.ecart = aiEcart(S.taker); S.ecart.forEach(c => S.hands[S.taker].splice(S.hands[S.taker].indexOf(c), 1));
+      const shown = S.ecart.filter(isT);
+      S.msg = `${S.names[S.taker]} a fait son écart${shown.length ? ` (atouts écartés : ${shown.map(c => c.r).join(", ")})` : ""}.`; render();
+      await sleep(D(1200)); if(my !== token) return;
+      return startPlay();
+    }
+    busy = false; render(); return;
+  }
+  S.msg = S.bid === 3 ? "Garde sans le chien : il reviendra au preneur sans être montré." : "Garde contre le chien : il ira à la défense sans être montré.";
+  render(); await sleep(D(1600)); if(my !== token) return;
+  startPlay();
+}
+function togglePick(c){
+  if(S.phase !== "ecart" || S.taker !== 0 || busy) return;
+  if(picks.has(c)) picks.delete(c); else if(picks.size < 6) picks.add(c);
+  Snd.snap(.5); render();
+}
+async function humanEcart(){
+  if(picks.size !== 6) return;
+  busy = true;
+  S.ecart = [...picks]; picks.clear();
+  S.ecart.forEach(c => S.hands[0].splice(S.hands[0].indexOf(c), 1));
+  Snd.chien(); S.msg = "Écart fait."; render();
+  await sleep(D(800));
+  startPlay();
+}
+async function startPlay(){
+  const my = token;
+  S.phase = "play"; S.cur = nextSeat(S.dealer); S.trickNo = 1; S.msg = ""; busy = false;
+  render(); playStep();
+}
+
+/* ================= JEU DE LA CARTE ================= */
+async function playStep(){
+  const my = token;
+  // poignée : avant de jouer sa première carte
+  if(S.trickNo === 1 && !S.poigneeAsked){ S.poigneeAsked = new Set(); }
+  if(S.trickNo === 1 && !S.poigneeAsked.has(S.cur)){
+    S.poigneeAsked.add(S.cur);
+    const t = trumpsForPoignee(S.hands[S.cur]), sz = poigneeSizes();
+    const level = t.length >= sz[2] ? 3 : t.length >= sz[1] ? 2 : t.length >= sz[0] ? 1 : 0;
+    if(level){
+      const yes = S.cur === 0 ? await askPoignee(level, t) : (cfg.lvl > 1 || Math.random() < .6);
+      if(my !== token) return;
+      if(yes){ S.poignee[S.cur] = level; bubble(S.cur, ["", "Poignée !", "Double poignée !", "Triple poignée !"][level], true); Snd.fanfare(); await sleep(D(1100)); if(my !== token) return; }
+    }
+  }
+  if(S.cur === 0){ busy = false; render(); return; }
+  busy = true; render();
+  await sleep(D(700)); if(my !== token) return;
+  playCard(S.cur, aiCard(S.cur));
+}
+function askPoignee(level, t){
+  return new Promise(res => {
+    const names = ["", "simple", "double", "triple"], sz = poigneeSizes()[level - 1];
+    $("pgt").textContent = `Poignée ${names[level]} ?`;
+    $("pgtxt").textContent = `Vous avez ${t.length} atouts. Montrer ${sz} atouts rapporte ${[0, 20, 30, 40][level]} points au camp qui gagnera la donne, mais révèle votre jeu.`;
+    $("pgcards").innerHTML = t.slice().sort((a, b) => order(a) - order(b)).map(cardHTML).join("");
+    $("poignee").hidden = false;
+    $("pgyes").onclick = () => { $("poignee").hidden = true; res(true); };
+    $("pgno").onclick = () => { $("poignee").hidden = true; res(false); };
+  });
+}
+function humanPlay(c){ if(busy || S.cur !== 0 || S.phase !== "play" || !legal(0).includes(c)) return; playCard(0, c); }
+const camp = i => i === S.taker ? 0 : 1;   // 0 : preneur, 1 : défense
+async function playCard(i, c){
+  const my = token; busy = true;
+  const from = i === 0 ? (document.querySelector(`#hand .tc[data-id="${c.id}"]`) || $("hand")).getBoundingClientRect() : seatRect(i);
+  S.hands[i].splice(S.hands[i].indexOf(c), 1); render();
+  const slot = document.querySelector(`#center .slot.${viewPos(i)}`).getBoundingClientRect();
+  await fly(cardHTML(c), from, slot); if(my !== token) return;
+  S.trick.push({p: i, c});
+  const led = ledSuit(S.trick);
+  (isT(c) && led !== 4 && S.trick.length > 1) ? Snd.cut() : Snd.snap();
+  if(isT(c) && c.r === 1) bubble(i, "Le Petit !", true);
+  if(isEx(c)) bubble(i, "L'Excuse");
+  render();
+  if(S.trick.length < N()){ S.cur = nextSeat(i); busy = false; render(); return playStep(); }
+  await sleep(D(900)); if(my !== token) return;
+  const last = S.trickNo === S.perHand;
+  let wk = winnerIdx(S.trick);
+  const exT = S.trick.findIndex(t => isEx(t.c));
+  if(last && exT >= 0 && isChelemExcuse(S.trick[exT].p)) wk = exT;
+  const w = S.trick[wk].p;
+  // l'Excuse reste à son camp, sauf au dernier pli
+  S.trick.forEach(t => {
+    if(isEx(t.c)){
+      if(last && wk === S.trick.indexOf(t)) S.won[w].push(t.c);
+      else if(last){ const to = cfg.exfft ? (camp(t.p) === 0 ? firstDef() : S.taker) : w; S.won[to].push(t.c); }
+      else { S.won[t.p].push(t.c); if(camp(t.p) !== camp(w)) S.excuseOwed = {from: camp(t.p), to: camp(w)}; }
+    } else S.won[w].push(t.c);
+  });
+  S.tricksWon[w]++;
+  if(last && S.trick.some(t => isT(t.c) && t.c.r === 1)){
+    S.petitAuBout = camp(w); bubble(w, "Petit au bout !", true); Snd.petit();
+  }
+  const tp = S.trick.reduce((a, t) => a + points(t.c), 0);
+  S.lastTrick = {cards: S.trick.slice(), w, tp};
+  S.msg = `${w === 0 ? "Vous remportez" : S.names[w] + " remporte"} le pli.`; render();
+  Snd.sweep();
+  const to = seatRect(w), slots = [...document.querySelectorAll("#center .slot")];
+  const anims = slots.map(s => { const r = s.getBoundingClientRect(), pc = s.firstChild; if(!pc) return null; const h = pc.outerHTML; s.innerHTML = ""; return fly(h, r, to, 360); });
+  S.trick = []; render();
+  await Promise.all(anims); if(my !== token) return;
+  S.msg = "";
+  if(last) return endDeal();
+  S.trickNo++; S.cur = w; busy = false; render(); playStep();
+}
+const firstDef = () => [...Array(N()).keys()].find(i => i !== S.taker);
+// au dernier pli, l'Excuse gagne seulement si son camp a remporté tous les plis précédents (chelem)
+function isChelemExcuse(p){ const c = camp(p); return S.names.reduce((a, _, i) => a + (camp(i) === c ? S.tricksWon[i] : 0), 0) === S.perHand - 1; }
+
+/* ================= FIN DE DONNE ================= */
+function endDeal(){
+  S.phase = "end"; busy = false;
+  const tk = S.taker, mult = MULT[S.bid];
+  // cartes du camp preneur
+  let takerCards = S.won[tk].slice();
+  if(S.bid <= 2) takerCards = takerCards.concat(S.ecart);
+  if(S.bid === 3) takerCards = takerCards.concat(S.chien);
+  let defCards = S.names.flatMap((_, i) => i === tk ? [] : S.won[i]);
+  if(S.bid === 4) defCards = defCards.concat(S.chien);
+  let pts = takerCards.reduce((a, c) => a + points(c), 0);
+  // échange de l'Excuse : le camp qui l'a gardée donne une petite carte (0,5)
+  if(S.excuseOwed){ pts += S.excuseOwed.from === 0 ? -.5 : .5; }
+  const bouts = takerCards.filter(isBout).length;
+  const target = TARGET[bouts];
+  const diff = pts - target, won = diff >= 0;
+  const ecartPts = Math.ceil(Math.abs(diff));
+  const pab = S.petitAuBout === undefined ? 0 : (S.petitAuBout === 0 ? 10 : -10);
+  let base = (25 + ecartPts) * (won ? 1 : -1);
+  let value = (base + pab) * mult;
+  const pg = S.poignee.reduce((a, l) => a + [0, 20, 30, 40][l], 0);
+  value += won ? pg : -pg;
+  const slam = S.tricksWon[tk] === S.perHand ? 200 : S.tricksWon[tk] === 0 ? -200 : 0;
+  value += slam;
+  const res = S.names.map((_, i) => i === tk ? value * (N() - 1) : -value);
+  res.forEach((r, i) => S.total[i] += r);
+  S.hist.push({tk, bid: S.bid, won, res: res.slice()});
+  S.over = cfg.deals && S.donne >= cfg.deals;
+  S.detail = {pts, target, bouts, won, ecartPts, pab, mult, pg, slam, value, res};
+  render(); showScores(true);
+  const meGood = res[0] > 0;
+  if(S.over) (S.total[0] === Math.max(...S.total) ? Snd.win() : Snd.lose());
+  else meGood ? Snd.fanfare() : Snd.lose();
+}
+function fmt(x){ return String(x).replace(".", ","); }
+function showScores(end){
+  const d = S.detail;
+  if(end && d){
+    const tn = S.taker === 0 ? "Vous" : S.names[S.taker];
+    $("sct").textContent = S.over ? (S.total[0] === Math.max(...S.total) ? "Vous gagnez la partie !" : `${S.names[S.total.indexOf(Math.max(...S.total))]} gagne la partie`) : `${BIDS[S.bid]} ${d.won ? "réussie" : "chutée"}`;
+    $("scres").textContent = `${tn} ${S.taker === 0 ? "avez" : "a"} ${d.bouts} bout${d.bouts > 1 ? "s" : ""} : il fallait ${d.target} points, ${S.taker === 0 ? "vous en avez fait" : "il en a fait"} ${fmt(d.pts)}. ${d.won ? "Contrat réussi" : "Contrat chuté"} de ${d.ecartPts}.`;
+    $("sctbl").innerHTML = `<tr><th>Calcul</th><th>Points</th></tr>
+      <tr><td>Base 25 + écart ${d.ecartPts}</td><td>${d.won ? "" : "−"}${25 + d.ecartPts}</td></tr>
+      ${d.pab ? `<tr><td>Petit au bout</td><td>${d.pab > 0 ? "+" : "−"}10</td></tr>` : ""}
+      <tr><td>Multiplicateur ${BIDS[S.bid]}</td><td>× ${d.mult}</td></tr>
+      ${d.pg ? `<tr><td>Poignée</td><td>${d.won ? "+" : "−"}${d.pg}</td></tr>` : ""}
+      ${d.slam ? `<tr><td>Chelem</td><td>${d.slam > 0 ? "+" : ""}${d.slam}</td></tr>` : ""}
+      <tr class="tot"><td>Chaque défenseur ${d.value >= 0 ? "paie" : "reçoit"}</td><td>${Math.abs(d.value)}</td></tr>`;
+  } else { $("sct").textContent = "Feuille de marque"; $("scres").textContent = cfg.deals ? `Partie en ${cfg.deals} donnes.` : "Partie sans fin."; $("sctbl").innerHTML = ""; }
+  $("hist").innerHTML = `<tr><th>Donne</th>${S.names.map(n => `<th>${n}</th>`).join("")}</tr>` +
+    S.hist.map((h, k) => `<tr><td>${k + 1}. ${BIDS[h.bid]} ${h.won ? "✓" : "✗"}</td>${h.res.map(r => `<td>${r > 0 ? "+" : ""}${r}</td>`).join("")}</tr>`).join("") +
+    `<tr class="tot"><td>Total</td>${S.total.map(t => `<td>${t > 0 ? "+" : ""}${t}</td>`).join("")}</tr>`;
+  const b = $("scbtns"); b.innerHTML = "";
+  const mk = (t, fn, cls) => { const x = document.createElement("button"); x.textContent = t; if(cls) x.className = cls; x.onclick = fn; b.appendChild(x); };
+  if(!end) mk("Fermer", () => $("scorebox").hidden = true, "primary");
+  else if(S.over) mk("Nouvelle partie", () => newGame(), "primary");
+  else mk("Donne suivante", () => newDeal(), "primary");
+  $("scorebox").hidden = false;
+}
+$("board").onclick = () => { if(S && S.phase !== "end") showScores(false); };
+$("board").onkeydown = e => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); $("board").click(); } };
+$("lastbtn").onclick = () => {
+  if(!S || !S.lastTrick) return;
+  $("lastcards").innerHTML = S.lastTrick.cards.map(t => `<figure style="margin:0;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:.75rem;color:var(--muted);font-weight:800">${cardHTML(t.c)}${S.names[t.p]}</figure>`).join("");
+  $("lasttxt").textContent = `${S.lastTrick.w === 0 ? "Vous avez remporté" : S.names[S.lastTrick.w] + " a remporté"} ce pli (${fmt(S.lastTrick.tp)} points).`;
+  $("lastbox").hidden = false;
+};
+$("lastclose").onclick = () => $("lastbox").hidden = true;
+$("newg").onclick = () => newGame();
+
+/* ================= ORDINATEURS ================= */
+function handScore(h){
+  const t = h.filter(isT), ex = h.some(isEx), nt = t.length;
+  let v = nt * 2 + (nt >= 8 ? (nt - 7) * 2 : 0);
+  if(t.some(c => c.r === 21)) v += 10;
+  if(t.some(c => c.r === 1)) v += nt >= 6 ? 8 : nt >= 4 ? 4 : -2;
+  if(ex) v += 7;
+  t.forEach(c => { if(c.r >= 16 && c.r < 21) v += 1; });
+  for(let s = 0; s < 4; s++){
+    const cs = h.filter(c => c.s === s), has = r => cs.some(c => c.r === r);
+    if(has(14)) v += 6; if(has(13)) v += has(14) ? 3 : 2; if(has(12)) v += 1.5; if(has(11)) v += .5;
+    if(cs.length >= 5) v += (cs.length - 4) * 2;
+    if(cs.length === 0 && nt >= 6) v += 5; else if(cs.length === 1 && nt >= 6) v += 2;
+  }
+  return v;
+}
+function aiBid(i){
+  const v = handScore(S.hands[i]) + (cfg.lvl === 1 ? (Math.random() - .5) * 12 : 0) + (N() === 3 ? -4 : 0);
+  let k = v >= 82 ? 4 : v >= 70 ? 3 : v >= 54 ? 2 : v >= 37 ? 1 : 0;
+  return k > S.bid ? k : 0;
+}
+function aiEcart(i){
+  const h = S.hands[i], out = [];
+  const cand = h.filter(c => canDiscard(c, h) && !isT(c));
+  // vider les couleurs courtes sans roi, puis écarter des points sûrs
+  const bySuit = [0, 1, 2, 3].map(s => cand.filter(c => c.s === s));
+  const shortSuits = [0, 1, 2, 3].filter(s => !h.some(c => c.s === s && c.r === 14)).sort((a, b) => bySuit[a].length - bySuit[b].length);
+  for(const s of shortSuits){ if(bySuit[s].length && out.length + bySuit[s].length <= 6){ out.push(...bySuit[s]); } }
+  const rest = cand.filter(c => !out.includes(c)).sort((a, b) => points(b) - points(a));
+  while(out.length < 6 && rest.length) out.push(rest.shift());
+  if(out.length < 6){ const tr = h.filter(c => isT(c) && !isBout(c) && !out.includes(c)).sort((a, b) => a.r - b.r); while(out.length < 6) out.push(tr.shift()); }
+  return out;
+}
+function aiCard(i){
+  const lvl = cfg.lvl, L = legal(i), hand = S.hands[i];
+  if(L.length === 1) return L[0];
+  if(lvl === 1 && Math.random() < .3) return L[Math.floor(Math.random() * L.length)];
+  const played = new Set(); S.won.forEach(w => w.forEach(c => played.add(c.id))); S.trick.forEach(t => played.add(t.c.id)); S.ecart.forEach(c => played.add(c.id));
+  const unseen = deck().filter(c => !played.has(c.id) && !hand.some(x => x.id === c.id));
+  const trumpsOut = unseen.filter(isT);
+  const isMasterTrump = c => isT(c) && !trumpsOut.some(x => x.r > c.r);
+  const isMasterPlain = c => !isT(c) && !isEx(c) && !unseen.some(x => x.s === c.s && x.r > c.r);
+  const low = arr => arr.slice().sort((a, b) => points(a) - points(b) || (isT(a) - isT(b)) || (a.r - b.r))[0];
+  const high = arr => arr.slice().sort((a, b) => points(b) - points(a) || b.r - a.r)[0];
+  const noEx = L.filter(c => !isEx(c));
+  const petit = hand.find(c => isT(c) && c.r === 1);
+  const me = camp(i);
+  if(!S.trick.length){
+    const trumps = noEx.filter(isT);
+    if(me === 0 && trumps.length >= 5 && trumpsOut.length){
+      const m = trumps.find(isMasterTrump); if(m && m.r !== 21) return m;
+      const mid = trumps.filter(c => c.r > 1 && c.r !== 21).sort((a, b) => a.r - b.r); if(mid.length) return mid[0];
+    }
+    const kings = noEx.filter(c => !isT(c) && c.r === 14 && !played.has(c.id));
+    const fresh = kings.filter(k => !S.won.flat().some(x => x.s === k.s));
+    if(fresh.length) return fresh[0];
+    const masters = noEx.filter(isMasterPlain); if(masters.length) return high(masters);
+    const plain = noEx.filter(c => !isT(c));
+    if(plain.length){
+      // entamer dans sa couleur la plus longue, avec une petite carte
+      const len = s => plain.filter(c => c.s === s).length;
+      const s = [0, 1, 2, 3].filter(x => len(x)).sort((a, b) => len(b) - len(a))[0];
+      return low(plain.filter(c => c.s === s));
+    }
+    const nonPetit = noEx.filter(c => !(isT(c) && c.r === 1));
+    return low(nonPetit.length ? nonPetit : L);
+  }
+  const led = ledSuit(S.trick), wk = winnerIdx(S.trick), wc = wk >= 0 ? S.trick[wk].c : null, wp = wk >= 0 ? S.trick[wk].p : -1;
+  const lastToPlay = S.trick.length === N() - 1;
+  const friendWins = wp >= 0 && camp(wp) === me && (me === 1 || wp === i);
+  const pow = c => isT(c) ? 100 + c.r : c.s === led ? c.r : -1;
+  const curPow = wc ? pow(wc) : -1;
+  const sure = friendWins && wc && (lastToPlay || (isT(wc) ? isMasterTrump(wc) : isMasterPlain(wc) && !unseen.some(isT)) || (me === 1 && camp(S.trick[S.trick.length - 1].p) === 1 && lastToPlay));
+  // sauver le Petit si le pli est sûr
+  if(petit && L.includes(petit) && (sure || (lastToPlay && friendWins))) return petit;
+  if(friendWins && (sure || me === 1 && lastToPlay)){
+    const give = noEx.filter(c => !isT(c));
+    if(give.length) return high(give.filter(c => c.r !== 14 || sure).length ? give.filter(c => c.r !== 14 || sure) : give);
+    const t = noEx.filter(c => !(c.r === 1) && c.r !== 21); return low(t.length ? t : L);
+  }
+  const win = noEx.filter(c => pow(c) > curPow);
+  const trickPts = S.trick.reduce((a, t) => a + points(t.c), 0);
+  if(win.length){
+    const cheap = win.slice().sort((a, b) => pow(a) - pow(b)).filter(c => !(isT(c) && c.r === 1));
+    if(cheap.length){
+      if(lastToPlay) return cheap[0];
+      const m = cheap.find(c => isT(c) ? isMasterTrump(c) : isMasterPlain(c));
+      if(m && (trickPts >= 3 || lvl >= 2)) return m;
+      if(isT(cheap[0]) && (trickPts >= 4 || lvl >= 2)) return cheap[0];
+      return cheap[0];
+    }
+  }
+  // on perd le pli : l'Excuse si l'on doit sinon donner des points
+  const ex = L.find(isEx);
+  const lose = noEx.filter(c => !(isT(c) && c.r === 1));
+  if(ex && S.trickNo < S.perHand - 1 && (lose.length === 0 || points(low(lose)) >= 2.5)) return ex;
+  return low(lose.length ? lose : L);
+}
+
+/* ================= RÉGLAGES ================= */
+let draft = null;
+function paintSettings(){ document.querySelectorAll("#settings .seg").forEach(seg => seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(draft[seg.dataset.k]) === b.dataset.v))); }
+$("setbtn").onclick = () => { draft = Object.assign({}, cfg); paintSettings(); $("settings").hidden = false; };
+document.querySelectorAll("#settings .seg").forEach(seg => seg.addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; draft[seg.dataset.k] = +b.dataset.v; paintSettings(); }));
+$("setcancel").onclick = () => { $("settings").hidden = true; };
+$("setok").onclick = () => { cfg = draft; save("tar_cfg", JSON.stringify(cfg)); $("settings").hidden = true; newGame(); };
+document.addEventListener("keydown", e => { if(e.key === "Escape"){ $("settings").hidden = true; $("lastbox").hidden = true; if(S && S.phase !== "end") $("scorebox").hidden = true; } });
+
+newGame();
+})();
+</script>

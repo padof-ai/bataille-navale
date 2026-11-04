@@ -1,0 +1,809 @@
+<title>Uno</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Titan+One&family=Nunito:wght@600;800&display=swap">
+<style>
+/* Layout : une table de salon prune ; adversaires en haut, pioche et défausse au centre dans l'anneau du sens de jeu, sa main en éventail en bas. */
+:root{
+  color-scheme:dark;
+  --felt:#2b1d36;         /* tapis prune */
+  --felt2:#150e1c;
+  --ink:#fff7ee; --muted:#d5c7e2; --line:rgba(255,247,238,.2);
+  --panel:rgba(12,8,18,.5);
+  --red:#e2332f; --yellow:#f4bd12; --green:#25a24c; --blue:#1f6fd8; --wild:#1c1a22;
+  --gold:#ffd166;
+  --display:"Titan One","Arial Rounded MT Bold","Trebuchet MS",sans-serif;
+  --ui:"Nunito","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0;font-family:var(--ui);color:var(--ink);-webkit-tap-highlight-color:transparent;
+  background:repeating-radial-gradient(circle at 50% 40%,rgba(255,255,255,.015) 0 2px,transparent 2px 5px),
+    radial-gradient(ellipse 70% 55% at 50% 38%,#4a2f5c 0,var(--felt) 50%,var(--felt2) 100%) fixed,var(--felt)}
+.app{max-width:900px;margin:0 auto;padding-block:10px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:12px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(2.1rem,8vw,2.8rem);line-height:1;letter-spacing:.03em;color:var(--ink);
+  text-shadow:0 4px 0 #120b18,0 8px 14px rgba(0,0,0,.45);display:flex;align-items:center;gap:.25em}
+h1 .d{display:grid;grid-template-columns:1fr 1fr;gap:3px;width:.62em;height:.62em;transform:rotate(45deg)}
+h1 .d i{border-radius:50%}h1 .d i:nth-child(1){background:var(--red)}h1 .d i:nth-child(2){background:var(--yellow)}h1 .d i:nth-child(3){background:var(--blue)}h1 .d i:nth-child(4){background:var(--green)}
+.tools{display:flex;gap:8px}
+button{font:inherit;font-weight:800;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:8px 12px;cursor:pointer}
+button:hover:not(:disabled){border-color:rgba(255,247,238,.5)}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+
+.bar{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 14px}
+#status{flex:1;min-width:200px;font-weight:800;line-height:1.35}
+#status .who{font-family:var(--display);font-weight:400}
+#roundno{color:var(--muted);font-weight:800;white-space:nowrap;font-size:.9rem}
+
+/* Adversaires */
+.opps{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.opp{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 10px;border-radius:14px;background:var(--panel);border:2px solid transparent;min-width:96px;transition:border-color .2s,box-shadow .2s}
+.opp.act{border-color:var(--gold);box-shadow:0 0 18px rgba(255,209,102,.35)}
+.opp .nm{font-family:var(--display);font-size:.95rem;line-height:1}
+.opp .ct{font-size:.78rem;color:var(--muted);font-weight:800}
+.fan{position:relative;height:40px;width:78px}
+.fan .uc{position:absolute;bottom:0;--cw:26px}
+.bubble{position:absolute;top:-12px;right:-10px;background:var(--red);color:#fff;font-family:var(--display);font-size:.85rem;padding:3px 9px;border-radius:12px;transform:rotate(8deg);
+  box-shadow:0 3px 0 #7a1210;animation:pop .35s cubic-bezier(.3,1.8,.5,1)}
+@keyframes pop{from{transform:scale(0) rotate(8deg)}}
+
+/* Centre */
+.center{position:relative;display:flex;align-items:center;justify-content:center;gap:clamp(16px,6vw,40px);padding:16px 0}
+.ring{position:absolute;left:50%;top:50%;width:min(290px,78vw);height:min(170px,46vw);transform:translate(-50%,-50%);pointer-events:none;opacity:.5}
+.ring svg{width:100%;height:100%;animation:turn 9s linear infinite}
+.ring.ccw svg{animation-direction:reverse}
+@keyframes turn{to{transform:rotate(360deg)}}
+.pile{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;z-index:1}
+.pile .lbl{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:800}
+#deck{position:relative;border:0;padding:0;background:none;--cw:clamp(64px,17vw,88px);width:var(--cw);aspect-ratio:.68;border-radius:12px}
+#deck .uc{position:absolute;inset:0}
+#deck .uc:nth-child(1){transform:translate(-4px,4px)}#deck .uc:nth-child(2){transform:translate(-2px,2px)}
+#deck.go{animation:glow 1s ease-in-out infinite alternate;border-radius:12px}
+@keyframes glow{from{box-shadow:0 0 0 2px var(--gold),0 0 8px rgba(255,209,102,.3)}to{box-shadow:0 0 0 4px var(--gold),0 0 22px rgba(255,209,102,.7)}}
+#deck .n{position:absolute;bottom:-20px;left:0;right:0;text-align:center;font-size:.75rem;color:var(--muted);font-weight:800}
+#discard{position:relative;--cw:clamp(70px,19vw,96px);width:var(--cw);aspect-ratio:.68}
+#discard .uc{position:absolute;inset:0}
+.colorchip{display:flex;align-items:center;gap:6px;font-size:.8rem;font-weight:800;color:var(--muted)}
+.colorchip i{width:16px;height:16px;border-radius:50%;border:2px solid #fff}
+.pending{position:absolute;top:-10px;right:-14px;z-index:3;background:var(--red);color:#fff;font-family:var(--display);font-size:1.05rem;padding:4px 10px;border-radius:14px;box-shadow:0 3px 0 #7a1210}
+
+/* Cartes (dessin original) */
+.uc{--cw:72px;position:relative;width:var(--cw);aspect-ratio:.68;border-radius:calc(var(--cw) * .12);background:var(--cc,var(--wild));border:calc(var(--cw) * .045) solid #fff;
+  box-shadow:0 3px 6px rgba(0,0,0,.4);overflow:hidden;color:#fff;flex:none;display:block}
+.uc::before{content:"";position:absolute;inset:0;background:linear-gradient(150deg,rgba(255,255,255,.22),transparent 45%,rgba(0,0,0,.12));pointer-events:none}
+.uc .mid{position:absolute;left:14%;right:14%;top:50%;aspect-ratio:1;transform:translateY(-50%);border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;
+  box-shadow:inset 0 -3px 0 rgba(0,0,0,.12)}
+.uc .mid b{font-family:var(--display);font-weight:400;font-size:calc(var(--cw) * .44);line-height:1;color:var(--cc);-webkit-text-stroke:calc(var(--cw) * .018) #1c1a22;paint-order:stroke;
+  text-shadow:calc(var(--cw) * .025) calc(var(--cw) * .025) 0 #1c1a22}
+.uc .mid svg{width:58%;height:58%;color:var(--cc);filter:drop-shadow(calc(var(--cw) * .02) calc(var(--cw) * .02) 0 #1c1a22)}
+.uc .k{position:absolute;font-family:var(--display);font-size:calc(var(--cw) * .17);line-height:1;-webkit-text-stroke:calc(var(--cw) * .01) #1c1a22;paint-order:stroke}
+.uc .k.a{left:8%;top:5%}.uc .k.z{right:8%;bottom:5%;transform:rotate(180deg)}
+.uc .k svg{width:calc(var(--cw) * .17);height:calc(var(--cw) * .17)}
+.uc.wild .mid{background:conic-gradient(var(--red) 0 25%,var(--blue) 0 50%,var(--yellow) 0 75%,var(--green) 0);box-shadow:0 0 0 calc(var(--cw) * .04) #fff}
+.uc.wild .mid b{color:#fff;font-size:calc(var(--cw) * .36)}
+.uc.wild .mid svg{color:#fff}
+.uc.chosen{box-shadow:0 0 0 calc(var(--cw) * .06) var(--cc2),0 3px 6px rgba(0,0,0,.4)}
+.uc.back{background:repeating-linear-gradient(45deg,rgba(255,255,255,.04) 0 6%,transparent 6% 12%),radial-gradient(circle at 50% 50%,#3a2350 0,#1c1a22 75%)}
+.uc.back .mid{background:none;box-shadow:none;left:20%;right:20%}
+.uc.back .dots{position:relative;width:100%;height:100%;transform:rotate(45deg);display:grid;grid-template-columns:1fr 1fr;gap:12%}
+.uc.back .dots i{border-radius:50%;box-shadow:inset 0 -2px 0 rgba(0,0,0,.25)}
+.uc.back .dots i:nth-child(1){background:var(--red)}.uc.back .dots i:nth-child(2){background:var(--yellow)}
+.uc.back .dots i:nth-child(3){background:var(--blue)}.uc.back .dots i:nth-child(4){background:var(--green)}
+
+/* Main du joueur */
+.mewrap{display:flex;flex-direction:column;gap:8px}
+.mehead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.mehead .nm{font-family:var(--display);font-size:1.15rem}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+#unobtn{background:var(--red);border-color:#ff8a80;color:#fff;font-family:var(--display);font-weight:400;font-size:1.05rem;padding:8px 16px;border-radius:999px;box-shadow:0 3px 0 #7a1210}
+#unobtn.hot{animation:shake .5s ease-in-out infinite}
+#unobtn.done{background:#2b7a3d;border-color:#7dffb3;box-shadow:0 3px 0 #134a1f}
+@keyframes shake{25%{transform:rotate(-6deg) scale(1.08)}75%{transform:rotate(6deg) scale(1.08)}}
+#contre{background:var(--yellow);color:#3a2600;border-color:var(--yellow);font-family:var(--display);font-weight:400;border-radius:999px;animation:shake .5s ease-in-out infinite}
+#keep{background:var(--panel)}
+.hand{position:relative;width:100%;--cw:clamp(56px,15.5vw,86px)}
+.hand .uc{position:absolute;bottom:0;transition:transform .2s,left .25s,filter .2s;cursor:default;border-style:solid}
+.hand .uc.ok{cursor:pointer;transform:translateY(-12%)}
+.hand .uc.ok:hover{transform:translateY(-20%)}
+.hand .uc.no{filter:brightness(.55) saturate(.7)}
+.hand .uc.fresh{box-shadow:0 0 0 3px var(--gold),0 3px 6px rgba(0,0,0,.4)}
+.hand .uc:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.handempty{color:var(--muted);text-align:center;padding:20px}
+
+.fly{position:fixed;z-index:60;pointer-events:none;margin:0}
+.curtain{position:absolute;inset:-4px;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;background:rgba(21,14,28,.97);border-radius:16px;padding:16px}
+.curtain h2{margin:0;font-family:var(--display);font-weight:400;font-size:1.5rem}
+.curtain p{margin:0;color:var(--muted);max-width:30ch}
+.curtain button{background:var(--gold);color:#3a2600;border-color:var(--gold);padding:12px 22px}
+
+.rules{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:.9rem;line-height:1.5;color:var(--muted)}
+.rules summary{cursor:pointer;font-weight:800;color:var(--ink)}
+.rules ul{margin:8px 0 0;padding-left:18px}
+.rules b{color:var(--ink)}
+.foot{display:flex;justify-content:center}
+
+/* Fenêtres */
+.modal{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(8,4,12,.62);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px}
+.modal .box{background:#2a1d36;border:1px solid var(--line);border-radius:16px;padding:20px;width:100%;max-width:430px;max-height:100%;overflow:auto;box-shadow:0 20px 40px rgba(0,0,0,.5)}
+.modal h2{margin:0 0 12px;font-family:var(--display);font-weight:400;font-size:1.5rem;line-height:1.15}
+.modal p{margin:0 0 12px;color:var(--muted);line-height:1.45;font-size:.92rem}
+.modal table{width:100%;border-collapse:collapse;margin-bottom:12px;font-variant-numeric:tabular-nums}
+.modal th,.modal td{padding:7px 6px;text-align:left;border-bottom:1px solid var(--line)}
+.modal .n{text-align:right}
+.modal td.n{font-weight:800}
+.modal tr.best td{background:rgba(255,209,102,.16)}
+.modal .btns{display:flex;gap:8px;flex-wrap:wrap}
+.modal .btns button{flex:1}
+.primary{background:var(--gold);color:#3a2600;border-color:var(--gold)}
+.colors{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.colors button{height:76px;border:3px solid #fff;font-family:var(--display);font-weight:400;font-size:1.1rem;color:#fff;-webkit-text-stroke:1px #1c1a22;paint-order:stroke;border-radius:14px}
+.opt{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.opt .lbl{font-weight:800;font-size:.9rem}
+.seg{display:flex;flex-wrap:wrap;background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:12px;padding:3px;gap:2px}
+.seg button{flex:1 1 auto;border:0;background:transparent;padding:7px 8px;border-radius:9px;color:var(--muted);font-size:.85rem}
+.seg button[aria-pressed="true"]{background:var(--gold);color:#3a2600}
+.seg .off{font-weight:600;font-size:.72rem;opacity:.85}
+@media (max-width:480px){.tools .t{display:none}}
+@media (prefers-reduced-motion:reduce){.ring svg,#deck.go,#unobtn.hot,#contre,.bubble{animation:none}}
+</style>
+
+<div class="app">
+  <div class="top">
+    <h1><span class="d" aria-hidden="true"><i></i><i></i><i></i><i></i></span>Uno</h1>
+    <div class="tools">
+      <button id="setbtn" aria-label="Réglages">⚙️<span class="t"> Réglages</span></button>
+      <button id="scorebtn" aria-label="Scores">📋<span class="t"> Scores</span></button>
+      <button id="snd" aria-label="Activer ou couper le son"></button>
+    </div>
+  </div>
+  <div class="bar"><div id="status" aria-live="polite"></div><span id="roundno"></span></div>
+  <div class="opps" id="opps"></div>
+  <div class="center">
+    <div class="ring" id="ring"><svg viewBox="0 0 200 120" aria-hidden="true"><g fill="none" stroke="#fff7ee" stroke-width="3" stroke-linecap="round">
+      <path d="M40 22 A90 50 0 0 1 160 22"/><path d="M160 98 A90 50 0 0 1 40 98"/></g>
+      <g fill="#fff7ee"><path d="M160 22 l-12 -5 l3 11 z"/><path d="M40 98 l12 5 l-3 -11 z"/></g></svg></div>
+    <div class="pile"><span class="lbl">Pioche</span><button id="deck" aria-label="Piocher"></button></div>
+    <div class="pile"><span class="lbl">Défausse</span><div id="discard"></div><div class="colorchip" id="chip"></div></div>
+  </div>
+  <div class="mewrap" style="position:relative">
+    <div class="mehead"><span class="nm" id="mename"></span>
+      <div class="acts"><button id="contre" hidden>Contre-Uno !</button><button id="keep" hidden>Garder la carte</button><button id="unobtn">Uno !</button></div></div>
+    <div class="hand" id="hand"></div>
+    <div class="curtain" id="curtain" hidden><h2 id="ctitle"></h2><p>Passez l'appareil. Les autres joueurs ne doivent pas regarder cette main.</p><button id="ready">Voir mes cartes</button></div>
+  </div>
+  <div class="foot"><button id="newg">Nouvelle partie</button></div>
+  <details class="rules">
+    <summary>Règles du jeu</summary>
+    <ul>
+      <li>Posez une carte de <b>même couleur</b>, de <b>même chiffre</b> ou de <b>même symbole</b> que celle de la défausse. Sinon, piochez : si la carte piochée convient, vous pouvez la jouer aussitôt.</li>
+      <li><b>Passe</b> : le joueur suivant passe son tour. <b>Inversion</b> : le sens du jeu change (à deux, elle fait passer le tour). <b>+2</b> : le suivant pioche 2 cartes et passe son tour.</li>
+      <li><b>Joker</b> : vous choisissez la couleur. <b>+4</b> : vous choisissez la couleur, le suivant pioche 4 cartes et passe son tour. Il n'est permis que si vous n'avez aucune carte de la couleur demandée ; le suivant peut contester.</li>
+      <li>Touchez <b>Uno !</b> quand vous posez votre avant-dernière carte, sinon vous risquez 2 cartes de pénalité.</li>
+      <li>Le premier sans carte gagne la manche et marque les points des cartes adverses : chiffres à leur valeur, cartes action 20, jokers 50. Le premier à 500 points gagne la partie.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="modal" id="colorbox" hidden><div class="box"><h2>Choisissez la couleur</h2><div class="colors" id="colors"></div></div></div>
+<div class="modal" id="challenge" hidden><div class="box"><h2 id="chtitle"></h2><p id="chtext"></p>
+  <div class="btns"><button id="chno">Piocher 4</button><button id="chyes" class="primary">Contester</button></div></div></div>
+<div class="modal" id="scores" hidden><div class="box"><h2 id="sct"></h2><table id="sctbl"></table><p id="scnote"></p><div class="btns" id="scbtns"></div></div></div>
+<div class="modal" id="settings" hidden><div class="box" role="dialog" aria-labelledby="sett">
+  <h2 id="sett">Réglages</h2>
+  <div class="opt"><span class="lbl">Joueurs</span><div class="seg" data-k="n"><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button><button data-v="6">6</button></div></div>
+  <div class="opt"><span class="lbl">Adversaires</span><div class="seg" data-k="who"><button data-v="ai">Ordinateurs</button><button data-v="hot">Tous sur cet écran</button></div></div>
+  <div class="opt" id="optlvl"><span class="lbl">Niveau des ordinateurs</span><div class="seg" data-k="lvl"><button data-v="1">Facile</button><button data-v="2">Moyen</button><button data-v="3">Difficile</button></div></div>
+  <div class="opt"><span class="lbl">Fin de partie</span><div class="seg" data-k="goal"><button data-v="0">1 manche</button><button data-v="250">250 points</button><button data-v="500">500 <span class="off">· officiel</span></button></div></div>
+  <div class="opt"><span class="lbl">Cumul des +2 et +4</span><div class="seg" data-k="stack"><button data-v="0">Interdit <span class="off">· officiel</span></button><button data-v="1">+2 sur +2</button><button data-v="2">+2 et +4</button></div></div>
+  <div class="opt"><span class="lbl">Quand on ne peut pas jouer</span><div class="seg" data-k="drawall"><button data-v="0">Piocher 1 carte <span class="off">· officiel</span></button><button data-v="1">Piocher jusqu'à pouvoir jouer</button></div></div>
+  <div class="opt"><span class="lbl">Contester un +4</span><div class="seg" data-k="chal"><button data-v="1">Autorisé <span class="off">· officiel</span></button><button data-v="0">Non</button></div></div>
+  <div class="opt"><span class="lbl">Oubli de dire « Uno »</span><div class="seg" data-k="unopen"><button data-v="1">2 cartes de pénalité <span class="off">· officiel</span></button><button data-v="0">Sans pénalité</button></div></div>
+  <div class="opt"><span class="lbl">Carte « Mélange des mains »</span><div class="seg" data-k="mix"><button data-v="0">Sans <span class="off">· jeu classique</span></button><button data-v="1">Avec <span class="off">· édition récente</span></button></div></div>
+  <p>Les changements démarrent une nouvelle partie.</p>
+  <div class="btns"><button id="setcancel">Annuler</button><button id="setok" class="primary">Appliquer</button></div>
+</div></div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const load = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const save = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const D = ms => reduced ? Math.min(ms, 120) : ms;
+const CNAME = ["Rouge", "Jaune", "Vert", "Bleu"], CVAR = ["var(--red)", "var(--yellow)", "var(--green)", "var(--blue)"];
+const PCOL = ["#ffd166", "#7dd3fc", "#86efac", "#f9a8d4", "#fdba74", "#c4b5fd"];
+const ICON = {
+  skip: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="3.4"/><path d="M6 18 18 6" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg>',
+  rev: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9.5 9 4.5v3h8.5v4H9v3z"/><path d="M20 14.5 15 19.5v-3H6.5v-4H15v-3z"/></svg>',
+  mix: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M3 7h4c4 0 6 10 10 10h3M3 17h4c4 0 6-10 10-10h3"/><path d="m18 4 3 3-3 3M18 14l3 3-3 3"/></svg>'
+};
+
+/* ================= SONS ================= */
+const Snd = {
+  ctx: null, on: load("uno_sound") !== "0", nb: null,
+  init(){
+    if(!this.ctx){
+      const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
+      this.ctx = new AC(); this.out = this.ctx.createGain(); this.out.gain.value = .9; this.out.connect(this.ctx.destination);
+      const n = this.ctx.sampleRate, b = this.ctx.createBuffer(1, n, n), d = b.getChannelData(0);
+      for(let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      this.nb = b;
+    }
+    if(this.ctx.state === "suspended") this.ctx.resume();
+  },
+  ok(){ return this.on && this.ctx; },
+  hit(f, q, peak, dur, delay = 0, type = "bandpass", f2){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.nb; fl.type = type; fl.frequency.setValueAtTime(f, t); if(f2) fl.frequency.exponentialRampToValueAtTime(f2, t + dur); fl.Q.value = q;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + Math.min(.015, dur / 3)); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    s.connect(fl).connect(g).connect(this.out); s.start(t, Math.random() * .5); s.stop(t + dur + .02);
+  },
+  tone(f0, f1, dur, peak, delay = 0, type = "sine"){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(this.out); o.start(t); o.stop(t + dur + .02);
+  },
+  play(delay = 0){ this.hit(1800, .8, .14, .14, delay, "bandpass", 3600); this.hit(600, 1, .3, .05, delay + .12, "lowpass"); },
+  draw(delay = 0){ this.hit(3000, .8, .1, .1, delay, "bandpass", 1500); },
+  shuffle(){ for(let i = 0; i < 16; i++) this.hit(2600 + Math.random() * 900, 1, .1, .05, i * .04); },
+  skip(){ this.tone(900, 300, .25, .12, .1, "square"); },
+  rev(){ this.tone(400, 900, .12, .1, .08, "triangle"); this.tone(900, 400, .12, .1, .22, "triangle"); },
+  plus(n){ for(let i = 0; i < n; i++) this.tone(300 + i * 90, 600 + i * 90, .09, .12, .1 + i * .08, "triangle"); },
+  wild(){ [523, 659, 784, 988].forEach((f, i) => this.tone(f, f, .18, .1, .05 + i * .06, "triangle")); },
+  uno(){ this.tone(392, 392, .16, .2, 0, "sawtooth"); this.tone(523, 523, .28, .2, .17, "sawtooth"); },
+  oops(){ this.tone(330, 220, .3, .14, 0, "square"); },
+  nope(){ this.tone(170, 120, .12, .08, 0, "square"); },
+  mix(){ for(let i = 0; i < 24; i++) this.hit(1500 + Math.random() * 2500, 1, .1, .05, i * .03); },
+  win(){ [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, f, i === 4 ? .9 : .28, .15, .1 + i * .12, "triangle")); },
+  meh(){ [440, 392, 330].forEach((f, i) => this.tone(f, f, .35, .11, .1 + i * .25, "triangle")); }
+};
+function sndLabel(){ $("snd").textContent = Snd.on ? "🔊" : "🔇"; $("snd").title = Snd.on ? "Son activé" : "Son coupé"; }
+$("snd").onclick = () => { Snd.on = !Snd.on; save("uno_sound", Snd.on ? "1" : "0"); Snd.init(); sndLabel(); };
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => Snd.init(), {capture: true}));
+sndLabel();
+
+/* ================= RÉGLAGES ================= */
+let cfg = {n: 4, who: "ai", lvl: 2, goal: 500, stack: 0, drawall: 0, chal: 1, unopen: 1, mix: 0};
+try{ const o = JSON.parse(load("uno_cfg") || "null"); if(o) cfg = Object.assign(cfg, o); }catch(e){}
+
+/* ================= CARTES ================= */
+function buildDeck(){
+  const d = []; let id = 0;
+  for(let c = 0; c < 4; c++){
+    d.push({id: id++, c, t: "n", v: 0});
+    for(let v = 1; v <= 9; v++) for(let k = 0; k < 2; k++) d.push({id: id++, c, t: "n", v});
+    for(const t of ["skip", "rev", "d2"]) for(let k = 0; k < 2; k++) d.push({id: id++, c, t});
+  }
+  for(let k = 0; k < 4; k++){ d.push({id: id++, c: -1, t: "w"}); d.push({id: id++, c: -1, t: "w4"}); }
+  if(cfg.mix) d.push({id: id++, c: -1, t: "mix"});
+  return d;
+}
+const isWild = k => k.c < 0;
+const points = k => k.t === "n" ? k.v : (k.t === "w" || k.t === "w4") ? 50 : k.t === "mix" ? 40 : 20;
+const label = k => k.t === "n" ? String(k.v) : k.t === "d2" ? "+2" : k.t === "w4" ? "+4" : "";
+const cname = k => (isWild(k) ? (k.t === "w4" ? "+4" : k.t === "mix" ? "Mélange des mains" : "Joker") : (k.t === "n" ? k.v : k.t === "skip" ? "Passe" : k.t === "rev" ? "Inversion" : "+2") + " " + CNAME[k.c]);
+function cardHTML(k, opts = {}){
+  if(opts.back) return `<span class="uc back"><span class="mid"><span class="dots"><i></i><i></i><i></i><i></i></span></span></span>`;
+  const sym = k.t === "skip" ? ICON.skip : k.t === "rev" ? ICON.rev : k.t === "mix" ? ICON.mix : "";
+  const big = sym || `<b>${label(k) || "★"}</b>`, corner = sym || (label(k) || "★");
+  const cls = ["uc"]; if(isWild(k)) cls.push("wild"); if(opts.chosen !== undefined && opts.chosen >= 0) cls.push("chosen");
+  const st = opts.chosen !== undefined && opts.chosen >= 0 ? ` style="--cc2:${CVAR[opts.chosen]}"` : "";
+  return `<span class="${cls.join(" ")}" data-id="${k.id}"${st}><span class="k a">${corner}</span><span class="mid">${big}</span><span class="k z">${corner}</span></span>`;
+}
+/* applique la couleur de la carte à tout l'élément */
+function cardNode(k, opts){ const t = document.createElement("template"); t.innerHTML = cardHTML(k, opts).trim(); const el = t.content.firstChild; if(!opts || !opts.back) el.style.setProperty("--cc", isWild(k) ? "var(--wild)" : CVAR[k.c]); return el; }
+const backNode = () => cardNode(null, {back: true});
+
+/* ================= ÉTAT ================= */
+let S = null, token = 0, busy = false;
+function shuffle(a){ for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+const N = () => S.players.length;
+const nextOf = (i, k = 1) => ((i + S.dir * k) % N() + N()) % N();
+const P = () => S.players[S.cur];
+const top = () => S.discard[S.discard.length - 1];
+const humans = () => S.players.filter(p => !p.ai).length;
+function mainIdx(){
+  if(cfg.who === "ai") return 0;
+  if(S.view !== undefined) return S.view;
+  return 0;
+}
+function newGame(){
+  token++;
+  const names = Array.from({length: cfg.n}, (_, i) => cfg.who === "ai" ? (i === 0 ? "Vous" : (cfg.n === 2 ? "L'ordinateur" : "Ordi " + i)) : "Joueur " + (i + 1));
+  S = {players: names.map((name, i) => ({name, ai: cfg.who === "ai" && i > 0, hand: [], score: 0, called: false})), round: 0, dealer: Math.floor(Math.random() * cfg.n), view: 0};
+  newRound();
+}
+function canPlay(k, hand){
+  const t = top();
+  if(S.pending > 0){
+    if(cfg.stack === 0) return false;
+    if(k.t === "d2" && t.t === "d2") return true;
+    if(cfg.stack === 2 && k.t === "w4") return true;
+    return false;
+  }
+  if(isWild(k)) return true;
+  if(k.c === S.color) return true;
+  if(k.t === "n" && t.t === "n" && k.v === t.v) return true;
+  if(k.t !== "n" && k.t === t.t) return true;
+  return false;
+}
+const w4legal = (hand, k) => !hand.some(x => x !== k && x.c === S.color);
+function drawOne(){
+  if(!S.deck.length){
+    const t = S.discard.pop();
+    S.deck = shuffle(S.discard); S.discard = [t]; Snd.shuffle();
+    if(!S.deck.length) return null;
+  }
+  return S.deck.pop();
+}
+
+/* ================= AFFICHAGE ================= */
+function sortHand(h){
+  const tv = k => k.t === "n" ? k.v : ({skip: 10, rev: 11, d2: 12, w: 20, w4: 21, mix: 22})[k.t];
+  return h.slice().sort((a, b) => ((a.c < 0 ? 9 : a.c) - (b.c < 0 ? 9 : b.c)) || (tv(a) - tv(b)));
+}
+function render(){
+  if(!S) return;
+  const m = mainIdx();
+  // adversaires
+  const opps = $("opps"); opps.innerHTML = "";
+  S.players.forEach((p, i) => {
+    if(i === m) return;
+    const o = document.createElement("div"); o.className = "opp" + (i === S.cur && S.phase !== "end" ? " act" : ""); o.dataset.p = i;
+    const n = p.hand.length, shown = Math.min(n, 7), fan = document.createElement("div"); fan.className = "fan";
+    for(let k = 0; k < shown; k++){ const b = backNode(); b.style.left = (shown > 1 ? k * (52 / (shown - 1)) : 26) + "px"; b.style.transform = `rotate(${(k - (shown - 1) / 2) * 6}deg)`; fan.appendChild(b); }
+    o.innerHTML = `<span class="nm" style="color:${PCOL[i]}">${p.name}</span>`;
+    o.appendChild(fan);
+    o.insertAdjacentHTML("beforeend", `<span class="ct">${n} carte${n > 1 ? "s" : ""} · ${p.score} pts</span>${n === 1 && p.called ? '<span class="bubble">Uno !</span>' : ""}`);
+    opps.appendChild(o);
+  });
+  // pioche
+  const dk = $("deck"); dk.innerHTML = ""; dk.append(backNode(), backNode(), backNode());
+  dk.insertAdjacentHTML("beforeend", `<span class="n">${S.deck.length}</span>`);
+  const myTurn = humanTurn();
+  dk.classList.toggle("go", myTurn && (S.phase === "play"));
+  dk.disabled = !(myTurn && S.phase === "play");
+  // défausse
+  const ds = $("discard"); ds.innerHTML = "";
+  S.discard.slice(-3).forEach((k, i, a) => {
+    const el = cardNode(k, {chosen: isWild(k) && i === a.length - 1 ? S.color : undefined});
+    el.style.transform = `rotate(${S.rot[k.id] || 0}deg)`; ds.appendChild(el);
+  });
+  if(S.pending > 0) ds.insertAdjacentHTML("beforeend", `<span class="pending">+${S.pending}</span>`);
+  $("chip").innerHTML = S.color >= 0 ? `<i style="background:${CVAR[S.color]}"></i>${CNAME[S.color]}` : "";
+  $("ring").classList.toggle("ccw", S.dir < 0);
+  // main
+  const me = S.players[m];
+  $("mename").innerHTML = `<span style="color:${PCOL[m]}">${me.name}</span> <span style="font-family:var(--ui);font-size:.8rem;color:var(--muted);font-weight:800">· ${me.score} pts</span>`;
+  renderHand(me, myTurn && S.cur === m);
+  const ub = $("unobtn");
+  const canCall = S.cur === m && !me.ai && ((myTurn && me.hand.length === 2) || S.unoWindow === m);
+  ub.disabled = !canCall && !(me.called && me.hand.length <= 2);
+  ub.classList.toggle("done", me.called && me.hand.length <= 2);
+  ub.classList.toggle("hot", S.unoWindow === m && !me.called);
+  ub.textContent = me.called && me.hand.length <= 2 ? "Uno ! ✓" : "Uno !";
+  $("keep").hidden = !(myTurn && S.phase === "drawn");
+  $("contre").hidden = S.catchable === undefined || (cfg.who === "ai" && S.catchable === m);
+  renderStatus();
+}
+function renderHand(p, active){
+  const h = $("hand"); h.innerHTML = "";
+  const hand = sortHand(p.hand);
+  if(!hand.length){ h.style.height = "auto"; h.innerHTML = '<p class="handempty">Plus aucune carte !</p>'; return; }
+  const W = h.clientWidth || 340, cw = Math.min(86, Math.max(56, window.innerWidth * .155));
+  const ch = cw / .68, rows = hand.length > 12 && W < 560 ? 2 : 1, per = Math.ceil(hand.length / rows);
+  const step = per > 1 ? Math.min(cw * .78, (W - cw) / (per - 1)) : 0;
+  h.style.height = (rows * ch * .62 + ch * .5 + 16) + "px";
+  hand.forEach((k, i) => {
+    const r = Math.floor(i / per), j = i % per, cnt = r === rows - 1 ? hand.length - per * (rows - 1) : per;
+    const total = (cnt - 1) * step + cw, x0 = (W - total) / 2;
+    const el = cardNode(k);
+    el.style.left = (x0 + j * step) + "px";
+    el.style.bottom = ((rows - 1 - r) * ch * .55) + "px";
+    el.tabIndex = -1;
+    if(active){
+      const ok = S.phase === "drawn" ? k === S.drawn : (S.phase === "play" && canPlay(k, p.hand));
+      el.classList.add(ok ? "ok" : "no");
+      if(ok){ el.tabIndex = 0; el.setAttribute("role", "button"); el.setAttribute("aria-label", "Jouer " + cname(k)); }
+      if(k === S.drawn) el.classList.add("fresh");
+      el.addEventListener("click", () => humanPlay(k));
+      el.addEventListener("keydown", e => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); humanPlay(k); } });
+    }
+    h.appendChild(el);
+  });
+}
+function renderStatus(){
+  const who = i => `<span class="who" style="color:${PCOL[i]}">${S.players[i].name}</span>`;
+  let t = S.msg || "";
+  if(!t){
+    if(S.phase === "deal") t = "Distribution…";
+    else if(S.phase === "end") t = "Fin de la manche";
+    else if(P().ai) t = `${who(S.cur)} réfléchit…`;
+    else if(S.phase === "drawn") t = `${who(S.cur)} : jouez la carte piochée, ou gardez-la.`;
+    else if(S.pending > 0) t = `${who(S.cur)} : posez un ${cfg.stack === 2 ? "+2 ou un +4" : "+2"} pour renvoyer la pénalité, ou piochez ${S.pending} cartes.`;
+    else t = `${who(S.cur)} : posez une carte ${CNAME[S.color].toLowerCase()}, de même chiffre ou de même symbole, ou piochez.`;
+  }
+  $("status").innerHTML = t;
+  $("roundno").textContent = `Manche ${S.round}` + (cfg.goal ? ` · objectif ${cfg.goal}` : "");
+}
+const humanTurn = () => S && S.cur >= 0 && !P().ai && (S.phase === "play" || S.phase === "drawn") && !busy && $("curtain").hidden;
+window.addEventListener("resize", () => { if(S) render(); });
+
+/* ================= ANIMATIONS ================= */
+function rectOfPlayer(i){
+  if(i === mainIdx()) { const r = $("hand").getBoundingClientRect(); return {left: r.left + r.width / 2 - 30, top: r.top + 10, width: 60, height: 88}; }
+  const o = document.querySelector(`.opp[data-p="${i}"] .fan`);
+  if(!o) return $("deck").getBoundingClientRect();
+  const r = o.getBoundingClientRect(); return {left: r.left + r.width / 2 - 14, top: r.top, width: 28, height: 41};
+}
+async function fly(node, from, to, dur = 380){
+  if(reduced) return;
+  node.classList.add("fly"); node.style.setProperty("--cw", from.width + "px"); node.style.left = from.left + "px"; node.style.top = from.top + "px";
+  document.body.appendChild(node);
+  const sx = to.width / from.width;
+  await node.animate([{transform: "translate(0,0) scale(1) rotate(0)"}, {transform: `translate(${to.left - from.left}px,${to.top - from.top}px) scale(${sx}) rotate(${(Math.random() - .5) * 20}deg)`}],
+    {duration: D(dur), easing: "cubic-bezier(.3,.7,.3,1)", fill: "forwards"}).finished.catch(() => {});
+  node.remove();
+}
+async function giveCards(i, n, my){
+  const p = S.players[i];
+  for(let k = 0; k < n; k++){
+    const c = drawOne(); if(!c) break;
+    const showFace = i === mainIdx() && !p.ai;
+    const from = $("deck").getBoundingClientRect(), to = rectOfPlayer(i);
+    Snd.draw();
+    const f = fly(showFace ? cardNode(c) : backNode(), from, to, 300);
+    if(n > 1) await sleep(D(110)); else await f;
+    if(my !== token) return;
+    p.hand.push(c); if(p.hand.length > 2) p.called = false;
+    render();
+  }
+  if(n > 1) await sleep(D(250));
+}
+
+/* ================= MANCHE ================= */
+async function newRound(){
+  const my = ++token; busy = false;
+  ["scores", "colorbox", "challenge"].forEach(id => $(id).hidden = true);
+  $("curtain").hidden = true;
+  S.round++;
+  S.deck = shuffle(buildDeck()); S.discard = []; S.rot = {}; S.dir = 1; S.pending = 0; S.color = -1; S.msg = ""; S.drawn = null;
+  S.unoWindow = undefined; S.catchable = undefined; S.phase = "deal";
+  S.players.forEach(p => { p.hand = []; p.called = false; });
+  S.dealer = (S.dealer + 1) % N();
+  S.cur = -1; S.view = cfg.who === "ai" ? 0 : (S.dealer + 1) % N();
+  render(); Snd.shuffle();
+  await sleep(D(400)); if(my !== token) return;
+  for(let r = 0; r < 7; r++){
+    for(let i = 0; i < N(); i++){ S.players[i].hand.push(S.deck.pop()); }
+    Snd.draw(); render();
+    await sleep(D(90)); if(my !== token) return;
+  }
+  // première carte (un +4 retourne dans la pioche)
+  let first = S.deck.pop();
+  while(first.t === "w4"){ S.deck.splice(Math.floor(Math.random() * S.deck.length), 0, first); first = S.deck.pop(); }
+  S.discard.push(first); S.rot[first.id] = (Math.random() - .5) * 16; S.color = first.c;
+  Snd.play(); render();
+  await sleep(D(600)); if(my !== token) return;
+  const left = nextOf(S.dealer);
+  S.cur = left; S.phase = "play";
+  if(first.t === "d2"){ S.msg = `Première carte +2 : ${S.players[left].name} pioche 2 cartes et passe son tour.`; render(); await giveCards(left, 2, my); S.cur = nextOf(left); }
+  else if(first.t === "skip"){ S.msg = `Première carte Passe : ${S.players[left].name} passe son tour.`; S.cur = nextOf(left); Snd.skip(); }
+  else if(first.t === "rev"){ S.dir = -1; S.cur = S.dealer; S.msg = "Première carte Inversion : le sens du jeu change."; Snd.rev(); }
+  else if(isWild(first)){ S.msg = `Première carte joker : ${S.players[left].name} choisit la couleur.`; render(); S.color = await chooseColor(left); if(my !== token) return; }
+  render();
+  await sleep(D(S.msg ? 1400 : 200)); if(my !== token) return;
+  S.msg = "";
+  startTurn();
+}
+async function startTurn(){
+  const my = token;
+  S.drawn = null; S.phase = "play";
+  const p = P();
+  if(!p.ai && cfg.who === "hot" && humans() > 1 && S.view !== S.cur){
+    S.view = S.cur; render();
+    $("ctitle").textContent = "Au tour de " + p.name; $("curtain").hidden = false;
+    return;
+  }
+  if(!p.ai) S.view = S.cur;
+  render();
+  if(p.ai){ busy = true; render(); await sleep(D(850)); if(my !== token) return; busy = false; aiTurn(); }
+}
+$("ready").onclick = () => { $("curtain").hidden = true; render(); };
+
+/* ================= ACTIONS ================= */
+async function humanPlay(k){
+  if(!humanTurn()) return;
+  const p = P();
+  if(S.phase === "drawn" && k !== S.drawn){ Snd.nope(); return; }
+  if(!canPlay(k, p.hand)){ Snd.nope(); S.msg = S.pending > 0 ? "Il faut renvoyer la pénalité avec un +2" + (cfg.stack === 2 ? " ou un +4" : "") + ", ou piocher." : "Cette carte ne va pas sur la défausse."; render(); S.msg = ""; setTimeout(render, 1600); return; }
+  busy = true;
+  let color = k.c;
+  if(isWild(k)){ render(); color = await chooseColor(S.cur); }
+  await playCard(S.cur, k, color);
+}
+$("deck").onclick = async () => {
+  if(!humanTurn() || S.phase !== "play") return;
+  busy = true;
+  await drawTurn(S.cur);
+};
+$("keep").onclick = () => { if(!humanTurn() || S.phase !== "drawn") return; busy = true; S.drawn = null; endTurn(1); };
+$("unobtn").onclick = () => {
+  const m = mainIdx(), p = S.players[m];
+  if(p.ai) return;
+  if((humanTurn() && S.cur === m && p.hand.length === 2) || S.unoWindow === m){ p.called = true; Snd.uno(); render(); }
+};
+$("contre").onclick = () => { if(S.catchable !== undefined){ S.caught = true; } };
+
+async function drawTurn(i){
+  const my = token, p = S.players[i];
+  if(S.pending > 0){
+    const n = S.pending; S.pending = 0;
+    S.msg = `${p.name} pioche ${n} cartes.`; render();
+    await giveCards(i, n, my); if(my !== token) return;
+    S.msg = ""; return endTurn(1);
+  }
+  let c;
+  while(true){
+    await giveCards(i, 1, my); if(my !== token) return;
+    c = p.hand[p.hand.length - 1];
+    if(canPlay(c, p.hand) || !cfg.drawall || !S.deck.length && S.discard.length <= 1) break;
+  }
+  if(c && canPlay(c, p.hand)){
+    S.drawn = c; S.phase = "drawn";
+    if(p.ai) return;
+    busy = false; render(); return;
+  }
+  endTurn(1);
+}
+async function chooseColor(i){
+  const p = S.players[i];
+  if(p.ai) return aiColor(p);
+  return new Promise(res => {
+    const box = $("colors"); box.innerHTML = "";
+    CNAME.forEach((n, c) => { const b = document.createElement("button"); b.textContent = n; b.style.background = CVAR[c]; b.onclick = () => { $("colorbox").hidden = true; Snd.wild(); res(c); }; box.appendChild(b); });
+    $("colorbox").hidden = false; box.querySelector("button").focus();
+  });
+}
+async function playCard(i, k, color){
+  const my = token, p = S.players[i];
+  const prevColor = S.color, legal = k.t !== "w4" || w4legal(p.hand, k);
+  // animation : de la main (ou de l'adversaire) vers la défausse
+  let fromRect;
+  if(i === mainIdx() && !p.ai){ const el = $("hand").querySelector(`.uc[data-id="${k.id}"]`); fromRect = el ? el.getBoundingClientRect() : rectOfPlayer(i); }
+  else fromRect = rectOfPlayer(i);
+  p.hand.splice(p.hand.indexOf(k), 1);
+  S.drawn = null; S.phase = "anim"; render();
+  const to = $("discard").getBoundingClientRect();
+  Snd.play();
+  await fly(cardNode(k), fromRect, to, 360); if(my !== token) return;
+  S.discard.push(k); S.rot[k.id] = (Math.random() - .5) * 16; S.color = isWild(k) ? color : k.c;
+  if(isWild(k) && p.ai) Snd.wild();
+  if(p.hand.length > 1) p.called = false;
+  render();
+  // « Uno ! »
+  if(p.hand.length === 1){ await unoCheck(i); if(my !== token) return; }
+  // effets
+  const nx = nextOf(i);
+  if(k.t === "skip"){ Snd.skip(); S.msg = `${S.players[nx].name} passe son tour.`; }
+  if(k.t === "rev"){ Snd.rev(); if(N() === 2) S.msg = `${S.players[nx].name} passe son tour.`; else { S.dir *= -1; S.msg = "Le sens du jeu change."; } }
+  if(k.t === "mix"){
+    Snd.mix(); S.msg = `${p.name} mélange toutes les mains !`; render();
+    const all = shuffle(S.players.flatMap(x => x.hand)); S.players.forEach(x => { x.hand = []; x.called = false; });
+    let j = nextOf(i); all.forEach(c => { S.players[j].hand.push(c); j = nextOf(j); });
+    await sleep(D(900)); if(my !== token) return;
+  }
+  if(!p.hand.length){
+    // la dernière carte fait encore piocher
+    if(k.t === "d2" || k.t === "w4"){
+      const n = (cfg.stack ? S.pending : 0) + (k.t === "d2" ? 2 : 4); S.pending = 0;
+      S.msg = `${S.players[nx].name} pioche ${n} cartes.`; render(); Snd.plus(Math.min(n, 6));
+      await giveCards(nx, n, my); if(my !== token) return;
+    }
+    return endRound(i);
+  }
+  if(k.t === "d2" || k.t === "w4"){
+    const add = k.t === "d2" ? 2 : 4;
+    Snd.plus(add);
+    if(cfg.stack){
+      S.pending += add; S.msg = `${S.players[nx].name} doit renvoyer ou piocher ${S.pending} cartes.`;
+      render(); await sleep(D(900)); if(my !== token) return;
+      S.msg = ""; return endTurn(1);
+    }
+    if(k.t === "w4" && cfg.chal){
+      const doCh = await askChallenge(nx, i, prevColor);
+      if(my !== token) return;
+      if(doCh){
+        if(!legal){
+          S.msg = `Contestation réussie : ${p.name} avait du ${CNAME[prevColor].toLowerCase()} et pioche 4 cartes.`; render(); Snd.oops();
+          await giveCards(i, 4, my); if(my !== token) return;
+          await sleep(D(900)); S.msg = ""; return endTurn(1);
+        }
+        S.msg = `Contestation ratée : ${S.players[nx].name} pioche 6 cartes.`; render(); Snd.oops();
+        await giveCards(nx, 6, my); if(my !== token) return;
+        await sleep(D(700)); S.msg = ""; return endTurn(2);
+      }
+    }
+    S.msg = `${S.players[nx].name} pioche ${add} cartes et passe son tour.`; render();
+    await giveCards(nx, add, my); if(my !== token) return;
+    await sleep(D(500)); S.msg = ""; return endTurn(2);
+  }
+  if(S.msg){ render(); await sleep(D(900)); if(my !== token) return; S.msg = ""; }
+  if(k.t === "skip" || (k.t === "rev" && N() === 2)) return endTurn(2);
+  endTurn(1);
+}
+function endTurn(steps){
+  busy = false;
+  S.cur = nextOf(S.cur, steps);
+  startTurn();
+}
+/* ----- « Uno ! » et « Contre-Uno ! » ----- */
+async function unoCheck(i){
+  const my = token, p = S.players[i];
+  if(p.ai){
+    const pr = [0, .7, .88, .97][cfg.lvl];
+    if(Math.random() < pr){ p.called = true; Snd.uno(); render(); await sleep(D(600)); return; }
+  } else if(!p.called){
+    // une petite seconde et demie pour se rattraper
+    S.unoWindow = i; S.msg = "Vite, touchez <b>Uno !</b>"; render();
+    const t0 = performance.now();
+    while(performance.now() - t0 < 1600 && !p.called){ await sleep(80); if(my !== token) return; }
+    S.unoWindow = undefined; S.msg = "";
+  }
+  if(p.called || !cfg.unopen){ render(); return; }
+  // oubli : les humains peuvent le signaler, les ordinateurs aussi
+  const humanCatchers = S.players.some((x, j) => j !== i && !x.ai);
+  S.caught = false;
+  if(humanCatchers){
+    S.catchable = i; S.msg = `${p.name} a oublié de dire Uno !`; render();
+    const t0 = performance.now();
+    while(performance.now() - t0 < 2000 && !S.caught){ await sleep(80); if(my !== token) return; }
+    S.catchable = undefined;
+  }
+  if(!S.caught){
+    const aiCatch = S.players.some((x, j) => j !== i && x.ai);
+    const pr = p.ai ? .35 : [0, .5, .8, 1][cfg.lvl];
+    if(aiCatch && Math.random() < pr) S.caught = true;
+  }
+  if(S.caught){
+    S.msg = `Contre-Uno ! ${p.name} pioche 2 cartes.`; Snd.oops(); render();
+    await giveCards(i, 2, my); if(my !== token) return;
+    await sleep(D(700));
+  }
+  S.msg = ""; S.caught = false; render();
+}
+/* ----- contestation du +4 ----- */
+function askChallenge(target, by, prevColor){
+  const t = S.players[target];
+  if(t.ai){
+    const off = S.players[by].hand.length;
+    const pr = cfg.lvl === 1 ? .1 : cfg.lvl === 2 ? .25 : (off >= 4 ? .45 : .2);
+    const yes = Math.random() < pr;
+    if(yes){ S.msg = `${t.name} conteste le +4 !`; render(); }
+    return sleep(D(yes ? 900 : 300)).then(() => yes);
+  }
+  if(cfg.who === "hot" && humans() > 1 && S.view !== target){ S.view = target; render(); }
+  return new Promise(res => {
+    $("chtitle").textContent = `${S.players[by].name} vous met un +4`;
+    $("chtext").textContent = `Le +4 n'est permis que si ${S.players[by].name} n'avait aucune carte ${CNAME[prevColor].toLowerCase()} quand il l'a joué. Si vous contestez et qu'il en avait, c'est lui qui pioche 4 cartes. Sinon, vous en piochez 6.`;
+    $("challenge").hidden = false;
+    $("chyes").onclick = () => { $("challenge").hidden = true; res(true); };
+    $("chno").onclick = () => { $("challenge").hidden = true; res(false); };
+  });
+}
+
+/* ================= ORDINATEURS ================= */
+function aiColor(p){
+  const cnt = [0, 0, 0, 0]; p.hand.forEach(k => { if(k.c >= 0) cnt[k.c] += 1 + (k.t !== "n" ? .5 : 0); });
+  const max = Math.max(...cnt);
+  if(max === 0) return Math.floor(Math.random() * 4);
+  const best = cnt.map((v, c) => v === max ? c : -1).filter(c => c >= 0);
+  return best[Math.floor(Math.random() * best.length)];
+}
+function aiPick(i){
+  const p = S.players[i], lvl = cfg.lvl;
+  let cands = p.hand.filter(k => canPlay(k, p.hand));
+  if(!cands.length) return null;
+  // +4 interdit pour un ordinateur honnête, sauf bluff au niveau difficile
+  const nextLen = S.players[nextOf(i)].hand.length;
+  cands = cands.filter(k => k.t !== "w4" || w4legal(p.hand, k) || (lvl === 3 && nextLen <= 2 && Math.random() < .4) || S.pending > 0);
+  if(!cands.length) return null;
+  if(lvl === 1) return cands[Math.floor(Math.random() * cands.length)];
+  const colorCount = c => p.hand.filter(x => x.c === c).length;
+  const avgOthers = S.players.reduce((s, x, j) => s + (j === i ? 0 : x.hand.length), 0) / (N() - 1);
+  let best = null;
+  for(const k of cands){
+    let v = points(k) / 12;
+    if(k.c >= 0) v += colorCount(k.c) * .6;
+    if(k.t === "w") v -= 6;
+    if(k.t === "w4") v -= 9;
+    if(k.t === "mix") v += (p.hand.length - avgOthers) * 2 - 4;
+    if(["skip", "d2", "w4"].includes(k.t) || (k.t === "rev" && N() === 2)) v += nextLen <= 2 ? 14 : lvl === 3 ? 1.5 : 0;
+    if(p.hand.length <= 3 && isWild(k)) v += 3;
+    v += Math.random() * .8;
+    if(!best || v > best.v) best = {k, v};
+  }
+  return best.k;
+}
+async function aiTurn(){
+  const my = token, i = S.cur, p = P();
+  busy = true;
+  let k = aiPick(i);
+  if(!k){
+    await drawTurn(i); if(my !== token) return;
+    if(S.phase !== "drawn") return;
+    k = S.drawn;
+    await sleep(D(500)); if(my !== token) return;
+    // garde parfois la carte piochée (un joker par exemple)
+    if(isWild(k) && cfg.lvl >= 2 && p.hand.length > 4 && Math.random() < .5){ S.drawn = null; return endTurn(1); }
+    if(k.t === "w4" && !w4legal(p.hand, k) && cfg.lvl < 3){ S.drawn = null; return endTurn(1); }
+  }
+  // dit « Uno » avant de poser son avant-dernière carte
+  const color = isWild(k) ? aiColor({hand: p.hand.filter(x => x !== k)}) : k.c;
+  await playCard(i, k, color);
+}
+
+/* ================= FIN DE MANCHE ================= */
+async function endRound(w){
+  const my = token; busy = true; S.phase = "end"; S.msg = `${S.players[w].name} n'a plus de cartes !`; render();
+  await sleep(D(900)); if(my !== token) return;
+  const gains = S.players.map((p, i) => i === w ? 0 : p.hand.reduce((s, k) => s + points(k), 0));
+  const total = gains.reduce((a, b) => a + b, 0);
+  S.players[w].score += total;
+  S.last = {w, gains, total};
+  S.over = !cfg.goal || S.players[w].score >= cfg.goal;
+  busy = false;
+  showScores(true);
+}
+function showScores(end){
+  const ranked = S.players.map((p, i) => ({p, i})).sort((a, b) => b.p.score - a.p.score);
+  const L = S.last;
+  let title = "Scores";
+  if(end){
+    const wn = S.players[L.w].name;
+    title = S.over ? (wn === "Vous" ? "Vous gagnez la partie !" : wn + " gagne la partie !") : (wn === "Vous" ? "Vous gagnez la manche !" : wn + " gagne la manche");
+  }
+  $("sct").textContent = title;
+  $("sctbl").innerHTML = `<tr><th>Joueur</th>${end ? '<th class="n">Cartes restantes</th>' : ""}<th class="n">Points</th></tr>` +
+    ranked.map(({p, i}) => `<tr class="${end && i === L.w ? "best" : ""}"><td><span style="color:${PCOL[i]};font-weight:800">●</span> ${p.name}</td>` +
+      (end ? `<td class="n">${i === L.w ? "—" : p.hand.length + " (" + L.gains[i] + " pts)"}</td>` : "") + `<td class="n">${p.score}</td></tr>`).join("");
+  $("scnote").textContent = !end ? (cfg.goal ? `Le premier à ${cfg.goal} points gagne la partie.` : "Partie en une manche.")
+    : `${S.players[L.w].name} marque ${L.total} points : la valeur des cartes restées en main chez les adversaires.` + (S.over || !cfg.goal ? "" : ` Objectif : ${cfg.goal} points.`);
+  const btns = $("scbtns"); btns.innerHTML = "";
+  const mk = (t, fn, cls) => { const b = document.createElement("button"); b.textContent = t; if(cls) b.className = cls; b.onclick = fn; btns.appendChild(b); };
+  if(!end) mk("Fermer", () => $("scores").hidden = true, "primary");
+  else if(S.over) mk("Nouvelle partie", () => newGame(), "primary");
+  else mk("Manche suivante", () => newRound(), "primary");
+  $("scores").hidden = false;
+  if(end){ const human = !S.players[L.w].ai; (human ? Snd.win : Snd.meh).call(Snd); }
+}
+$("scorebtn").onclick = () => { if(S && S.phase !== "end") showScores(false); };
+$("newg").onclick = () => newGame();
+
+/* ================= RÉGLAGES ================= */
+let draft = null;
+function paintSettings(){
+  document.querySelectorAll("#settings .seg").forEach(seg => seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(draft[seg.dataset.k]) === b.dataset.v)));
+  $("optlvl").hidden = draft.who !== "ai";
+}
+$("setbtn").onclick = () => { draft = Object.assign({}, cfg); paintSettings(); $("settings").hidden = false; };
+document.querySelectorAll("#settings .seg").forEach(seg => seg.addEventListener("click", e => {
+  const b = e.target.closest("button"); if(!b) return;
+  draft[seg.dataset.k] = seg.dataset.k === "who" ? b.dataset.v : +b.dataset.v; paintSettings();
+}));
+$("setcancel").onclick = () => { $("settings").hidden = true; };
+$("setok").onclick = () => { cfg = draft; save("uno_cfg", JSON.stringify(cfg)); $("settings").hidden = true; newGame(); };
+document.addEventListener("keydown", e => { if(e.key === "Escape"){ $("settings").hidden = true; if(S && S.phase !== "end") $("scores").hidden = true; } });
+
+newGame();
+})();
+</script>
