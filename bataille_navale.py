@@ -653,6 +653,25 @@ ART = {
       <rect x="102" y="16" width="30" height="38" rx="4" fill="#e3f0d0" stroke="#fff" stroke-width="2"/><circle cx="117" cy="34" r="9" fill="#f8d9bf"/><path d="M109 34 Q110 46 117 46 Q124 46 125 34 Q121 40 117 38 Q113 40 109 34 Z" fill="#d0622a"/>
       <path d="M30 70 h100 v14 h-100 z" fill="#8f1f1a"/>
       <text x="80" y="82" text-anchor="middle" font-family="Fredoka,Nunito,sans-serif" font-weight="700" font-size="13" fill="#ffcb47">?</text>''',
+    "demineur": '''
+      <rect x="22" y="8" width="116" height="84" rx="10" fill="#c9d3dc"/>
+      <g fill="#e9eef3" stroke="#8e9aa6" stroke-width="1.5"><rect x="30" y="16" width="24" height="24" rx="3"/><rect x="56" y="16" width="24" height="24" rx="3"/><rect x="30" y="42" width="24" height="24" rx="3"/><rect x="30" y="68" width="24" height="18" rx="3"/></g>
+      <text x="68" y="34" text-anchor="middle" font-size="16" font-weight="900" fill="#2b5fd9" font-family="sans-serif">1</text>
+      <text x="42" y="60" text-anchor="middle" font-size="16" font-weight="900" fill="#2a8a3a" font-family="sans-serif">2</text>
+      <circle cx="104" cy="56" r="17" fill="#1d232b"/><g stroke="#1d232b" stroke-width="5" stroke-linecap="round"><path d="M104 32v48M80 56h48M88 40l32 32M120 40l-32 32"/></g><circle cx="98" cy="50" r="4.5" fill="#fff" opacity=".8"/>
+      <path d="M68 46 v26" stroke="#3a3a3a" stroke-width="2.5"/><path d="M68 46 l14 6 l-14 6 z" fill="#e8423a"/>''',
+    "solitaire": '''
+      <rect x="18" y="8" width="124" height="84" rx="12" fill="#1f6b45"/>
+      <g transform="rotate(-14 56 56)"><rect x="38" y="22" width="40" height="58" rx="5" fill="#fffdf6" stroke="#cfc7b5"/><text x="45" y="38" font-size="13" font-weight="700" fill="#1b1b1f" font-family="Georgia,serif">R</text><text x="58" y="66" text-anchor="middle" font-size="22" fill="#1b1b1f">♠</text></g>
+      <g transform="rotate(10 102 54)"><rect x="82" y="20" width="40" height="58" rx="5" fill="#fffdf6" stroke="#cfc7b5"/><text x="89" y="36" font-size="13" font-weight="700" fill="#c8202c" font-family="Georgia,serif">A</text><text x="102" y="64" text-anchor="middle" font-size="22" fill="#c8202c">♥</text></g>
+      <rect x="60" y="30" width="40" height="58" rx="5" fill="#a4283a" stroke="#fffdf6" stroke-width="3"/><rect x="66" y="36" width="28" height="46" rx="3" fill="none" stroke="#f2c14e" stroke-width="1.2"/>''',
+    "rentiers": '''
+      <rect x="18" y="6" width="124" height="88" rx="8" fill="#f6f1e1" stroke="#2c3a31" stroke-width="2"/>
+      <g stroke="#2c3a31" stroke-width="1"><rect x="18" y="6" width="22" height="22" fill="#f6f1e1"/><rect x="120" y="6" width="22" height="22" fill="#f6f1e1"/><rect x="18" y="72" width="22" height="22" fill="#f6f1e1"/><rect x="120" y="72" width="22" height="22" fill="#f6f1e1"/></g>
+      <g stroke="#2c3a31" stroke-width=".8"><rect x="40" y="6" width="16" height="6" fill="#d62828"/><rect x="56" y="6" width="16" height="6" fill="#d62828"/><rect x="88" y="6" width="16" height="6" fill="#f2c705"/><rect x="104" y="6" width="16" height="6" fill="#f2c705"/><rect x="40" y="88" width="16" height="6" fill="#8fd3f4"/><rect x="72" y="88" width="16" height="6" fill="#8b5a2b"/><rect x="104" y="88" width="16" height="6" fill="#8b5a2b"/><rect x="18" y="28" width="6" height="14" fill="#f28c28"/><rect x="18" y="56" width="6" height="14" fill="#d94f9b"/><rect x="136" y="28" width="6" height="14" fill="#2a9d4b"/><rect x="136" y="56" width="6" height="16" fill="#1d4fa8"/></g>
+      <path d="M62 62 L80 46 L98 62 V78 H62 Z" fill="#2a9d4b" stroke="#0b3a1c" stroke-width="2"/><rect x="76" y="66" width="8" height="12" fill="#0b3a1c"/>
+      <path d="M86 44 L100 34 L114 44 V56 H86 Z" fill="#d62828" stroke="#5a0c0c" stroke-width="2"/>
+      <text x="48" y="44" font-family="Georgia,serif" font-weight="900" font-size="15" fill="#b3261e">€</text>'''
 }
 
 GAMES = [
@@ -688,15 +707,21 @@ GAMES = [
     {"slug": "tarot", "file": "tarot.html", "name": "Tarot", "lid": "#16335c",
      "hook": "Petite, garde, garde sans… et le petit au bout.", "facts": "3–4 joueurs · 30 min", "modes": ["En ligne", "Contre l'ordi"]},
     {"slug": "petits-chevaux", "file": "petits_chevaux.html", "name": "Petits chevaux", "lid": "#d62828",
-     "hook": "Faites un 6 pour sortir de l'écurie, puis grimpez l'escalier.", "facts": "2–4 joueurs · 30 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"], "new": "Nouveau"},
+     "hook": "Faites un 6 pour sortir de l'écurie, puis grimpez l'escalier.", "facts": "2–4 joueurs · 30 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "jeu-oie", "file": "jeu_oie.html", "name": "Jeu de l'oie", "lid": "#2d5a4c",
-     "hook": "D'oie en oie jusqu'à la case 63, gare au puits et à la tête de mort.", "facts": "2–6 joueurs · 20 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"], "new": "Nouveau"},
+     "hook": "D'oie en oie jusqu'à la case 63, gare au puits et à la tête de mort.", "facts": "2–6 joueurs · 20 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "snake", "file": "snake.html", "name": "Snake", "cat": "solo", "lid": "#3d6fe0",
-     "hook": "Croquez les pommes, grandissez, et ne vous mordez pas la queue.", "facts": "1 joueur · 5 min", "modes": ["Solo"], "new": "Nouveau"},
+     "hook": "Croquez les pommes, grandissez, et ne vous mordez pas la queue.", "facts": "1 joueur · 5 min", "modes": ["Solo"]},
     {"slug": "paires", "file": "paires.html", "name": "Jeu des paires", "cat": "solo", "lid": "#7a4fc9",
-     "hook": "Retournez deux cartes et retrouvez les paires, seul ou à plusieurs.", "facts": "1–4 joueurs · 10 min", "modes": ["Solo", "En ligne", "Contre l'ordi", "Même écran"], "new": "Nouveau"},
+     "hook": "Retournez deux cartes et retrouvez les paires, seul ou à plusieurs.", "facts": "1–4 joueurs · 10 min", "modes": ["Solo", "En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "portraits", "file": "portraits.html", "name": "Portraits mystère", "lid": "#c8352d",
-     "hook": "Posez les bonnes questions pour démasquer le personnage de votre adversaire.", "facts": "2 joueurs · 10 min", "modes": ["En ligne", "Contre l'ordi"], "new": "Nouveau"},
+     "hook": "Posez les bonnes questions pour démasquer le personnage de votre adversaire.", "facts": "2 joueurs · 10 min", "modes": ["En ligne", "Contre l'ordi"]},
+    {"slug": "demineur", "file": "demineur.html", "name": "Démineur", "cat": "solo", "lid": "#5a6b7c",
+     "hook": "Ouvrez le champ case par case et plantez un drapeau sur chaque mine.", "facts": "1 joueur · 2 à 15 min", "modes": ["Solo"], "new": "Nouveau"},
+    {"slug": "solitaire", "file": "solitaire.html", "name": "Solitaire", "cat": "solo", "lid": "#1f6b45",
+     "hook": "La patience classique : rangez les 52 cartes de l'As au Roi.", "facts": "1 joueur · 10 min", "modes": ["Solo"], "new": "Nouveau"},
+    {"slug": "rentiers", "file": "immobilier.html", "name": "Rentiers de La Chapelle", "lid": "#b3261e",
+     "hook": "Achetez les rues de La Chapelle-sur-Erdre, du Chemin des Chaumes à la Châtaigneraie, et ruinez vos amis.", "facts": "2–6 joueurs · 45 min et plus", "modes": ["En ligne", "Contre l'ordi", "Même écran"], "new": "Nouveau"},
 ]
 OLD_SLUGS = {"/puissance-4": "/quatre-en-ligne", "/dix-de-chute": "/chute-libre", "/mastermind": "/code-secret", "/decal": "/decalage",
              "/skyjo": "/grille-basse", "/uno": "/couleurs-chiffres", "/mille-bornes": "/rallye-des-bornes", "/rummikub": "/rami-des-tuiles"}

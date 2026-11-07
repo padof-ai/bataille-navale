@@ -1,0 +1,284 @@
+<title>Démineur du pré</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&display=swap">
+<style>
+/* Layout : un pré en damier vert (cases à creuser), la terre apparaît sous les mottes ; compteur de mines, visage et chrono au-dessus. */
+:root{
+  color-scheme:dark;
+  --bg:#1b2a1a; --bg2:#0d150c;
+  --g1:#8fcc56; --g2:#84c24c; --dirt1:#e9cfa4; --dirt2:#dfc496;
+  --ink:#f1f7e8; --muted:#bfd0b0; --edge:rgba(241,247,232,.18);
+  --accent:#ffcf40; --flag:#e5402f;
+  --display:"Lilita One","Trebuchet MS",sans-serif;
+  --ui:"Nunito","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0;font-family:var(--ui);color:var(--ink);-webkit-tap-highlight-color:transparent;background:radial-gradient(ellipse 80% 60% at 50% 20%,#2f4a2b 0,var(--bg) 55%,var(--bg2) 100%) fixed,var(--bg)}
+.app{max-width:760px;margin:0 auto;padding-block:10px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:10px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(1.8rem,8vw,2.6rem);line-height:1;color:var(--accent);text-shadow:0 3px 0 #4b6a17,0 8px 18px rgba(0,0,0,.45)}
+.tools{display:flex;gap:8px}
+button{font:inherit;font-weight:800;color:var(--ink);background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:11px;padding:8px 12px;cursor:pointer}
+button:hover:not(:disabled){border-color:rgba(241,247,232,.5)}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.levels{display:flex;flex-wrap:wrap;gap:6px}
+.levels button{flex:1 1 auto;font-size:.88rem;padding:7px 10px}
+.levels button[aria-pressed="true"]{background:var(--accent);color:#2b3a0a;border-color:var(--accent)}
+.hud{display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:14px;padding:8px 12px}
+.hud .n{font-family:var(--display);font-size:1.6rem;line-height:1;font-variant-numeric:tabular-nums;min-width:3.5ch}
+.hud .n small{display:block;font-family:var(--ui);font-weight:800;font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.hud .r{text-align:right}
+#face{font-size:1.8rem;line-height:1;padding:4px 12px;border-radius:14px;background:var(--accent);border-color:var(--accent)}
+.mode{display:flex;gap:6px;justify-content:center}
+.mode button{font-size:.95rem;padding:9px 16px}
+.mode button[aria-pressed="true"]{background:var(--flag);border-color:var(--flag);color:#fff}
+.mode #dig[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#2b3a0a}
+.fieldwrap{overflow:auto;border-radius:16px;padding:8px;background:linear-gradient(145deg,#6b4a2a,#3e2a17);box-shadow:inset 0 0 0 2px rgba(255,255,255,.1),0 14px 26px rgba(0,0,0,.45);max-width:100%}
+.field{display:grid;gap:0;margin:0 auto;touch-action:manipulation;user-select:none;-webkit-user-select:none;border-radius:8px;overflow:hidden;width:max-content}
+.c{width:var(--cs);height:var(--cs);border:0;padding:0;margin:0;border-radius:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:calc(var(--cs) * .62);line-height:1;cursor:pointer;color:transparent;background:var(--g1);position:relative}
+.c.alt{background:var(--g2)}
+.c:hover:not(.open){filter:brightness(1.12)}
+.c.open{background:var(--dirt1);cursor:default}
+.c.open.alt{background:var(--dirt2)}
+.c.flag::after{content:"";position:absolute;left:30%;top:18%;width:6%;height:64%;background:#3a2a1a;border-radius:2px}
+.c.flag::before{content:"";position:absolute;left:36%;top:18%;width:0;height:0;border-left:calc(var(--cs) * .38) solid var(--flag);border-top:calc(var(--cs) * .16) solid transparent;border-bottom:calc(var(--cs) * .16) solid transparent;animation:wave 1.4s ease-in-out infinite}
+@keyframes wave{50%{transform:skewY(-6deg)}}
+.c.boom{background:#e5402f!important}
+.c.mine::before{content:"";position:absolute;width:46%;height:46%;border-radius:50%;background:radial-gradient(circle at 35% 35%,#777 0,#222 55%);box-shadow:0 0 0 calc(var(--cs) * .05) rgba(0,0,0,.25)}
+.c.mine::after{content:"";position:absolute;left:50%;top:14%;width:8%;height:18%;background:#c88a2a;transform:rotate(25deg)}
+.c.wrong{background:#f2b8a8!important}
+.c.wrong::before{content:"✕";color:#a01b10;font-size:calc(var(--cs) * .7);position:static}
+.c:focus-visible{outline:3px solid var(--accent);outline-offset:-3px;z-index:2}
+.n1{color:#2563c9!important}.n2{color:#2f8a2f!important}.n3{color:#d13a2a!important}.n4{color:#5b2fa8!important}.n5{color:#8a3a12!important}.n6{color:#118a8a!important}.n7{color:#222!important}.n8{color:#666!important}
+.c.pop{animation:pop .25s ease-out}
+@keyframes pop{from{transform:scale(.6)}}
+.hint{margin:0;text-align:center;color:var(--muted);font-size:.85rem}
+.rules{background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:14px;padding:12px 14px;font-size:.9rem;line-height:1.5;color:var(--muted)}
+.rules summary{cursor:pointer;font-weight:800;color:var(--ink)}
+.rules ul{margin:8px 0 0;padding-left:18px}
+.modal{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(5,10,4,.62);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px}
+.modal .box{background:#2a3d27;border:1px solid var(--edge);border-radius:16px;padding:20px;width:100%;max-width:420px;text-align:center}
+.modal h2{margin:0 0 10px;font-family:var(--display);font-weight:400;font-size:1.8rem;color:var(--accent)}
+.modal p{margin:0 0 14px;color:var(--muted);line-height:1.45}
+.modal .row{display:flex;gap:8px}.modal .row button{flex:1}
+.primary{background:var(--accent);color:#2b3a0a;border-color:var(--accent)}
+.custom{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:12px}
+.custom label{display:flex;flex-direction:column;font-weight:800;font-size:.8rem;color:var(--muted);gap:4px}
+.custom input{width:80px;font:inherit;font-weight:800;color:var(--ink);background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:10px;padding:8px;text-align:center}
+@media (max-width:480px){.tools .t{display:none}}
+@media (prefers-reduced-motion:reduce){.c.flag::before,.c.pop{animation:none}}
+</style>
+
+<div class="app">
+  <div class="top">
+    <h1>Démineur</h1>
+    <div class="tools">
+      <button id="snd" aria-label="Activer ou couper le son"></button>
+    </div>
+  </div>
+  <div class="levels" id="levels">
+    <button data-l="0">Débutant</button><button data-l="1">Intermédiaire</button><button data-l="2">Expert</button><button data-l="3">Sur mesure</button>
+  </div>
+  <div class="hud">
+    <div class="n"><small>Mines</small><span id="left">10</span></div>
+    <button id="face" aria-label="Nouvelle partie">🙂</button>
+    <div class="n r"><small>Temps</small><span id="time">0</span></div>
+  </div>
+  <div class="mode"><button id="dig" aria-pressed="true">⛏️ Creuser</button><button id="flg" aria-pressed="false">🚩 Drapeau</button></div>
+  <div class="fieldwrap"><div class="field" id="field" role="grid" aria-label="Champ de mines"></div></div>
+  <p class="hint" id="best"></p>
+  <details class="rules">
+    <summary>Règles du jeu</summary>
+    <ul>
+      <li>Des mines sont cachées dans le pré. Creusez toutes les cases sans mine pour gagner. La première case creusée n'est jamais minée.</li>
+      <li>Chaque chiffre indique combien de mines touchent la case (y compris en diagonale).</li>
+      <li>Posez un drapeau là où vous pensez qu'il y a une mine : clic droit, appui long, ou bouton « Drapeau ».</li>
+      <li>Toucher un chiffre déjà entouré du bon nombre de drapeaux creuse toutes les cases autour d'un coup.</li>
+    </ul>
+  </details>
+</div>
+<div class="modal" id="endbox" hidden><div class="box"><h2 id="endt"></h2><p id="endp"></p><div class="row"><button id="seebtn">Voir le pré</button><button id="again" class="primary">Rejouer</button></div></div></div>
+<div class="modal" id="cust" hidden><div class="box"><h2>Sur mesure</h2>
+  <div class="custom"><label>Colonnes<input id="cw" type="number" min="5" max="40" value="20"></label><label>Lignes<input id="ch" type="number" min="5" max="40" value="20"></label><label>Mines<input id="cm" type="number" min="1" max="500" value="60"></label></div>
+  <div class="row"><button id="custno">Annuler</button><button id="custok" class="primary">Jouer</button></div></div></div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const load = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const save = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+
+const Snd = {
+  ctx: null, on: load("dm_sound") !== "0", nb: null,
+  init(){ if(!this.ctx){ const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return; this.ctx = new AC(); this.out = this.ctx.createGain(); this.out.gain.value = .8; this.out.connect(this.ctx.destination);
+    const n = this.ctx.sampleRate, b = this.ctx.createBuffer(1, n, n), d = b.getChannelData(0); for(let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; this.nb = b; }
+    if(this.ctx.state === "suspended") this.ctx.resume(); },
+  ok(){ return this.on && this.ctx; },
+  tone(f0, f1, dur, peak, delay = 0, type = "sine"){ if(!this.ok()) return; const c = this.ctx, t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .006); g.gain.exponentialRampToValueAtTime(.0001, t + dur); o.connect(g).connect(this.out); o.start(t); o.stop(t + dur + .02); },
+  noise(f, dur, peak, delay = 0, type = "lowpass"){ if(!this.ok()) return; const c = this.ctx, t = c.currentTime + delay, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.nb; fl.type = type; fl.frequency.value = f; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .01); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    s.connect(fl).connect(g).connect(this.out); s.start(t, Math.random() * .5); s.stop(t + dur + .02); },
+  dig(n){ this.noise(700 + Math.min(n, 30) * 30, .12, .25, 0, "bandpass"); this.tone(180, 120, .08, .1, 0, "triangle"); },
+  flag(){ this.tone(880, 1320, .08, .1, 0, "triangle"); },
+  unflag(){ this.tone(1100, 700, .08, .08, 0, "triangle"); },
+  boom(){ this.noise(400, 1.2, .9); this.noise(2000, .3, .4, 0, "highpass"); this.tone(90, 30, 1, .4, 0, "sawtooth"); },
+  win(){ [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, f, i === 4 ? .9 : .28, .15, .1 + i * .12, "triangle")); }
+};
+function sndLabel(){ $("snd").textContent = Snd.on ? "🔊" : "🔇"; }
+$("snd").onclick = () => { Snd.on = !Snd.on; save("dm_sound", Snd.on ? "1" : "0"); Snd.init(); sndLabel(); };
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => Snd.init(), {capture: true}));
+sndLabel();
+
+const LEVELS = [{w: 9, h: 9, m: 10, n: "Débutant"}, {w: 16, h: 16, m: 40, n: "Intermédiaire"}, {w: 30, h: 16, m: 99, n: "Expert"}];
+let lvl = +(load("dm_lvl") || 0), custom = {w: 20, h: 20, m: 60};
+try{ const o = JSON.parse(load("dm_custom") || "null"); if(o) custom = o; }catch(e){}
+let G = null, flagMode = false, timer = 0;
+
+function dims(){
+  const L = lvl === 3 ? custom : LEVELS[lvl];
+  let {w, h} = L;
+  // au téléphone, le niveau expert se présente en hauteur
+  if(w > h && window.innerWidth < 640){ [w, h] = [h, w]; }
+  return {w, h, m: Math.min(L.m, w * h - 9)};
+}
+function newGame(){
+  clearInterval(timer);
+  const {w, h, m} = dims();
+  G = {w, h, m, mine: new Uint8Array(w * h), open: new Uint8Array(w * h), flag: new Uint8Array(w * h), num: new Uint8Array(w * h), started: false, over: false, t0: 0, opened: 0};
+  $("face").textContent = "🙂"; $("time").textContent = "0"; $("endbox").hidden = true;
+  document.querySelectorAll("#levels button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.l === lvl));
+  build(); updateLeft(); showBest();
+}
+const nb = i => { const x = i % G.w, y = (i - x) / G.w, out = []; for(let dy = -1; dy <= 1; dy++) for(let dx = -1; dx <= 1; dx++){ if(!dx && !dy) continue; const nx = x + dx, ny = y + dy; if(nx >= 0 && ny >= 0 && nx < G.w && ny < G.h) out.push(ny * G.w + nx); } return out; };
+function plant(safe){
+  const ban = new Set([safe, ...nb(safe)]), cells = [];
+  for(let i = 0; i < G.w * G.h; i++) if(!ban.has(i)) cells.push(i);
+  for(let k = 0; k < G.m; k++){ const j = k + Math.floor(Math.random() * (cells.length - k)); [cells[k], cells[j]] = [cells[j], cells[k]]; G.mine[cells[k]] = 1; }
+  for(let i = 0; i < G.w * G.h; i++) G.num[i] = nb(i).reduce((a, j) => a + G.mine[j], 0);
+}
+function build(){
+  const f = $("field"), avail = Math.min(document.querySelector(".app").clientWidth - 16, 760);
+  const cs = Math.max(22, Math.min(44, Math.floor(avail / G.w)));
+  f.style.setProperty("--cs", cs + "px");
+  f.style.gridTemplateColumns = `repeat(${G.w},${cs}px)`;
+  let h = "";
+  for(let i = 0; i < G.w * G.h; i++){ const x = i % G.w, y = (i - x) / G.w; h += `<button class="c${(x + y) % 2 ? " alt" : ""}" data-i="${i}" role="gridcell" aria-label="Case ${y + 1}-${x + 1}"></button>`; }
+  f.innerHTML = h;
+}
+const cell = i => $("field").children[i];
+function paint(i, pop){
+  const b = cell(i);
+  b.classList.toggle("open", !!G.open[i]); b.classList.toggle("flag", !!G.flag[i] && !G.open[i]);
+  if(G.open[i]){ const n = G.num[i]; b.textContent = n ? n : ""; b.className = b.className.replace(/ n\d/g, "") + (n ? " n" + n : ""); b.setAttribute("aria-label", n ? n + " mine" + (n > 1 ? "s" : "") + " autour" : "vide"); if(pop) b.classList.add("pop"); }
+  else b.setAttribute("aria-label", G.flag[i] ? "drapeau" : "case cachée");
+}
+function updateLeft(){ $("left").textContent = G.m - G.flag.reduce((a, v) => a + v, 0); }
+function showBest(){ const b = load("dm_best_" + (lvl === 3 ? "c" : lvl)); $("best").textContent = lvl === 3 ? "" : b ? `Record en ${LEVELS[lvl].n.toLowerCase()} : ${b} s` : `Pas encore de record en ${LEVELS[lvl].n.toLowerCase()}.`; }
+function start(i){
+  plant(i); G.started = true; G.t0 = Date.now();
+  timer = setInterval(() => { if(!G.over) $("time").textContent = Math.min(999, Math.floor((Date.now() - G.t0) / 1000)); }, 250);
+}
+function reveal(i){
+  if(G.over || G.open[i] || G.flag[i]) return;
+  if(!G.started) start(i);
+  if(G.mine[i]) return lose(i);
+  // ouverture en cascade des zones vides
+  const st = [i], order = [];
+  while(st.length){ const j = st.pop(); if(G.open[j] || G.flag[j]) continue; G.open[j] = 1; G.opened++; order.push(j); if(!G.num[j]) nb(j).forEach(k => { if(!G.open[k] && !G.mine[k]) st.push(k); }); }
+  order.forEach(j => paint(j, order.length > 1));
+  Snd.dig(order.length);
+  if(G.opened === G.w * G.h - G.m) win();
+}
+function chord(i){
+  if(!G.open[i] || !G.num[i]) return;
+  const ns = nb(i), f = ns.filter(j => G.flag[j]).length;
+  if(f !== G.num[i]) return;
+  ns.forEach(j => { if(!G.open[j] && !G.flag[j]) reveal(j); });
+}
+function toggleFlag(i){
+  if(G.over || G.open[i]) return;
+  G.flag[i] ^= 1; G.flag[i] ? Snd.flag() : Snd.unflag();
+  if(navigator.vibrate) try{ navigator.vibrate(15); }catch(e){}
+  paint(i); updateLeft();
+}
+function lose(i){
+  G.over = true; clearInterval(timer); $("face").textContent = "😵";
+  Snd.boom();
+  for(let j = 0; j < G.w * G.h; j++){
+    const b = cell(j);
+    if(G.mine[j] && !G.flag[j]){ b.classList.add("mine", "open"); b.classList.remove("flag"); }
+    if(!G.mine[j] && G.flag[j]){ b.classList.add("wrong"); b.classList.remove("flag"); }
+  }
+  cell(i).classList.add("boom");
+  document.querySelector(".fieldwrap").animate([{transform: "translate(0,0)"}, {transform: "translate(-6px,3px)"}, {transform: "translate(5px,-4px)"}, {transform: "translate(0,0)"}], {duration: 380});
+  setTimeout(() => { $("endt").textContent = "Boum !"; $("endp").textContent = `Il restait ${G.w * G.h - G.m - G.opened} case${G.w * G.h - G.m - G.opened > 1 ? "s" : ""} à creuser.`; $("endbox").hidden = false; $("again").focus(); }, 1100);
+}
+function win(){
+  G.over = true; clearInterval(timer); $("face").textContent = "😎";
+  const t = Math.max(1, Math.round((Date.now() - G.t0) / 1000));
+  $("time").textContent = t;
+  for(let j = 0; j < G.w * G.h; j++) if(G.mine[j] && !G.flag[j]){ G.flag[j] = 1; paint(j); }
+  updateLeft(); Snd.win();
+  let rec = false;
+  if(lvl !== 3){ const k = "dm_best_" + lvl, b = +(load(k) || 0); if(!b || t < b){ save(k, t); rec = true; } }
+  showBest();
+  setTimeout(() => { $("endt").textContent = rec ? "Nouveau record !" : "Pré déminé !"; $("endp").textContent = `Bravo, toutes les mines sont trouvées en ${t} seconde${t > 1 ? "s" : ""}.`; $("endbox").hidden = false; $("again").focus(); }, 700);
+}
+
+/* commandes : clic, clic droit, appui long, mode drapeau */
+let press = null;
+const f = $("field");
+f.addEventListener("contextmenu", e => e.preventDefault());
+f.addEventListener("pointerdown", e => {
+  const b = e.target.closest(".c"); if(!b || G.over) return;
+  const i = +b.dataset.i;
+  if(e.button === 2){ G.open[i] ? chord(i) : toggleFlag(i); press = null; return; }
+  if(!G.over) $("face").textContent = "😮";
+  press = {i, t: setTimeout(() => { if(press && press.i === i){ press.long = true; G.open[i] ? chord(i) : toggleFlag(i); } }, 420)};
+});
+const release = e => {
+  if(!G.over) $("face").textContent = "🙂";
+  if(!press) return;
+  clearTimeout(press.t);
+  const p = press; press = null;
+  if(p.long || (e && e.type !== "pointerup")) return;
+  const i = p.i;
+  if(G.open[i]) return chord(i);
+  if(flagMode) toggleFlag(i); else reveal(i);
+};
+f.addEventListener("pointerup", release);
+f.addEventListener("pointercancel", () => { if(press) clearTimeout(press.t); press = null; });
+f.addEventListener("pointerleave", () => { if(press) clearTimeout(press.t); press = null; if(!G.over) $("face").textContent = "🙂"; });
+f.addEventListener("keydown", e => {
+  const b = e.target.closest(".c"); if(!b) return;
+  const i = +b.dataset.i, x = i % G.w, y = (i - x) / G.w;
+  const go = j => { e.preventDefault(); cell(j).focus(); };
+  if(e.key === "ArrowRight" && x < G.w - 1) go(i + 1); else if(e.key === "ArrowLeft" && x > 0) go(i - 1);
+  else if(e.key === "ArrowDown" && y < G.h - 1) go(i + G.w); else if(e.key === "ArrowUp" && y > 0) go(i - G.w);
+  else if(e.key === "Enter" || e.key === " "){ e.preventDefault(); G.open[i] ? chord(i) : reveal(i); }
+  else if(e.key === "f" || e.key === "F"){ e.preventDefault(); toggleFlag(i); }
+});
+function setMode(fm){ flagMode = fm; $("dig").setAttribute("aria-pressed", !fm); $("flg").setAttribute("aria-pressed", fm); }
+$("dig").onclick = () => setMode(false); $("flg").onclick = () => setMode(true);
+$("face").onclick = newGame; $("again").onclick = newGame; $("seebtn").onclick = () => { $("endbox").hidden = true; };
+document.querySelectorAll("#levels button").forEach(b => b.onclick = () => {
+  const l = +b.dataset.l;
+  if(l === 3){ $("cw").value = custom.w; $("ch").value = custom.h; $("cm").value = custom.m; $("cust").hidden = false; return; }
+  lvl = l; save("dm_lvl", lvl); newGame();
+});
+$("custno").onclick = () => $("cust").hidden = true;
+$("custok").onclick = () => {
+  const w = Math.max(5, Math.min(40, +$("cw").value || 20)), h = Math.max(5, Math.min(40, +$("ch").value || 20));
+  custom = {w, h, m: Math.max(1, Math.min(w * h - 9, +$("cm").value || 20))}; save("dm_custom", JSON.stringify(custom));
+  lvl = 3; save("dm_lvl", 3); $("cust").hidden = true; newGame();
+};
+let lastW = window.innerWidth;
+window.addEventListener("resize", () => { if(Math.abs(window.innerWidth - lastW) > 80 && G && !G.started){ lastW = window.innerWidth; newGame(); } });
+newGame();
+})();
+</script>
