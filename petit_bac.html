@@ -1,0 +1,375 @@
+<title>Le petit bac</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Nunito:wght@600;800;900&display=swap">
+<style>
+/* Layout : une feuille de cahier à grands carreaux ; la lettre tirée dans un tampon rouge en haut, les catégories en lignes, le bouton Stop en bas. */
+:root{
+  color-scheme:light;
+  --desk:#2b4c7e; --desk2:#1a2f52;
+  --paper:#fffdf4; --rule:#b9d4ee; --margin:#ec8c8c; --ink:#1f3a8a; --pencil:#3a3a44; --muted:#6d7488;
+  --red:#e94f37; --good:#2f9e5a; --bad:#d63a3a; --accent:#f2b84b;
+  --hand:"Patrick Hand","Comic Sans MS",cursive;
+  --ui:"Nunito","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0;font-family:var(--ui);color:var(--pencil);-webkit-tap-highlight-color:transparent;background:radial-gradient(ellipse 80% 60% at 50% 20%,#3a64a3 0,var(--desk) 50%,var(--desk2) 100%) fixed,var(--desk)}
+.app{max-width:600px;margin:0 auto;padding-block:10px 24px;padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:10px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{margin:0;font-family:var(--hand);font-weight:400;font-size:clamp(2rem,9vw,2.8rem);line-height:1;color:#fff;text-shadow:0 3px 0 rgba(0,0,0,.25)}
+h1 span{color:var(--accent)}
+.tools{display:flex;gap:6px}
+button{font:inherit;font-weight:800;color:#fff;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:11px;padding:8px 12px;cursor:pointer}
+button:hover:not(:disabled){border-color:rgba(255,255,255,.6)}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+.sheet{position:relative;background:var(--paper);border-radius:6px 6px 14px 14px;padding:14px 14px 18px 44px;box-shadow:0 18px 36px rgba(0,0,0,.4);
+  background-image:linear-gradient(90deg,transparent 34px,var(--margin) 34px,var(--margin) 36px,transparent 36px),repeating-linear-gradient(180deg,transparent 0 47px,var(--rule) 47px 48px);background-color:var(--paper)}
+.sheet::before{content:"";position:absolute;left:12px;top:18px;bottom:18px;width:10px;background:radial-gradient(circle,#c9d5e6 4px,transparent 5px) 0 0/10px 46px repeat-y}
+.head{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+.stamp{flex:none;width:76px;height:76px;border-radius:50%;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--hand);font-size:3.2rem;line-height:1;box-shadow:inset 0 0 0 4px rgba(255,255,255,.35),0 6px 12px rgba(0,0,0,.25);transform:rotate(-8deg)}
+.stamp.spin{animation:spin .9s cubic-bezier(.3,.7,.3,1)}
+@keyframes spin{0%{transform:rotate(-8deg) scale(.6)}60%{transform:rotate(370deg) scale(1.1)}100%{transform:rotate(352deg)}}
+.htxt{flex:1;min-width:0}
+.htxt b{display:block;font-family:var(--hand);font-weight:400;font-size:1.5rem;color:var(--ink);line-height:1.1}
+.htxt span{font-weight:800;font-size:.85rem;color:var(--muted)}
+.timer{flex:none;font-weight:900;font-variant-numeric:tabular-nums;font-size:1.3rem;color:var(--ink);background:#eef4fc;border-radius:10px;padding:6px 10px}
+.timer.low{color:#fff;background:var(--bad);animation:blink .5s infinite alternate}
+@keyframes blink{to{opacity:.7}}
+.cats{display:flex;flex-direction:column}
+.cat{display:flex;align-items:center;gap:8px;min-height:48px}
+.cat label{flex:0 0 38%;font-weight:900;font-size:.9rem;color:var(--muted);line-height:1.1}
+.cat input{flex:1;min-width:0;font-family:var(--hand);font-size:1.45rem;color:var(--ink);background:transparent;border:0;border-bottom:2px dashed transparent;padding:4px 2px;outline:none}
+.cat input:focus{border-bottom-color:var(--ink)}
+.cat input:disabled{color:var(--pencil)}
+.cat .chk{flex:none;width:22px;text-align:center;font-weight:900}
+.cat .chk.ok{color:var(--good)}.cat .chk.bad{color:var(--bad)}
+.actbar{display:flex;gap:8px;margin-top:10px}
+.actbar button{flex:1;padding:13px;font-size:1.1rem}
+.go{background:var(--red);border-color:var(--red);color:#fff;font-family:var(--hand);font-weight:400;font-size:1.6rem!important;letter-spacing:.04em}
+.primary{background:var(--accent);color:#2a1d05;border-color:var(--accent)}
+.sheet button{color:var(--ink);background:#eef4fc;border-color:#c8d6ea}
+.sheet button.go{color:#fff;background:var(--red);border-color:var(--red)}
+.sheet button.primary{background:var(--accent);color:#2a1d05;border-color:var(--accent)}
+.flash{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.flash b{font-family:var(--hand);font-weight:400;font-size:clamp(4rem,22vw,8rem);color:var(--red);text-shadow:0 6px 0 #fff,0 10px 30px rgba(0,0,0,.4);animation:boom .9s ease-out both}
+@keyframes boom{0%{transform:scale(.3) rotate(-20deg);opacity:0}30%{transform:scale(1.15) rotate(-6deg);opacity:1}100%{transform:scale(1) rotate(-6deg);opacity:0}}
+/* vérification */
+.rv{display:flex;flex-direction:column;gap:12px}
+.rvc h3{margin:0 0 4px;font-size:.92rem;font-weight:900;color:var(--muted)}
+.ans{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:10px;background:#f2f6fc;margin-bottom:4px;cursor:pointer;border:2px solid transparent}
+.ans.mine{cursor:default;background:#fff6dc}
+.ans .who{flex:0 0 30%;font-weight:800;font-size:.8rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ans .w{flex:1;font-family:var(--hand);font-size:1.3rem;color:var(--ink);min-width:0;overflow-wrap:anywhere}
+.ans .w.empty{color:#b0b5c4;font-family:var(--ui);font-size:.85rem}
+.ans .pts{flex:none;font-weight:900;font-size:.9rem;min-width:36px;text-align:right}
+.ans.refused .w{text-decoration:line-through;color:var(--bad)}
+.ans.myvote{border-color:var(--bad)}
+.ans .v{flex:none;font-size:.75rem;font-weight:900;color:var(--bad)}
+.hint{font-size:.85rem;color:var(--muted);margin:0 0 10px;line-height:1.4}
+.ready{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ready span{font-size:.78rem;font-weight:800;padding:4px 8px;border-radius:99px;background:#eef1f6;color:var(--muted)}
+.ready span.ok{background:#d9f2e2;color:var(--good)}
+.board{width:100%;border-collapse:collapse;font-size:.92rem}
+.board th,.board td{padding:7px 6px;border-bottom:1px solid var(--rule);text-align:right}
+.board th:first-child,.board td:first-child{text-align:left}
+.board td b{font-size:1.05rem;color:var(--ink)}
+.board tr.me td{background:#fff6dc}
+.setup .opt{margin-bottom:12px}
+.opt{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.opt .lbl{font-weight:800;font-size:.9rem}
+.seg{display:flex;flex-wrap:wrap;background:#e9eff8;border-radius:12px;padding:3px;gap:2px}
+.seg button{flex:1 1 auto;border:0;background:transparent;padding:7px 8px;border-radius:9px;color:var(--muted);font-size:.85rem}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.seg .off{font-weight:600;font-size:.72rem;opacity:.85}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chips button{padding:5px 9px;font-size:.8rem;border-radius:99px;background:#fff;color:var(--muted);border:1px solid #c8d6ea}
+.chips button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.rules{background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.2);border-radius:14px;padding:12px 14px;font-size:.9rem;line-height:1.5;color:#dfe8f6}
+.rules summary{cursor:pointer;font-weight:800;color:#fff}
+.rules ul{margin:8px 0 0;padding-left:18px}
+.modal{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(10,20,40,.6);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px}
+.modal .box{background:var(--paper);color:var(--pencil);border-radius:16px;padding:20px;width:100%;max-width:460px;max-height:100%;overflow:auto;box-shadow:0 20px 40px rgba(0,0,0,.5)}
+.modal h2{margin:0 0 12px;font-family:var(--hand);font-weight:400;font-size:2rem;color:var(--ink)}
+.modal p{margin:0 0 12px;color:var(--muted);line-height:1.45;font-size:.92rem}
+.modal .row{display:flex;gap:8px}.modal .row button{flex:1;color:var(--ink);background:#eef4fc;border-color:#c8d6ea}
+.modal .row button.primary{background:var(--accent);color:#2a1d05;border-color:var(--accent)}
+@media (max-width:420px){.tools .t{display:none}.cat label{flex-basis:34%;font-size:.82rem}.sheet{padding-left:40px}.stamp{width:64px;height:64px;font-size:2.7rem}}
+@media (prefers-reduced-motion:reduce){.stamp.spin,.flash b,.timer.low{animation:none}}
+</style>
+
+<div class="app">
+  <div class="top">
+    <h1>Le petit <span>bac</span></h1>
+    <div class="tools">
+      <button id="setbtn" aria-label="Réglages">⚙️<span class="t"> Réglages</span></button>
+      <button id="snd" aria-label="Activer ou couper le son"></button>
+    </div>
+  </div>
+  <div class="sheet" id="sheet"></div>
+  <details class="rules">
+    <summary>Règles du jeu</summary>
+    <ul>
+      <li>Une lettre est tirée au sort. Pour chaque catégorie, trouvez un mot qui commence par cette lettre.</li>
+      <li>Le premier qui a rempli toutes les cases appuie sur <b>Stop !</b> : tout le monde pose son crayon.</li>
+      <li>On vérifie ensemble : touchez une réponse d'un autre joueur pour la refuser. Elle est rayée si la majorité des autres joueurs la refuse.</li>
+      <li>Une bonne réponse rapporte <b>10 points</b>, ou <b>5 points</b> si quelqu'un a écrit la même. Case vide ou refusée : 0.</li>
+      <li>En ligne, chacun joue sur son téléphone (bouton « Jouer en ligne » sur le site). Sinon, entraînez-vous en solo contre la montre.</li>
+    </ul>
+  </details>
+</div>
+<div class="flash" id="flash" hidden><b id="flasht">Stop !</b></div>
+<div class="modal" id="settings" hidden><div class="box" role="dialog" aria-labelledby="sett">
+  <h2 id="sett">Réglages</h2>
+  <div class="opt"><span class="lbl">Catégories</span><div class="chips" id="catchips"></div></div>
+  <div class="opt"><span class="lbl">Nombre de manches</span><div class="seg" data-k="rounds"><button data-v="3">3</button><button data-v="5">5</button><button data-v="10">10</button></div></div>
+  <div class="opt"><span class="lbl">Temps par manche</span><div class="seg" data-k="time"><button data-v="0">Jusqu'au Stop <span class="off">· officiel</span></button><button data-v="60">1 min</button><button data-v="120">2 min</button><button data-v="180">3 min</button></div></div>
+  <div class="opt"><span class="lbl">Après le Stop</span><div class="seg" data-k="grace"><button data-v="0">On pose le crayon <span class="off">· officiel</span></button><button data-v="10">10 secondes pour finir</button></div></div>
+  <div class="opt"><span class="lbl">Lettres difficiles (K, Q, W, X, Y, Z)</span><div class="seg" data-k="hard"><button data-v="0">Exclues <span class="off">· officiel</span></button><button data-v="1">Possibles</button></div></div>
+  <div class="opt"><span class="lbl">Seul à avoir répondu dans une catégorie</span><div class="seg" data-k="alone"><button data-v="0">10 points <span class="off">· officiel</span></button><button data-v="1">20 points</button></div></div>
+  <p>En ligne, ce sont les réglages de la personne qui crée la table qui comptent.</p>
+  <div class="row"><button id="setcancel">Annuler</button><button id="setok" class="primary">Appliquer</button></div>
+</div></div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const load = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const save = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+const esc = t => String(t).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"})[c]);
+const reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const Snd = {
+  ctx: null, on: load("pb_sound") !== "0", nb: null,
+  init(){ if(!this.ctx){ const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return; this.ctx = new AC(); this.out = this.ctx.createGain(); this.out.gain.value = .85; this.out.connect(this.ctx.destination);
+    const n = this.ctx.sampleRate, b = this.ctx.createBuffer(1, n, n), d = b.getChannelData(0); for(let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; this.nb = b; }
+    if(this.ctx.state === "suspended") this.ctx.resume(); },
+  ok(){ return this.on && this.ctx; },
+  hit(f, q, peak, dur, delay = 0, type = "bandpass"){ if(!this.ok()) return; const c = this.ctx, t = c.currentTime + delay, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.nb; fl.type = type; fl.frequency.value = f; fl.Q.value = q; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .006); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    s.connect(fl).connect(g).connect(this.out); s.start(t, Math.random() * .5); s.stop(t + dur + .02); },
+  tone(f0, f1, dur, peak, delay = 0, type = "sine"){ if(!this.ok()) return; const c = this.ctx, t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .006); g.gain.exponentialRampToValueAtTime(.0001, t + dur); o.connect(g).connect(this.out); o.start(t); o.stop(t + dur + .02); },
+  /* roue de lettres qui tourne */
+  wheel(){ for(let i = 0; i < 16; i++) this.hit(2400, 6, .12, .03, i * (.03 + i * .004)); this.tone(880, 880, .25, .1, .85, "triangle"); },
+  scribble(){ this.hit(3500 + Math.random() * 1500, 1.2, .03, .06); },
+  stop(){ this.tone(1200, 400, .35, .16, 0, "square"); this.hit(800, 1, .3, .2, 0, "lowpass"); },
+  tick(){ this.tone(1600, 1600, .03, .06, 0, "square"); },
+  vote(){ this.tone(300, 220, .1, .08, 0, "triangle"); },
+  ding(){ [784, 1047].forEach((f, i) => this.tone(f, f, .18, .1, i * .08, "triangle")); },
+  win(){ [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, f, i === 4 ? .9 : .28, .14, .1 + i * .12, "triangle")); }
+};
+function sndLabel(){ $("snd").textContent = Snd.on ? "🔊" : "🔇"; }
+$("snd").onclick = () => { Snd.on = !Snd.on; save("pb_sound", Snd.on ? "1" : "0"); Snd.init(); sndLabel(); };
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => Snd.init(), {capture: true}));
+sndLabel();
+
+/* ================= RÉGLAGES ================= */
+const ALLCATS = ["Pays", "Ville", "Prénom", "Animal", "Fruit ou légume", "Métier", "Objet", "Couleur", "Sport", "Plat ou aliment", "Vêtement", "Partie du corps", "Plante ou fleur", "Moyen de transport", "Instrument de musique", "Personnage célèbre", "Film ou série", "Marque", "Verbe", "Adjectif"];
+let cfg = {cats: [0, 1, 2, 3, 4, 5, 6, 7], rounds: 5, time: 0, grace: 0, hard: 0, alone: 0};
+try{ const o = JSON.parse(load("pb_cfg") || "null"); if(o) cfg = Object.assign(cfg, o); }catch(e){}
+let NETON = false, localCfg = null;
+const NET = () => NETON;
+const RND = () => NETON ? Net.rand() : Math.random();
+const norm = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/œ/g, "oe").replace(/æ/g, "ae").replace(/[^a-z]/g, "");
+
+/* ================= ÉTAT ================= */
+let S = null, token = 0, tick = 0;
+const ME = () => NET() ? Net.me : 0;
+function newGame(){
+  token++;
+  if(NET()) Net.cancel();
+  const n = NET() ? Net.n : 1;
+  S = {n, names: NET() ? Net.names.map((x, i) => i === Net.me ? "Vous" : x) : ["Vous"], cats: cfg.cats.slice().sort((a, b) => a - b).map(k => ALLCATS[k]),
+       round: 0, total: Array(n).fill(0), used: [], phase: "", letter: "", ans: {}, votes: {}, ready: {}, stopBy: -2, pts: null, t0: 0, myIn: []};
+  nextRound();
+  if(NET()) netLoop();
+}
+function drawLetter(){
+  const pool = [..."ABCDEFGHIJLMNOPRSTUV"].concat(cfg.hard ? [..."KQWXYZ"] : []).filter(l => !S.used.includes(l));
+  const l = pool[Math.floor(RND() * pool.length)] || "A";
+  S.used.push(l); return l;
+}
+function nextRound(){
+  S.round++; S.letter = drawLetter(); S.phase = "write"; S.ans = {}; S.votes = {}; S.ready = {}; S.stopBy = -2; S.pts = null; S.t0 = Date.now(); S.graceEnd = 0;
+  S.myIn = S.cats.map(() => "");
+  Snd.wheel(); render(true);
+}
+const allFilled = () => S.myIn.every(v => norm(v).length >= 1);
+const startsOk = w => { const n = norm(w); return n.length >= 2 && n[0] === S.letter.toLowerCase(); };
+
+/* ---------- en ligne : tout passe par le journal commun ---------- */
+async function netLoop(){
+  const my = token;
+  while(NET() && my === token){
+    const a = await Net.next();
+    if(my !== token || !NET()) return;
+    if(a) onAct(a);
+  }
+}
+function send(a){ a.s = a.s === undefined ? Net.me : a.s; a.r = a.r === undefined ? S.round : a.r; Net.send(a, a.s, "free"); }
+function onAct(a){
+  if(a.t === "again"){ if(S.phase === "final" && a.g === S.gameNo) newGame(); return; }
+  if(a.r !== S.round) return;
+  if(a.t === "stop" && S.phase === "write") return doStop(a.by !== undefined ? a.by : a.s);
+  if(a.t === "ans" && (S.phase === "collect" || S.phase === "grace") && !S.ans[a.s]){ S.ans[a.s] = (a.w || []).slice(0, S.cats.length).map(x => String(x || "").slice(0, 40)); if(Object.keys(S.ans).length === S.n) startReview(); else render(); return; }
+  if(a.t === "vote" && S.phase === "review"){ const k = `${a.c}_${a.p}`; S.votes[k] = S.votes[k] || {}; if(a.v) S.votes[k][a.s] = 1; else delete S.votes[k][a.s]; Snd.vote(); return render(); }
+  if(a.t === "ok" && S.phase === "review"){ S.ready[a.s] = 1; if(Object.keys(S.ready).length === S.n) scoreRound(); else render(); return; }
+  if(a.t === "next" && S.phase === "score"){ if(S.round >= cfg.rounds) finish(); else nextRound(); }
+}
+
+/* ---------- déroulement ---------- */
+function doStop(by){
+  S.stopBy = by; Snd.stop(); flash(by === -1 ? "Temps !" : "Stop !");
+  if(cfg.grace && by >= 0){ S.phase = "grace"; S.graceEnd = Date.now() + cfg.grace * 1000; render(); }
+  else collect();
+}
+function collect(){
+  S.phase = "collect"; readInputs(); render();
+  if(NET()) send({t: "ans", w: S.myIn});
+  else { S.ans[0] = S.myIn.slice(); startReview(); }
+}
+function startReview(){ S.phase = "review"; S.rvT = Date.now(); Snd.ding(); render(); }
+function refusedBy(c, p){ return Object.keys(S.votes[`${c}_${p}`] || {}).filter(s => +s !== p).length; }
+function isRefused(c, p){ return S.n > 1 ? refusedBy(c, p) > (S.n - 1) / 2 : !!(S.votes[`${c}_${p}`] || {})[0]; }
+function valid(c, p){ const w = (S.ans[p] || [])[c]; return startsOk(w) && !isRefused(c, p); }
+function computePoints(){
+  const pts = Array.from({length: S.n}, () => S.cats.map(() => 0));
+  S.cats.forEach((_, c) => {
+    const ok = []; for(let p = 0; p < S.n; p++) if(valid(c, p)) ok.push(p);
+    ok.forEach(p => {
+      const w = norm(S.ans[p][c]), same = ok.filter(q => q !== p && norm(S.ans[q][c]) === w).length;
+      pts[p][c] = same ? 5 : (cfg.alone && ok.length === 1 && S.n > 1 ? 20 : 10);
+    });
+  });
+  return pts;
+}
+function scoreRound(){
+  S.pts = computePoints();
+  S.pts.forEach((row, p) => S.total[p] += row.reduce((a, b) => a + b, 0));
+  if(!NET()){ const best = +(load("pb_best") || 0), got = S.pts[0].reduce((a, b) => a + b, 0); if(got > best) save("pb_best", got); }
+  S.phase = "score"; Snd.ding(); render();
+}
+function finish(){ S.phase = "final"; S.gameNo = (S.gameNo || 0) + 1; Snd.win(); render(); }
+
+/* ---------- minuterie et rôle de l'hôte ---------- */
+setInterval(() => {
+  if(!S) return;
+  if(S.phase === "write" && cfg.time){
+    const left = cfg.time - Math.floor((Date.now() - S.t0) / 1000);
+    const el = $("timer"); if(el){ el.textContent = fmt(Math.max(0, left)); el.classList.toggle("low", left <= 10); }
+    if(left <= 5 && left > 0) Snd.tick();
+    if(left <= 0){ if(!NET()) doStop(-1); else if(Net.isHost() && !S.sentTime){ S.sentTime = S.round; send({t: "stop", s: Net.me, by: -1}); } }
+  } else if(S.phase === "write"){ const el = $("timer"); if(el) el.textContent = fmt(Math.floor((Date.now() - S.t0) / 1000)); }
+  if(S.phase === "grace"){
+    const left = Math.ceil((S.graceEnd - Date.now()) / 1000), el = $("timer"); if(el){ el.textContent = "0:" + String(Math.max(0, left)).padStart(2, "0"); el.classList.add("low"); }
+    if(left > 0) Snd.tick(); else collect();
+  }
+  if(NET() && Net.isHost() && Net._v){
+    const away = Net._v.away || [];
+    // l'hôte complète pour les joueurs partis
+    if(S.phase === "collect") for(let k = 0; k < S.n; k++) if(!S.ans[k] && away[k] && !(S.sentFor || {})["a" + S.round + k]){ (S.sentFor = S.sentFor || {})["a" + S.round + k] = 1; send({t: "ans", s: k, w: []}); }
+    if(S.phase === "review" && Date.now() - S.rvT > 4000) for(let k = 0; k < S.n; k++) if(!S.ready[k] && away[k] && !(S.sentFor || {})["o" + S.round + k]){ (S.sentFor = S.sentFor || {})["o" + S.round + k] = 1; send({t: "ok", s: k}); }
+  }
+}, 1000);
+const fmt = s => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+function flash(t){ if(reduced) return; $("flasht").textContent = t; const f = $("flash"); f.hidden = false; const b = $("flasht"); b.style.animation = "none"; void b.offsetWidth; b.style.animation = ""; setTimeout(() => f.hidden = true, 900); }
+
+/* ================= AFFICHAGE ================= */
+function readInputs(){ document.querySelectorAll("#sheet .cat input").forEach((inp, c) => { S.myIn[c] = inp.value; }); }
+function header(sub){
+  const timer = S.phase === "write" || S.phase === "grace" ? `<div class="timer" id="timer">${cfg.time ? fmt(cfg.time) : "0:00"}</div>` : "";
+  return `<div class="head"><div class="stamp" id="stamp">${S.letter}</div><div class="htxt"><b>Manche ${S.round} / ${cfg.rounds}</b><span>${sub}</span></div>${timer}</div>`;
+}
+function render(spin){
+  if(!S) return;
+  const sh = $("sheet");
+  const who = p => p === ME() ? "Vous" : S.names[p];
+  if(S.phase === "write" || S.phase === "grace" || S.phase === "collect"){
+    const keep = sh.querySelector(".cats") && sh.dataset.r === String(S.round);
+    if(keep){ readInputs(); }
+    const disabled = S.phase === "collect";
+    const sub = S.phase === "write" ? `Un mot par catégorie commençant par ${S.letter}.` : S.phase === "grace" ? `${S.stopBy === ME() ? "Vous avez" : who(S.stopBy) + " a"} dit Stop : dépêchez-vous !` : NET() ? `Stop ! On ramasse les copies… (${Object.keys(S.ans).length}/${S.n})` : "Stop !";
+    sh.dataset.r = S.round;
+    sh.innerHTML = header(sub) + `<div class="cats">${S.cats.map((c, k) => `<div class="cat"><label for="in${k}">${c}</label><input id="in${k}" autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="40" value="${esc(S.myIn[k])}" ${disabled ? "disabled" : ""}><span class="chk"></span></div>`).join("")}</div>
+      <div class="actbar"><button class="go" id="stopbtn" ${S.phase !== "write" ? "disabled" : ""}>Stop !</button></div>`;
+    sh.querySelectorAll(".cat input").forEach((inp, k) => {
+      const upd = () => { S.myIn[k] = inp.value; const chk = inp.parentNode.querySelector(".chk"); const v = norm(inp.value); chk.textContent = !v ? "" : startsOk(inp.value) ? "✓" : "✗"; chk.className = "chk " + (!v ? "" : startsOk(inp.value) ? "ok" : "bad"); $("stopbtn").disabled = S.phase !== "write" || !allFilled(); };
+      inp.addEventListener("input", () => { Snd.scribble(); upd(); });
+      inp.addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); const nx = $("in" + (k + 1)); if(nx) nx.focus(); else if(!$("stopbtn").disabled) $("stopbtn").click(); } });
+      upd();
+    });
+    $("stopbtn").onclick = () => { if(S.phase !== "write" || !allFilled()) return; readInputs(); if(NET()) send({t: "stop"}); else doStop(0); };
+    if(spin){ const st = $("stamp"); st.classList.add("spin"); const f = $("in0"); if(f && !("ontouchstart" in window)) setTimeout(() => f.focus(), 900); }
+  }
+  else if(S.phase === "review"){
+    const me = ME(), solo = !NET();
+    sh.innerHTML = header(solo ? "Vérifiez vos réponses : touchez celles qui ne vont pas." : "Vérification : touchez une réponse d'un autre joueur pour la refuser.") +
+      `<p class="hint">${solo ? "Les réponses qui ne commencent pas par la bonne lettre sont refusées d'office." : "Une réponse est rayée si la majorité des autres joueurs la refuse. Les réponses mal orthographiées mais compréhensibles sont en général acceptées."}</p>
+      <div class="rv">${S.cats.map((c, k) => `<div class="rvc"><h3>${c}</h3>${[...Array(S.n).keys()].map(p => {
+        const w = (S.ans[p] || [])[k] || "", ok = startsOk(w), ref = isRefused(k, p), mv = !!(S.votes[`${k}_${p}`] || {})[me], nv = refusedBy(k, p);
+        const canVote = solo || p !== me;
+        return `<div class="ans${p === me && !solo ? " mine" : ""}${ref || (w && !ok) ? " refused" : ""}${mv ? " myvote" : ""}" ${canVote && ok ? `data-c="${k}" data-p="${p}" role="button" tabindex="0"` : ""}><span class="who">${who(p)}</span><span class="w${w ? "" : " empty"}">${w ? esc(w) : "—"}</span>${!solo && nv ? `<span class="v">✗ ${nv}</span>` : ""}<span class="pts">${valid(k, p) ? "✓" : "✗"}</span></div>`;
+      }).join("")}</div>`).join("")}</div>
+      <div class="actbar"><button class="primary" id="okbtn" ${S.ready[me] ? "disabled" : ""}>${S.ready[me] ? "En attente des autres…" : solo ? "Compter les points" : "J'ai fini de vérifier"}</button></div>
+      ${solo ? "" : `<div class="ready">${[...Array(S.n).keys()].map(p => `<span class="${S.ready[p] ? "ok" : ""}">${S.ready[p] ? "✓ " : ""}${who(p)}</span>`).join("")}</div>`}`;
+    sh.querySelectorAll(".ans[data-c]").forEach(el => {
+      const act = () => {
+        if(S.ready[me]) return;
+        const c = +el.dataset.c, p = +el.dataset.p, k = `${c}_${p}`, mine = !!(S.votes[k] || {})[me];
+        if(NET()) send({t: "vote", c, p, v: !mine});
+        else { S.votes[k] = S.votes[k] || {}; if(mine) delete S.votes[k][0]; else S.votes[k][0] = 1; Snd.vote(); render(); }
+      };
+      el.addEventListener("click", act); el.addEventListener("keydown", e => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); act(); } });
+    });
+    $("okbtn").onclick = () => { if(NET()) send({t: "ok"}); else { S.ready[0] = 1; scoreRound(); } };
+  }
+  else if(S.phase === "score" || S.phase === "final"){
+    const order = [...Array(S.n).keys()].sort((a, b) => S.total[b] - S.total[a]);
+    const last = S.round >= cfg.rounds, fin = S.phase === "final";
+    const got = p => S.pts ? S.pts[p].reduce((a, b) => a + b, 0) : 0;
+    let title = fin ? (S.n > 1 ? (order[0] === ME() ? "Vous gagnez la partie !" : `${who(order[0])} gagne la partie !`) : `Partie terminée : ${S.total[0]} points`) : `Points de la manche`;
+    const bestTxt = !NET() ? ` · Record d'une manche : ${load("pb_best") || 0} pts` : "";
+    sh.innerHTML = header(fin ? "Classement final" : `Lettre ${S.letter}${bestTxt}`) +
+      `<h2 style="font-family:var(--hand);font-weight:400;font-size:1.9rem;color:var(--ink);margin:0 0 8px">${esc(title)}</h2>
+      ${!fin && S.n === 1 ? `<table class="board">${S.cats.map((c, k) => `<tr><td>${c}</td><td>${esc(S.ans[0][k] || "—")}</td><td><b>${S.pts[0][k]}</b></td></tr>`).join("")}</table>` : ""}
+      ${S.n > 1 || fin ? `<table class="board"><tr><th>Joueur</th>${fin ? "" : "<th>Manche</th>"}<th>Total</th></tr>${order.map(p => `<tr class="${p === ME() ? "me" : ""}"><td>${who(p)}</td>${fin ? "" : `<td>+${got(p)}</td>`}<td><b>${S.total[p]}</b></td></tr>`).join("")}</table>` : ""}
+      <div class="actbar"><button class="primary" id="nextbtn">${fin ? "Rejouer" : last ? "Voir le classement" : "Manche suivante"}</button></div>`;
+    $("nextbtn").onclick = () => {
+      if(fin){ if(NET()) send({t: "again", g: S.gameNo, r: -1}); else newGame(); return; }
+      if(NET()) send({t: "next"}); else if(last) finish(); else nextRound();
+    };
+  }
+  $("setbtn").disabled = NET();
+  if(window.Net) Net.refresh();
+}
+
+/* ================= RÉGLAGES ================= */
+let draft = null;
+function paintSet(){
+  document.querySelectorAll("#settings .seg").forEach(seg => seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(draft[seg.dataset.k]) === b.dataset.v)));
+  $("catchips").innerHTML = ALLCATS.map((c, k) => `<button data-k="${k}" aria-pressed="${draft.cats.includes(k)}">${c}</button>`).join("");
+}
+$("setbtn").onclick = () => { if(NET()) return; draft = JSON.parse(JSON.stringify(cfg)); paintSet(); $("settings").hidden = false; };
+document.querySelectorAll("#settings .seg").forEach(seg => seg.addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; draft[seg.dataset.k] = +b.dataset.v; paintSet(); }));
+$("catchips").addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; const k = +b.dataset.k, i = draft.cats.indexOf(k); if(i >= 0){ if(draft.cats.length > 3) draft.cats.splice(i, 1); } else if(draft.cats.length < 12) draft.cats.push(k); paintSet(); });
+$("setcancel").onclick = () => { $("settings").hidden = true; };
+$("setok").onclick = () => { cfg = draft; save("pb_cfg", JSON.stringify(cfg)); $("settings").hidden = true; newGame(); };
+document.addEventListener("keydown", e => { if(e.key === "Escape") $("settings").hidden = true; });
+
+newGame();
+
+/* ================= EN LIGNE ================= */
+if(window.Net) Net.setup({
+  game: "petit-bac", name: "Le petit bac", min: 2, max: 8, bots: false, seats: () => 4,
+  cfg: () => cfg,
+  seatName: k => "Joueur " + (k + 1),
+  current: () => -1,
+  start(info){ localCfg = JSON.parse(JSON.stringify(cfg)); cfg = Object.assign({}, cfg, info.cfg); NETON = true; newGame(); },
+  leave(){ NETON = false; if(localCfg) cfg = localCfg; newGame(); }
+});
+})();
+</script>

@@ -1,0 +1,464 @@
+<title>Dominos</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Nunito:wght@600;800&display=swap">
+<style>
+/* Layout : une table de café en bois ; en haut les adversaires et le score, au milieu la chaîne de dominos en serpentin, en bas votre main. */
+:root{
+  color-scheme:dark;
+  --wood:#5b3a22; --wood2:#2a180c; --felt:#1d5b4a; --felt2:#103a2f;
+  --ink:#f6efe2; --muted:#d3c4a8; --edge:rgba(246,239,226,.2);
+  --bone:#fbf7ec; --bone2:#e9e1cc; --pip:#1b1b22; --line:#9a8f78;
+  --accent:#f0b84a; --good:#5cc98a;
+  --display:"Playfair Display","Georgia",serif;
+  --ui:"Nunito","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0;font-family:var(--ui);color:var(--ink);-webkit-tap-highlight-color:transparent;background:repeating-linear-gradient(92deg,rgba(255,255,255,.025) 0 3px,transparent 3px 14px),radial-gradient(ellipse 80% 60% at 50% 30%,#7a4e2e 0,var(--wood) 55%,var(--wood2) 100%) fixed,var(--wood)}
+.app{max-width:760px;margin:0 auto;padding-block:10px 24px;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:10px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{margin:0;font-family:var(--display);font-weight:900;font-size:clamp(1.7rem,7vw,2.4rem);line-height:1;color:var(--bone);text-shadow:0 3px 0 #2a180c,0 8px 16px rgba(0,0,0,.45)}
+h1 i{font-style:normal;color:var(--accent)}
+.tools{display:flex;gap:6px}
+button{font:inherit;font-weight:800;color:var(--ink);background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:11px;padding:8px 12px;cursor:pointer}
+button:hover:not(:disabled){border-color:rgba(246,239,226,.5)}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.4;cursor:default}
+.primary{background:var(--accent);color:#2a1a05;border-color:var(--accent)}
+.players{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px}
+.pl{display:flex;align-items:center;justify-content:space-between;gap:6px;background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:12px;padding:6px 10px}
+.pl.act{background:var(--bone);color:#2a1a05}
+.pl .nm{font-weight:900;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl .sc{font-weight:800;font-size:.8rem;opacity:.85}
+.pl .cnt{display:flex;gap:2px;align-items:center;font-weight:900;font-size:.8rem}
+.pl .cnt i{width:7px;height:13px;border-radius:2px;background:#3b2414;border:1px solid rgba(255,255,255,.4)}
+.pl.act .cnt i{border-color:rgba(0,0,0,.4)}
+#status{background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:12px;padding:9px 12px;font-weight:800;line-height:1.35;min-height:2.8em}
+#status .who{font-family:var(--display)}
+.table{position:relative;border-radius:16px;padding:12px;background:radial-gradient(ellipse at 50% 40%,#25705b,var(--felt) 60%,var(--felt2));box-shadow:inset 0 0 0 3px rgba(0,0,0,.25),inset 0 0 40px rgba(0,0,0,.35),0 14px 28px rgba(0,0,0,.45);min-height:220px}
+.chain{position:relative;width:100%;transition:height .25s}
+.bone-info{position:absolute;right:10px;bottom:8px;font-size:.78rem;font-weight:800;color:rgba(255,255,255,.65)}
+.empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.55);font-weight:800;text-align:center;padding:20px}
+/* domino */
+.dom{position:absolute;display:flex;background:linear-gradient(145deg,var(--bone),var(--bone2));border-radius:7px;box-shadow:0 2px 0 #b9ad92,0 4px 8px rgba(0,0,0,.35);border:1px solid #c9bea4;transition:left .25s,top .25s}
+.dom.v{flex-direction:column}
+.dom .h{flex:1;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:14%}
+.dom .h i{width:72%;height:72%;margin:auto;border-radius:50%}
+.dom .h i.on{background:radial-gradient(circle at 35% 35%,#4a4a58,var(--pip) 70%)}
+.dom.v .h:first-child{border-bottom:1.5px solid var(--line)}
+.dom:not(.v) .h:first-child{border-right:1.5px solid var(--line)}
+.dom.new{animation:drop .35s cubic-bezier(.3,.7,.4,1.3)}
+@keyframes drop{0%{transform:scale(1.35) translateY(-20px);opacity:.3}100%{transform:none;opacity:1}}
+.endmark{position:absolute;border-radius:8px;border:3px dashed var(--accent);background:rgba(240,184,74,.18);cursor:pointer;animation:pulse 1s ease-in-out infinite;display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--accent);font-size:.8rem}
+@keyframes pulse{50%{background:rgba(240,184,74,.38)}}
+.handwrap{background:rgba(0,0,0,.28);border:1px solid var(--edge);border-radius:14px;padding:10px}
+.handhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;font-weight:800;font-size:.9rem}
+.hand{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;min-height:76px}
+.hand .dom{position:relative;width:36px;height:72px;cursor:pointer;transition:transform .15s,opacity .2s}
+.hand .dom.can{box-shadow:0 0 0 3px var(--good),0 4px 8px rgba(0,0,0,.35)}
+.hand .dom.sel{transform:translateY(-10px);box-shadow:0 0 0 3px var(--accent),0 10px 16px rgba(0,0,0,.45)}
+.hand .dom.off{opacity:.45;cursor:default}
+.hand .dom:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.cover{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px;text-align:center;color:var(--muted);font-weight:800}
+.acts{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.acts button{flex:1 1 140px;padding:11px}
+.foot{display:flex;justify-content:center;gap:8px}
+.rules{background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:14px;padding:12px 14px;font-size:.9rem;line-height:1.5;color:var(--muted)}
+.rules summary{cursor:pointer;font-weight:800;color:var(--ink)}
+.rules ul{margin:8px 0 0;padding-left:18px}
+.rules b{color:var(--ink)}
+.modal{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(15,8,3,.66);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px}
+.modal .box{background:#3a2414;border:1px solid var(--edge);border-radius:16px;padding:20px;width:100%;max-width:460px;max-height:100%;overflow:auto;box-shadow:0 20px 40px rgba(0,0,0,.5)}
+.modal h2{margin:0 0 10px;font-family:var(--display);font-weight:900;font-size:1.6rem;color:var(--accent)}
+.modal p{margin:0 0 12px;color:var(--muted);line-height:1.45;font-size:.92rem}
+.modal .row{display:flex;gap:8px;flex-wrap:wrap}.modal .row button{flex:1}
+.rank{list-style:none;margin:0 0 14px;padding:0;display:flex;flex-direction:column;gap:6px}
+.rank li{display:flex;justify-content:space-between;gap:8px;background:rgba(0,0,0,.25);border-radius:10px;padding:8px 12px;font-weight:800}
+.opt{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.opt .lbl{font-weight:800;font-size:.9rem}
+.seg{display:flex;flex-wrap:wrap;background:rgba(0,0,0,.25);border:1px solid var(--edge);border-radius:12px;padding:3px;gap:2px}
+.seg button{flex:1 1 auto;border:0;background:transparent;padding:7px 8px;border-radius:9px;color:var(--muted);font-size:.85rem}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#2a1a05}
+.seg .off{font-weight:600;font-size:.72rem;opacity:.85}
+@media (max-width:480px){.tools .t{display:none}}
+@media (prefers-reduced-motion:reduce){.dom,.dom.new,.endmark{animation:none;transition:none}}
+</style>
+
+<div class="app">
+  <div class="top">
+    <h1>Domi<i>nos</i></h1>
+    <div class="tools">
+      <button id="setbtn" aria-label="Réglages">⚙️<span class="t"> Réglages</span></button>
+      <button id="snd" aria-label="Activer ou couper le son"></button>
+    </div>
+  </div>
+  <div class="players" id="players"></div>
+  <div id="status" aria-live="polite"></div>
+  <div class="table"><div class="chain" id="chain"></div><div class="bone-info" id="boneinfo"></div></div>
+  <div class="handwrap">
+    <div class="handhead"><span id="handt">Vos dominos</span><span id="handp"></span></div>
+    <div class="hand" id="hand"></div>
+    <div class="acts" id="acts" style="margin-top:10px"></div>
+  </div>
+  <div class="foot"><button id="newg">Nouvelle partie</button></div>
+  <details class="rules">
+    <summary>Règles du jeu</summary>
+    <ul>
+      <li>Jeu de <b>28 dominos</b> (du double blanc au double six). À 2 joueurs, chacun reçoit 7 dominos ; à 3, 6 ; à 4, 5. Le reste forme la <b>pioche</b>.</li>
+      <li>Le joueur qui a le plus gros double commence en le posant. Chacun à son tour pose un domino dont une moitié a le même nombre qu'un bout de la chaîne.</li>
+      <li>Si vous ne pouvez pas jouer, vous piochez jusqu'à pouvoir poser (en partie « bloquée », vous passez simplement).</li>
+      <li>La manche s'arrête quand un joueur pose son dernier domino : il marque les points restant dans les mains adverses. Si plus personne ne peut jouer, le joueur qui a le moins de points en main l'emporte.</li>
+      <li>Le premier à <b>100 points</b> gagne la partie.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="modal" id="endbox" hidden><div class="box"><h2 id="endt"></h2><p id="endp"></p><ol class="rank" id="rank"></ol><div class="row"><button id="again" class="primary">Continuer</button></div></div></div>
+<div class="modal" id="settings" hidden><div class="box" role="dialog" aria-labelledby="sett">
+  <h2 id="sett">Réglages</h2>
+  <div class="opt"><span class="lbl">Joueurs</span><div class="seg" data-k="n"><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button></div></div>
+  <div class="opt"><span class="lbl">Adversaires</span><div class="seg" data-k="who"><button data-v="ai">Ordinateurs</button><button data-v="hot">Même écran</button></div></div>
+  <div class="opt" id="optlvl"><span class="lbl">Niveau des ordinateurs</span><div class="seg" data-k="lvl"><button data-v="1">Facile</button><button data-v="2">Moyen</button><button data-v="3">Difficile</button></div></div>
+  <div class="opt"><span class="lbl">Quand on ne peut pas jouer</span><div class="seg" data-k="draw"><button data-v="1">On pioche <span class="off">· officiel</span></button><button data-v="0">On passe (partie bloquée)</button></div></div>
+  <div class="opt"><span class="lbl">Partie en</span><div class="seg" data-k="goal"><button data-v="100">100 points <span class="off">· officiel</span></button><button data-v="150">150 points</button><button data-v="50">50 points</button><button data-v="0">Une manche</button></div></div>
+  <p>Les changements démarrent une nouvelle partie.</p>
+  <div class="row"><button id="setcancel">Annuler</button><button id="setok" class="primary">Appliquer</button></div>
+</div></div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const load = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const save = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const D = ms => reduced ? Math.min(ms, 80) : ms;
+
+/* ================= SONS ================= */
+const Snd = {
+  ctx: null, on: load("do_sound") !== "0", nb: null,
+  init(){ if(!this.ctx){ const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return; this.ctx = new AC(); this.out = this.ctx.createGain(); this.out.gain.value = .85; this.out.connect(this.ctx.destination);
+    const n = this.ctx.sampleRate, b = this.ctx.createBuffer(1, n, n), d = b.getChannelData(0); for(let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; this.nb = b; }
+    if(this.ctx.state === "suspended") this.ctx.resume(); },
+  ok(){ return this.on && this.ctx; },
+  hit(f, q, peak, dur, delay = 0, type = "bandpass"){ if(!this.ok()) return; const c = this.ctx, t = c.currentTime + delay, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.nb; fl.type = type; fl.frequency.value = f; fl.Q.value = q; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    s.connect(fl).connect(g).connect(this.out); s.start(t, Math.random() * .5); s.stop(t + dur + .02); },
+  tone(f0, f1, dur, peak, delay = 0, type = "sine"){ if(!this.ok()) return; const c = this.ctx, t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + dur); o.connect(g).connect(this.out); o.start(t); o.stop(t + dur + .02); },
+  /* domino en os sur une table en bois : un claquement sec */
+  clack(){ const p = .9 + Math.random() * .2; this.hit(2600 * p, 6, .35, .05); this.tone(1100 * p, 700 * p, .05, .14, 0, "triangle"); this.hit(500, 2, .2, .06, .01, "lowpass"); },
+  slide(){ this.hit(3000, .8, .07, .18); },
+  shuffle(){ for(let i = 0; i < 16; i++) this.hit(1800 + Math.random() * 1600, 4, .16, .04, i * .05 + Math.random() * .02); },
+  pass(){ this.tone(400, 300, .15, .07, 0, "triangle"); },
+  nope(){ this.tone(220, 180, .14, .08, 0, "triangle"); },
+  round(){ [659, 784, 988].forEach((f, i) => this.tone(f, f, .2, .1, i * .08, "triangle")); },
+  win(){ [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, f, i === 4 ? .9 : .28, .14, .1 + i * .12, "triangle")); },
+  lose(){ [392, 370, 349, 294].forEach((f, i) => this.tone(f, f * .97, .45, .09, .1 + i * .3, "sawtooth")); }
+};
+function sndLabel(){ $("snd").textContent = Snd.on ? "🔊" : "🔇"; }
+$("snd").onclick = () => { Snd.on = !Snd.on; save("do_sound", Snd.on ? "1" : "0"); Snd.init(); sndLabel(); };
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => Snd.init(), {capture: true}));
+sndLabel();
+
+/* ================= RÉGLAGES ================= */
+let cfg = {n: 2, who: "ai", lvl: 2, draw: 1, goal: 100};
+try{ const o = JSON.parse(load("do_cfg") || "null"); if(o) cfg = Object.assign(cfg, o); }catch(e){}
+let NETON = false, localCfg = null;
+const NET = () => NETON;
+const RND = () => NETON ? Net.rand() : Math.random();
+
+/* ================= DOMINOS ================= */
+const TILES = []; for(let a = 0; a <= 6; a++) for(let b = a; b <= 6; b++) TILES.push([a, b]);
+const pips = id => TILES[id][0] + TILES[id][1];
+const isDbl = id => TILES[id][0] === TILES[id][1];
+const PIPS = {0: [], 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8]};
+const PIPS_H = {6: [0, 1, 2, 6, 7, 8]};
+const half = (v, horiz) => `<div class="h">${Array.from({length: 9}, (_, k) => `<i class="${((horiz && PIPS_H[v]) || PIPS[v]).includes(k) ? "on" : ""}"></i>`).join("")}</div>`;
+const domHTML = (a, b, vertical, extra = "", attrs = "") => `<div class="dom${vertical ? " v" : ""} ${extra}" ${attrs}>${half(a, !vertical)}${half(b, !vertical)}</div>`;
+
+/* ================= ÉTAT ================= */
+let S = null, token = 0, busy = false, selId = -1, revealed = false;
+const P = () => S.players[S.cur];
+const isLocalHuman = i => NET() ? i === Net.me : (cfg.who === "hot" || i === 0);
+const handSize = n => n === 2 ? 7 : n === 3 ? 6 : 5;
+const nm = i => S.players[i].name;
+const you = i => nm(i) === "Vous";
+function newGame(){
+  token++; busy = false;
+  if(NET()) Net.cancel();
+  const n = NET() ? Net.n : cfg.n;
+  const names = NET() ? Net.names.map((x, i) => i === Net.me ? "Vous" : x)
+    : Array.from({length: n}, (_, i) => cfg.who === "hot" ? "Joueur " + (i + 1) : i === 0 ? "Vous" : n === 2 ? "L'ordinateur" : "Ordi " + i);
+  S = {players: names.map((name, i) => ({name, score: 0, ai: NET() ? !!Net.bots[i] : cfg.who === "ai" && i > 0, miss: new Set()})),
+       round: 0, over: false, hands: [], bone: [], chain: [], cur: 0, passes: 0, msg: "", last: -1, phase: ""};
+  $("endbox").hidden = true;
+  newRound();
+}
+function newRound(){
+  const my = ++token; busy = true; selId = -1; revealed = false;
+  if(NET()) Net.cancel();
+  const n = S.players.length, deck = TILES.map((_, i) => i);
+  for(let i = deck.length - 1; i > 0; i--){ const j = Math.floor(RND() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; }
+  S.hands = Array.from({length: n}, () => deck.splice(0, handSize(n)).sort((a, b) => a - b));
+  S.bone = deck; S.chain = []; S.passes = 0; S.round++; S.msg = ""; S.last = -1; S.phase = "";
+  S.players.forEach(p => p.miss = new Set());
+  $("endbox").hidden = true;
+  Snd.shuffle();
+  // celui qui a le plus gros double commence (à défaut, le domino le plus lourd)
+  let best = null;
+  S.hands.forEach((h, i) => h.forEach(id => { const v = (isDbl(id) ? 100 : 0) + pips(id) * 2 + TILES[id][1] / 10; if(!best || v > best.v) best = {v, i, id}; }));
+  S.cur = best.i;
+  render();
+  (async () => {
+    await sleep(D(900)); if(my !== token) return;
+    S.msg = `${you(best.i) ? "Vous avez" : nm(best.i) + " a"} le plus gros ${isDbl(best.id) ? "double" : "domino"} et commence.`;
+    await place(best.i, best.id, "R"); if(my !== token) return;
+    busy = false; afterPlay(best.i);
+  })();
+}
+function ends(){ if(!S.chain.length) return null; return [S.chain[0].l, S.chain[S.chain.length - 1].r]; }
+function movesFor(i){
+  const e = ends(), out = [];
+  for(const id of S.hands[i]){
+    const [a, b] = TILES[id];
+    if(!e){ out.push({id, side: "R"}); continue; }
+    const canL = a === e[0] || b === e[0], canR = a === e[1] || b === e[1];
+    if(canL) out.push({id, side: "L"});
+    if(canR && !(canL && e[0] === e[1])) out.push({id, side: "R"});
+  }
+  return out;
+}
+async function place(i, id, side){
+  const [a, b] = TILES[id], e = ends();
+  let t;
+  if(!e) t = {id, l: a, r: b};
+  else if(side === "L") t = b === e[0] ? {id, l: a, r: b} : {id, l: b, r: a};
+  else t = a === e[1] ? {id, l: a, r: b} : {id, l: b, r: a};
+  side === "L" ? S.chain.unshift(t) : S.chain.push(t);
+  S.hands[i] = S.hands[i].filter(x => x !== id);
+  S.last = id; S.passes = 0;
+  Snd.clack(); render();
+  await sleep(D(450));
+}
+
+/* ================= AFFICHAGE ================= */
+function layoutChain(){
+  const box = $("chain"), W = box.clientWidth;
+  if(!S.chain.length){ box.innerHTML = `<div class="empty">${S.over ? "" : "Le premier domino va être posé…"}</div>`; box.style.height = "200px"; return; }
+  const L = Math.max(40, Math.min(60, Math.floor(W / 7.5))), Sw = L / 2, gap = 2, rowH = L + 10;
+  let x = 0, y = 0, dir = 1, html = "", pos = [];
+  S.chain.forEach((t, k) => {
+    const dbl = t.l === t.r, w = dbl ? Sw : L;
+    if(dir === 1 && x + w > W){ y += rowH; dir = -1; x = W; }
+    else if(dir === -1 && x - w < 0){ y += rowH; dir = 1; x = 0; }
+    const left = dir === 1 ? x : x - w;
+    const top = y + (dbl ? 0 : (L - Sw) / 2);
+    const [p, q] = dir === 1 ? [t.l, t.r] : [t.r, t.l];
+    html += domHTML(p, q, dbl, t.id === S.last ? "new" : "", `style="left:${left}px;top:${top}px;width:${w}px;height:${dbl ? L : Sw}px" data-k="${k}"`);
+    pos.push({left, top, w, h: dbl ? L : Sw, dir});
+    x += dir * (w + gap);
+  });
+  box.innerHTML = html;
+  box.style.height = (y + rowH) + "px";
+  // repères pour choisir de quel côté poser
+  if(selId >= 0 && myTurn()){
+    const sides = movesFor(S.cur).filter(m => m.id === selId).map(m => m.side);
+    if(sides.length > 1) sides.forEach(sd => {
+      const p0 = sd === "L" ? pos[0] : pos[pos.length - 1], m = document.createElement("div");
+      m.className = "endmark"; m.textContent = sd === "L" ? "ici" : "ici";
+      m.style.left = p0.left + "px"; m.style.top = p0.top + "px"; m.style.width = p0.w + "px"; m.style.height = p0.h + "px";
+      m.onclick = () => humanPlay(selId, sd);
+      box.appendChild(m);
+    });
+  }
+}
+const myTurn = () => S && !S.over && !busy && S.phase !== "end" && isLocalHuman(S.cur) && !P().ai;
+function viewer(){ if(NET()) return Net.me; if(cfg.who === "hot") return S.cur; return 0; }
+function render(){
+  if(!S) return;
+  const n = S.players.length;
+  $("players").innerHTML = S.players.map((p, i) => `<div class="pl${i === S.cur && !S.over && S.phase !== "end" ? " act" : ""}"><div><div class="nm">${p.name}</div><div class="sc">${p.score} pt${p.score > 1 ? "s" : ""}${cfg.goal ? " / " + cfg.goal : ""}</div></div><div class="cnt">${S.hands[i] ? S.hands[i].length : 0}<i></i></div></div>`).join("");
+  layoutChain();
+  $("boneinfo").textContent = cfg.draw ? `Pioche : ${S.bone.length}` : "Partie bloquée";
+  const who = i => `<span class="who">${S.players[i].name}</span>`;
+  let t = S.msg;
+  if(!t && !S.over){
+    if(!isLocalHuman(S.cur) || P().ai) t = `${who(S.cur)} réfléchit…`;
+    else t = selId >= 0 && movesFor(S.cur).filter(m => m.id === selId).length > 1 ? "Touchez le bout de la chaîne où poser ce domino." : `${who(S.cur)} : à vous, touchez un domino qui s'assemble (entouré en vert).`;
+  }
+  $("status").innerHTML = t;
+  // main
+  const v = viewer(), hand = S.hands[v] || [];
+  const showHand = !(cfg.who === "hot" && !NET()) || revealed || S.phase === "end";
+  $("handt").textContent = cfg.who === "hot" && !NET() ? `Dominos de ${S.players[v].name}` : "Vos dominos";
+  $("handp").textContent = `${hand.reduce((a, id) => a + pips(id), 0)} points en main`;
+  const mv = myTurn() && S.cur === v ? movesFor(v) : [];
+  const can = new Set(mv.map(m => m.id));
+  if(!showHand){
+    $("hand").innerHTML = `<div class="cover">C'est au tour de ${S.players[v].name}. Les autres, ne regardez pas !<button class="primary" id="reveal">Voir mes dominos</button></div>`;
+    $("reveal").onclick = () => { revealed = true; render(); };
+  } else {
+    $("hand").innerHTML = hand.map(id => domHTML(TILES[id][0], TILES[id][1], true, (can.has(id) ? "can" : mv.length || myTurn() ? "off" : "") + (id === selId ? " sel" : ""), `data-id="${id}" tabindex="${can.has(id) ? 0 : -1}" role="button" aria-label="Domino ${TILES[id][0]}-${TILES[id][1]}"`)).join("");
+  }
+  $("acts").innerHTML = "";
+  $("newg").hidden = NET(); $("setbtn").disabled = NET();
+  if(window.Net) Net.refresh();
+}
+$("hand").addEventListener("click", e => { const d = e.target.closest(".dom[data-id]"); if(d) pick(+d.dataset.id); });
+$("hand").addEventListener("keydown", e => { if(e.key !== "Enter" && e.key !== " ") return; const d = e.target.closest(".dom[data-id]"); if(d){ e.preventDefault(); pick(+d.dataset.id); } });
+window.addEventListener("resize", () => { if(S) layoutChain(); });
+function pick(id){
+  if(!myTurn()) return;
+  const ms = movesFor(S.cur).filter(m => m.id === id);
+  if(!ms.length){ Snd.nope(); return; }
+  if(ms.length === 1) return humanPlay(id, ms[0].side);
+  selId = selId === id ? -1 : id; Snd.slide(); render();
+}
+function humanPlay(id, side){
+  if(!myTurn()) return;
+  if(!movesFor(S.cur).some(m => m.id === id && m.side === side)) return;
+  selId = -1;
+  if(NET()) Net.send({id, side});
+  doPlay(id, side);
+}
+
+/* ================= DÉROULEMENT ================= */
+async function doPlay(id, side){
+  const my = token, i = S.cur; busy = true; S.msg = "";
+  await place(i, id, side); if(my !== token) return;
+  busy = false; afterPlay(i);
+}
+function afterPlay(i){
+  if(!S.hands[i].length) return endRound(i, false);
+  nextTurn();
+}
+function nextTurn(){
+  S.cur = (S.cur + 1) % S.players.length; revealed = false; selId = -1;
+  turnStart();
+}
+async function turnStart(){
+  const my = token, i = S.cur;
+  S.msg = ""; render();
+  // pas de domino jouable : on pioche (ou on passe)
+  if(!movesFor(i).length){
+    const e = ends(); S.players[i].miss.add(e[0]); S.players[i].miss.add(e[1]);
+    if(cfg.draw && S.bone.length){
+      busy = true;
+      let drawn = 0;
+      while(!movesFor(i).length && S.bone.length){
+        S.hands[i].push(S.bone.shift()); S.hands[i].sort((a, b) => a - b); drawn++;
+        Snd.slide(); S.msg = `${you(i) ? "Vous piochez" : nm(i) + " pioche"} (${drawn})…`; render();
+        await sleep(D(380)); if(my !== token) return;
+      }
+      busy = false;
+    }
+    if(!movesFor(i).length){
+      S.passes++; Snd.pass();
+      S.msg = `${you(i) ? "Vous ne pouvez" : nm(i) + " ne peut"} pas jouer : ${you(i) ? "vous passez" : "il passe"}.`; render();
+      await sleep(D(1100)); if(my !== token) return;
+      if(S.passes >= S.players.length) return endRound(-1, true);
+      return nextTurn();
+    }
+    S.msg = ""; render();
+  }
+  const ai = () => aiMove(i);
+  if(NET()){
+    if(i === Net.me){ busy = false; render(); Net.mine(a => { if(my === token) doPlay(a.id, a.side); }); return; }
+    const a = await Net.turn(i, ai); if(my !== token) return;
+    if(Net.bots[i]){ await sleep(D(700)); if(my !== token) return; }
+    return doPlay(a.id, a.side);
+  }
+  if(P().ai){ await sleep(D(850)); if(my !== token) return; const a = ai(); return doPlay(a.id, a.side); }
+  render();
+}
+function endRound(w, blocked){
+  const n = S.players.length, left = S.hands.map(h => h.reduce((a, id) => a + pips(id), 0));
+  let pts = 0, txt = "";
+  if(blocked){
+    const mn = Math.min(...left), who = left.map((v, k) => v === mn ? k : -1).filter(k => k >= 0);
+    if(who.length > 1){ w = -1; txt = "Plus personne ne peut jouer, et il y a égalité : personne ne marque."; }
+    else { w = who[0]; pts = left.reduce((a, v, k) => k === w ? a : a + v, 0); txt = `Chaîne bloquée : ${you(w) ? "vous avez" : nm(w) + " a"} le moins de points en main (${mn}) et marque${you(w) ? "z" : ""} ${pts} points.`; }
+  } else {
+    pts = left.reduce((a, v, k) => k === w ? a : a + v, 0);
+    txt = `${you(w) ? "Vous posez" : nm(w) + " pose"} son dernier domino et marque ${pts} points.`.replace("Vous posez son", "Vous posez votre");
+  }
+  if(w >= 0) S.players[w].score += pts;
+  S.phase = "end"; S.msg = txt; busy = false; render();
+  const champ = cfg.goal ? S.players.findIndex(p => p.score >= cfg.goal) : w;
+  const gameOver = !cfg.goal || champ >= 0;
+  setTimeout(() => {
+    const rk = S.players.map((p, k) => ({p, k})).sort((a, b) => b.p.score - a.p.score);
+    if(gameOver){
+      S.over = true;
+      const top = !cfg.goal ? w : rk[0].k;
+      $("endt").textContent = top < 0 ? "Égalité !" : you(top) ? "Vous gagnez la partie !" : nm(top) + " gagne la partie !";
+      (top >= 0 && isLocalHuman(top) && !S.players[top].ai) ? Snd.win() : Snd.lose();
+      $("again").textContent = "Nouvelle partie";
+    } else {
+      $("endt").textContent = `Fin de la manche ${S.round}`;
+      Snd.round(); $("again").textContent = "Manche suivante";
+    }
+    $("endp").textContent = txt;
+    $("rank").innerHTML = rk.map(x => `<li><span>${x.p.name}</span><span>${x.p.score} pts · ${left[x.k]} en main</span></li>`).join("");
+    $("endbox").hidden = false;
+    if(NET()){ const my = token; Net.next().then(a => { if(my === token && NET() && a && a.t === "next") gameOver ? newGame() : (S.phase = "", newRound()); }); }
+  }, D(1200));
+}
+$("again").onclick = () => {
+  if(NET()) return Net.send({t: "next"}, null, true);
+  if(S.over) newGame(); else { S.phase = ""; newRound(); }
+};
+$("newg").onclick = () => { if(!NET()) newGame(); };
+
+/* ================= ORDINATEUR ================= */
+function aiMove(i){
+  const ms = movesFor(i), lvl = NET() ? 2 : cfg.lvl;
+  if(lvl === 1 && Math.random() < .6) return ms[Math.floor(Math.random() * ms.length)];
+  const e = ends(), hand = S.hands[i];
+  let best = null;
+  for(const m of ms){
+    const [a, b] = TILES[m.id];
+    let v = pips(m.id) * (lvl === 3 ? 1 : 1.5);
+    if(isDbl(m.id)) v += 3;
+    if(e && lvl === 3){
+      const open = m.side === "L" ? (a === e[0] ? b : a) : (a === e[1] ? b : a);
+      // garder des dominos qui pourront suivre, et poser des nombres que les adversaires n'ont pas
+      v += hand.filter(id => id !== m.id && TILES[id].includes(open)).length * 3;
+      S.players.forEach((p, k) => { if(k !== i && p.miss.has(open)) v += 5; });
+      const nxt = (i + 1) % S.players.length; if(S.hands[nxt].length <= 2 && S.players[nxt].miss.has(open)) v += 6;
+    }
+    v += Math.random() * (lvl === 3 ? .3 : 2);
+    if(!best || v > best.v) best = {m, v};
+  }
+  return best.m;
+}
+
+/* ================= RÉGLAGES ================= */
+let draft = null;
+function paintSettings(){
+  document.querySelectorAll("#settings .seg").forEach(seg => seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(draft[seg.dataset.k]) === b.dataset.v)));
+  $("optlvl").hidden = draft.who !== "ai";
+}
+$("setbtn").onclick = () => { if(NET()) return; draft = Object.assign({}, cfg); paintSettings(); $("settings").hidden = false; };
+document.querySelectorAll("#settings .seg").forEach(seg => seg.addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; draft[seg.dataset.k] = seg.dataset.k === "who" ? b.dataset.v : +b.dataset.v; paintSettings(); }));
+$("setcancel").onclick = () => { $("settings").hidden = true; };
+$("setok").onclick = () => { cfg = draft; save("do_cfg", JSON.stringify(cfg)); $("settings").hidden = true; newGame(); };
+document.addEventListener("keydown", e => { if(e.key === "Escape") $("settings").hidden = true; });
+
+newGame();
+
+/* ================= EN LIGNE ================= */
+if(window.Net) Net.setup({
+  game: "dominos", name: "Dominos", min: 2, max: 4, bots: true, seats: () => cfg.n,
+  cfg: () => cfg,
+  seatName: k => "Joueur " + (k + 1),
+  current: () => S && !S.over && S.phase !== "end" ? S.cur : -1,
+  start(info){ localCfg = Object.assign({}, cfg); cfg = Object.assign({}, cfg, info.cfg, {n: info.n, who: "ai"}); NETON = true; newGame(); },
+  leave(){ NETON = false; if(localCfg) cfg = localCfg; newGame(); }
+});
+})();
+</script>

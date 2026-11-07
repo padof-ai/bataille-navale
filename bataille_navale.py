@@ -671,7 +671,39 @@ ART = {
       <g stroke="#2c3a31" stroke-width=".8"><rect x="40" y="6" width="16" height="6" fill="#d62828"/><rect x="56" y="6" width="16" height="6" fill="#d62828"/><rect x="88" y="6" width="16" height="6" fill="#f2c705"/><rect x="104" y="6" width="16" height="6" fill="#f2c705"/><rect x="40" y="88" width="16" height="6" fill="#8fd3f4"/><rect x="72" y="88" width="16" height="6" fill="#8b5a2b"/><rect x="104" y="88" width="16" height="6" fill="#8b5a2b"/><rect x="18" y="28" width="6" height="14" fill="#f28c28"/><rect x="18" y="56" width="6" height="14" fill="#d94f9b"/><rect x="136" y="28" width="6" height="14" fill="#2a9d4b"/><rect x="136" y="56" width="6" height="16" fill="#1d4fa8"/></g>
       <path d="M62 62 L80 46 L98 62 V78 H62 Z" fill="#2a9d4b" stroke="#0b3a1c" stroke-width="2"/><rect x="76" y="66" width="8" height="12" fill="#0b3a1c"/>
       <path d="M86 44 L100 34 L114 44 V56 H86 Z" fill="#d62828" stroke="#5a0c0c" stroke-width="2"/>
-      <text x="48" y="44" font-family="Georgia,serif" font-weight="900" font-size="15" fill="#b3261e">€</text>'''
+      <text x="48" y="44" font-family="Georgia,serif" font-weight="900" font-size="15" fill="#b3261e">€</text>''',
+    "sudoku": '''
+      <rect x="34" y="6" width="92" height="88" rx="8" fill="#fbf8f0" stroke="#1d2a44" stroke-width="3"/>
+      <g stroke="#1d2a44" stroke-width="2.5"><path d="M64.7 6v88M95.3 6v88M34 35.3h92M34 64.7h92"/></g>
+      <g stroke="#c9c3b3" stroke-width="1"><path d="M44.2 6v88M54.4 6v88M74.9 6v88M85.1 6v88M105.5 6v88M115.8 6v88M34 15.8h92M34 25.6h92M34 45.1h92M34 54.9h92M34 74.4h92M34 84.2h92"/></g>
+      <g font-family="Georgia,serif" font-weight="800" font-size="13" text-anchor="middle" fill="#1d2a44"><text x="39" y="14">5</text><text x="70" y="34">3</text><text x="90" y="53">9</text><text x="111" y="24">7</text><text x="49" y="72">8</text><text x="100" y="92">1</text></g>
+      <g font-family="Georgia,serif" font-weight="600" font-size="13" text-anchor="middle" fill="#2563c9"><text x="80" y="63">4</text><text x="59" y="44">6</text><text x="121" y="82">2</text></g>
+      <rect x="74.9" y="54.9" width="10.2" height="9.8" fill="#ffe7a3" opacity=".6"/>''',
+    "mot-du-jour": '''
+      <g font-family="Arial Black,sans-serif" font-weight="900" font-size="18" text-anchor="middle" fill="#fff">
+      <rect x="18" y="16" width="22" height="22" rx="4" fill="#3b4260"/><rect x="44" y="16" width="22" height="22" rx="4" fill="#e0a526"/><rect x="70" y="16" width="22" height="22" rx="4" fill="#3b4260"/><rect x="96" y="16" width="22" height="22" rx="4" fill="#2f9e5a"/><rect x="122" y="16" width="22" height="22" rx="4" fill="#3b4260"/>
+      <text x="29" y="33">C</text><text x="55" y="33" fill="#2a1d05">H</text><text x="81" y="33">I</text><text x="107" y="33">E</text><text x="133" y="33">N</text>
+      <rect x="18" y="44" width="22" height="22" rx="4" fill="#2f9e5a"/><rect x="44" y="44" width="22" height="22" rx="4" fill="#2f9e5a"/><rect x="70" y="44" width="22" height="22" rx="4" fill="#2f9e5a"/><rect x="96" y="44" width="22" height="22" rx="4" fill="#2f9e5a"/><rect x="122" y="44" width="22" height="22" rx="4" fill="#2f9e5a"/>
+      <text x="29" y="61">H</text><text x="55" y="61">E</text><text x="81" y="61">R</text><text x="107" y="61">O</text><text x="133" y="61">N</text></g>
+      <g fill="none" stroke="#3a4466" stroke-width="2"><rect x="18" y="72" width="22" height="22" rx="4"/><rect x="44" y="72" width="22" height="22" rx="4"/><rect x="70" y="72" width="22" height="22" rx="4"/><rect x="96" y="72" width="22" height="22" rx="4"/><rect x="122" y="72" width="22" height="22" rx="4"/></g>''',
+    "petit-bac": '''
+      <rect x="22" y="8" width="116" height="84" rx="6" fill="#fffdf4"/>
+      <g stroke="#9ec3e6" stroke-width="1"><path d="M22 30h116M22 46h116M22 62h116M22 78h116"/></g><path d="M60 8v84" stroke="#e98b8b" stroke-width="1.5"/>
+      <g font-family="Comic Sans MS,cursive" font-size="10" fill="#1f3a8a"><text x="26" y="27">Pays</text><text x="26" y="43">Animal</text><text x="26" y="59">Prénom</text><text x="26" y="75">Métier</text></g>
+      <g font-family="Comic Sans MS,cursive" font-size="12" fill="#c0392b" font-weight="700"><text x="66" y="27">Brésil</text><text x="66" y="43">Bison</text><text x="66" y="59">Bernard</text><text x="66" y="75">Boucher</text></g>
+      <circle cx="122" cy="22" r="14" fill="#e94f37"/><text x="122" y="28" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="17" fill="#fff">B</text>''',
+    "dominos": '''
+      <rect x="10" y="6" width="140" height="88" rx="12" fill="#1d5b4a"/>
+      <g transform="rotate(-8 60 50)"><rect x="30" y="36" width="56" height="28" rx="5" fill="#fbf7ec" stroke="#b9ad92"/><path d="M58 38v24" stroke="#9a8f78" stroke-width="1.5"/>
+      <g fill="#1b1b22"><circle cx="38" cy="43" r="2.6"/><circle cx="44" cy="50" r="2.6"/><circle cx="50" cy="57" r="2.6"/><circle cx="66" cy="43" r="2.6"/><circle cx="78" cy="43" r="2.6"/><circle cx="66" cy="57" r="2.6"/><circle cx="78" cy="57" r="2.6"/></g></g>
+      <g transform="rotate(10 112 50)"><rect x="98" y="20" width="28" height="56" rx="5" fill="#fbf7ec" stroke="#b9ad92"/><path d="M100 48h24" stroke="#9a8f78" stroke-width="1.5"/>
+      <g fill="#1b1b22"><circle cx="105" cy="27" r="2.6"/><circle cx="119" cy="27" r="2.6"/><circle cx="105" cy="34" r="2.6"/><circle cx="119" cy="34" r="2.6"/><circle cx="105" cy="41" r="2.6"/><circle cx="119" cy="41" r="2.6"/><circle cx="112" cy="62" r="2.6"/></g></g>''',
+    "dessine-devine": '''
+      <rect x="20" y="8" width="120" height="84" rx="8" fill="#fff"/>
+      <path d="M44 70 Q46 40 70 36 Q96 32 104 56 Q108 72 86 74 Q60 76 44 70 Z" fill="#ffd166" stroke="#1f2a44" stroke-width="3" stroke-linejoin="round"/>
+      <circle cx="80" cy="50" r="4" fill="#1f2a44"/><path d="M104 56 L124 46 L120 64 Z" fill="#ef476f" stroke="#1f2a44" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M30 24 l14 0" stroke="#118ab2" stroke-width="4" stroke-linecap="round"/><path d="M110 20 q6 -6 12 0" stroke="#06d6a0" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <text x="124" y="88" font-family="Arial Black,sans-serif" font-size="22" fill="#ef476f" text-anchor="middle">?</text>'''
 }
 
 GAMES = [
@@ -717,11 +749,21 @@ GAMES = [
     {"slug": "portraits", "file": "portraits.html", "name": "Portraits mystère", "lid": "#c8352d",
      "hook": "Posez les bonnes questions pour démasquer le personnage de votre adversaire.", "facts": "2 joueurs · 10 min", "modes": ["En ligne", "Contre l'ordi"]},
     {"slug": "demineur", "file": "demineur.html", "name": "Démineur", "cat": "solo", "lid": "#5a6b7c",
-     "hook": "Ouvrez le champ case par case et plantez un drapeau sur chaque mine.", "facts": "1 joueur · 2 à 15 min", "modes": ["Solo"], "new": "Nouveau"},
+     "hook": "Ouvrez le champ case par case et plantez un drapeau sur chaque mine.", "facts": "1 joueur · 2 à 15 min", "modes": ["Solo"]},
     {"slug": "solitaire", "file": "solitaire.html", "name": "Solitaire", "cat": "solo", "lid": "#1f6b45",
-     "hook": "La patience classique : rangez les 52 cartes de l'As au Roi.", "facts": "1 joueur · 10 min", "modes": ["Solo"], "new": "Nouveau"},
+     "hook": "La patience classique : rangez les 52 cartes de l'As au Roi.", "facts": "1 joueur · 10 min", "modes": ["Solo"]},
     {"slug": "rentiers", "file": "immobilier.html", "name": "Rentiers de La Chapelle", "lid": "#b3261e",
-     "hook": "Achetez les rues de La Chapelle-sur-Erdre, du Chemin des Chaumes à la Châtaigneraie, et ruinez vos amis.", "facts": "2–6 joueurs · 45 min et plus", "modes": ["En ligne", "Contre l'ordi", "Même écran"], "new": "Nouveau"},
+     "hook": "Achetez les rues de La Chapelle-sur-Erdre, du Chemin des Chaumes à la Châtaigneraie, et ruinez vos amis.", "facts": "2–6 joueurs · 45 min et plus", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
+    {"slug": "sudoku", "file": "sudoku.html", "name": "Sudoku", "cat": "solo", "lid": "#2f3b52",
+     "hook": "Des grilles à solution unique, de facile à expert, avec notes au crayon.", "facts": "1 joueur · 5 à 30 min", "modes": ["Solo"], "new": "Nouveau"},
+    {"slug": "mot-du-jour", "file": "mot_du_jour.html", "name": "Le mot du jour", "cat": "solo", "lid": "#2f9e5a",
+     "hook": "Trouvez le mot de 5 lettres en 6 essais. Un nouveau mot chaque jour.", "facts": "1 joueur · 3 min", "modes": ["Solo"], "new": "Nouveau"},
+    {"slug": "petit-bac", "file": "petit_bac.html", "name": "Le petit bac", "lid": "#e94f37",
+     "hook": "Une lettre, des catégories, et le premier qui a tout rempli crie « Stop ! ».", "facts": "2–8 joueurs · 15 min", "modes": ["En ligne", "Solo"], "new": "Nouveau"},
+    {"slug": "dominos", "file": "dominos.html", "name": "Dominos", "lid": "#1d5b4a",
+     "hook": "Le double six, la pioche et la chaîne qui serpente sur la table.", "facts": "2–4 joueurs · 20 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"], "new": "Nouveau"},
+    {"slug": "dessine-devine", "file": "dessine_devine.html", "name": "Dessine et devine", "lid": "#ef476f",
+     "hook": "L'un dessine sur son téléphone, les autres devinent le plus vite possible.", "facts": "2–8 joueurs · 20 min", "modes": ["En ligne", "Même écran"], "new": "Nouveau"},
 ]
 OLD_SLUGS = {"/puissance-4": "/quatre-en-ligne", "/dix-de-chute": "/chute-libre", "/mastermind": "/code-secret", "/decal": "/decalage",
              "/skyjo": "/grille-basse", "/uno": "/couleurs-chiffres", "/mille-bornes": "/rallye-des-bornes", "/rummikub": "/rami-des-tuiles"}

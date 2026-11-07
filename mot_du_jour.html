@@ -1,0 +1,311 @@
+<title>Le mot du jour</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Nunito:wght@600;800&display=swap">
+<style>
+/* Layout : en haut le titre et le choix « mot du jour / partie libre », au centre la grille 6 × 5, en bas le clavier AZERTY. */
+:root{
+  color-scheme:dark;
+  --bg:#141a2e; --bg2:#0b0f1c; --tile:#232b45; --edge:#3a4466;
+  --ink:#f3f4fa; --muted:#a6adc8;
+  --ok:#2f9e5a; --mis:#e0a526; --no:#3b4260;
+  --accent:#e0a526;
+  --display:"Bricolage Grotesque","Arial Black",sans-serif;
+  --ui:"Nunito","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0;font-family:var(--ui);color:var(--ink);-webkit-tap-highlight-color:transparent;background:radial-gradient(ellipse 80% 55% at 50% 15%,#22305a 0,var(--bg) 55%,var(--bg2) 100%) fixed,var(--bg)}
+.app{max-width:500px;margin:0 auto;padding-block:10px 16px;padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:12px;min-height:100dvh}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-inline:4px}
+h1{margin:0;font-family:var(--display);font-weight:800;font-size:clamp(1.5rem,7vw,2.2rem);line-height:1;letter-spacing:-.02em}
+h1 span{color:var(--accent)}
+.tools{display:flex;gap:6px}
+button{font:inherit;font-weight:800;color:var(--ink);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);border-radius:11px;padding:8px 11px;cursor:pointer}
+button:hover:not(:disabled){border-color:rgba(255,255,255,.45)}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.4;cursor:default}
+.modes{display:flex;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:3px;gap:2px}
+.modes button{flex:1;border:0;background:transparent;padding:8px 6px;border-radius:9px;color:var(--muted);font-size:.9rem}
+.modes button[aria-pressed="true"]{background:var(--accent);color:#2a1d05}
+.sub{text-align:center;color:var(--muted);font-size:.85rem;font-weight:800;min-height:1.2em}
+.board{display:grid;grid-template-rows:repeat(6,1fr);gap:6px;width:min(100%,340px);margin:0 auto}
+.row{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.row.shake{animation:shake .45s}
+@keyframes shake{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+.t{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:clamp(1.6rem,8.5vw,2.2rem);text-transform:uppercase;border:2px solid var(--edge);border-radius:8px;background:rgba(255,255,255,.02);user-select:none}
+.t.fill{border-color:#7c86ad;animation:pop .12s}
+@keyframes pop{50%{transform:scale(1.1)}}
+.t.hintl{color:var(--muted)}
+.t.ok,.t.mis,.t.no{border-color:transparent;color:#fff}
+.t.ok{background:var(--ok)}.t.mis{background:var(--mis);color:#2a1d05}.t.no{background:var(--no)}
+.t.flip{animation:flip .5s ease-in-out both}
+@keyframes flip{0%{transform:rotateX(0)}50%{transform:rotateX(90deg)}100%{transform:rotateX(0)}}
+.t.win{animation:jump .5s ease-out both}
+@keyframes jump{30%{transform:translateY(-14px)}60%{transform:translateY(2px)}}
+.kb{margin-top:auto;display:flex;flex-direction:column;gap:6px;user-select:none}
+.kr{display:flex;gap:4px;justify-content:center}
+.k{flex:1 1 0;max-width:44px;height:54px;padding:0;border-radius:7px;font-size:1.05rem;background:#4a5378;border:0;text-transform:uppercase}
+.k.wide{max-width:72px;flex:1.6 1 0;font-size:.78rem}
+.k.ok{background:var(--ok)}.k.mis{background:var(--mis);color:#2a1d05}.k.no{background:#262c44;color:#6f7699}
+.toast{position:fixed;left:50%;top:22%;transform:translateX(-50%);background:var(--ink);color:#141a2e;font-weight:800;padding:10px 16px;border-radius:10px;z-index:50;box-shadow:0 8px 20px rgba(0,0,0,.4);max-width:calc(100vw - 32px);text-align:center}
+.rules{background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:12px 14px;font-size:.9rem;line-height:1.5;color:var(--muted)}
+.rules summary{cursor:pointer;font-weight:800;color:var(--ink)}
+.rules ul{margin:8px 0 0;padding-left:18px}
+.ex{display:inline-flex;gap:3px;vertical-align:middle}.ex i{font-style:normal;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;font-weight:800;color:#fff;font-size:.8rem}
+.modal{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(5,8,18,.7);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px}
+.modal .box{background:#1c2340;border:1px solid rgba(255,255,255,.16);border-radius:16px;padding:20px;width:100%;max-width:420px;max-height:100%;overflow:auto;box-shadow:0 20px 40px rgba(0,0,0,.5)}
+.modal h2{margin:0 0 6px;font-family:var(--display);font-weight:800;font-size:1.7rem}
+.modal p{margin:0 0 12px;color:var(--muted);line-height:1.45}
+.modal .word{font-family:var(--display);font-size:2rem;letter-spacing:.12em;color:var(--accent);margin:4px 0 12px}
+.modal .rowb{display:flex;gap:8px;flex-wrap:wrap}.modal .rowb button{flex:1}
+.primary{background:var(--accent);color:#2a1d05;border-color:var(--accent)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center;margin-bottom:14px}
+.stats b{display:block;font-family:var(--display);font-size:1.6rem}
+.stats span{font-size:.7rem;color:var(--muted);font-weight:800}
+.dist{display:flex;flex-direction:column;gap:4px;margin-bottom:14px}
+.dist div{display:flex;align-items:center;gap:6px;font-weight:800;font-size:.85rem}
+.dist i{font-style:normal;background:var(--no);padding:2px 8px;border-radius:4px;min-width:24px;text-align:right}
+.dist i.me{background:var(--ok)}
+.opt{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.opt .lbl{font-weight:800;font-size:.9rem}
+.seg{display:flex;flex-wrap:wrap;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:3px;gap:2px}
+.seg button{flex:1 1 auto;border:0;background:transparent;padding:7px 8px;border-radius:9px;color:var(--muted);font-size:.85rem}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#2a1d05}
+.seg .off{font-weight:600;font-size:.72rem;opacity:.85}
+@media (max-width:380px){.k{height:48px;font-size:.95rem}.tools .tt{display:none}}
+@media (prefers-reduced-motion:reduce){.t.flip,.t.win,.t.fill,.row.shake{animation:none}}
+</style>
+
+<div class="app">
+  <div class="top">
+    <h1>Le mot <span>du jour</span></h1>
+    <div class="tools">
+      <button id="statbtn" aria-label="Statistiques">📊</button>
+      <button id="setbtn" aria-label="Réglages">⚙️</button>
+      <button id="snd" aria-label="Activer ou couper le son"></button>
+    </div>
+  </div>
+  <div class="modes"><button data-m="day">Mot du jour</button><button data-m="free">Partie libre</button></div>
+  <div class="sub" id="sub"></div>
+  <div class="board" id="board"></div>
+  <div class="kb" id="kb"></div>
+  <details class="rules">
+    <summary>Règles du jeu</summary>
+    <ul>
+      <li>Trouvez le mot secret de <b>5 lettres</b> en <b>6 essais</b>. Chaque essai doit être un vrai mot (les accents ne comptent pas).</li>
+      <li>Après chaque essai, les lettres changent de couleur :
+        <span class="ex"><i style="background:var(--ok)">B</i></span> bien placée,
+        <span class="ex"><i style="background:var(--mis);color:#2a1d05">O</i></span> présente mais ailleurs,
+        <span class="ex"><i style="background:var(--no)">N</i></span> absente.</li>
+      <li>Le <b>mot du jour</b> est le même pour tout le monde et change à minuit. En <b>partie libre</b>, rejouez autant que vous voulez.</li>
+    </ul>
+  </details>
+</div>
+<div class="toast" id="toast" hidden></div>
+<div class="modal" id="endbox" hidden><div class="box">
+  <h2 id="endt"></h2><div class="word" id="endw"></div><p id="endp"></p>
+  <div class="stats" id="stats"></div><div class="dist" id="dist"></div>
+  <div class="rowb"><button id="share">Copier le résultat</button><button id="again" class="primary">Partie libre</button></div>
+  <div class="rowb" style="margin-top:8px"><button id="endx">Fermer</button></div>
+</div></div>
+<div class="modal" id="settings" hidden><div class="box" role="dialog" aria-labelledby="sett">
+  <h2 id="sett">Réglages</h2>
+  <div class="opt"><span class="lbl">Essais acceptés</span><div class="seg" data-k="dict"><button data-v="1">Mots du dictionnaire <span class="off">· officiel</span></button><button data-v="0">N'importe quelles lettres</button></div></div>
+  <div class="opt"><span class="lbl">Première lettre</span><div class="seg" data-k="first"><button data-v="0">Cachée <span class="off">· officiel</span></button><button data-v="1">Donnée au départ</button></div></div>
+  <div class="opt"><span class="lbl">Mode difficile</span><div class="seg" data-k="hard"><button data-v="0">Non <span class="off">· officiel</span></button><button data-v="1">Réutiliser les indices trouvés</button></div></div>
+  <p>Le dictionnaire du jeu compte environ 1 800 mots ; si un mot correct est refusé, passez sur « N'importe quelles lettres ».</p>
+  <div class="rowb"><button id="setcancel">Annuler</button><button id="setok" class="primary">Appliquer</button></div>
+</div></div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const load = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const save = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const ANS_RAW = "ABORDACIERADIEUAGENTAIDERAIGLEAIMERALBUMALLEEALLERALPHAAMBREAMOURAMPLEANCREANGLEANNEEAPPELARBREARENEARMEEAROMEASTREATOMEATOUTAUDIOAUTELAVAREAVIONAVOIRAVRILBADGEBAGUEBALAIBALLEBANALBANDEBANJOBARBEBARONBASSEBATONBAZARBELLEBERETBETONBICHEBIEREBIJOUBILANBILLEBISONBLANCBLONDBOEUFBOIREBOITEBOMBEBONNEBONUSBORNEBOSSEBOTTEBOUEEBOULEBOURGBRAVEBREVEBRIDEBRISEBRUITBRUMEBRUNEBUCHEBULLECABLECABRICACAOCADRECALINCALMECANALCANNECANOTCARPECARTECASSECAUSECHAIRCHAMPCHANTCHAOSCHAUDCHENECHIENCHOIXCHOSECIDRECLAIRCLOWNCOBRACOEURCOLISCOLLECOMTECONTECOPIECOQUECORDECORNECORPSCOTONCOUDECOUPECOURSCOURTCRABECRAIECRANECREMECREPECRIMECRISECROIXCRUELCUIRECUVEECYCLECYGNEDANSEDATTEDEBATDEBUTDECORDEGREDELAIDELTADEMONDENSEDEPOTDESIRDETTEDEVINDIGNEDINDEDINERDIVANDOIGTDOUCEDOUTEDOUZEDRAMEDROITDROLEDUVETECHECECLATECOLEECRANECRINECUMEEFFETEGOUTELEVEELITEENCREENFINENGINENJEUENNUIENVIEEPAVEEPICEEPINEESSAIETAGEETANGETAPEETUDEEVIEREXACTEXTRAFABLEFACONFAIREFARCEFAUNEFAUTEFAUVEFEMMEFERMEFIBREFICHEFIEREFIGUEFILETFILLEFINALFINIRFIXERFLAIRFLANCFLASHFLEURFLOREFLUTEFOCUSFOIREFOLIEFONTEFORCEFORETFORMEFORTEFOSSEFOUETFOULEFRAISFRANCFREREFRIGOFRITEFROIDFRUITFUMEEFUSEEFUSILGALETGALOPGAMINGAZONGECKOGELEEGENIEGENOUGENREGERBEGESTEGIVREGLACEGLANDGLOBEGOLFEGOMMEGORGEGRACEGRADEGRAINGRANDGRAVEGRELEGRILLGRIVEGUEPEGUIDEHACHEHALTEHAMACHARPEHERBEHERONHEROSHETREHIBOUHIVERHOMMEHONTEHORDEHOTELHUILEHUTTEHYMNEICONEIDEALIDIOTIDOLEIGLOOIMAGEINDEXJAMBEJAUNEJETONJOKERJOUERJOUETJOUTEJUGERJUPONJUSTEKARMAKAYAKKOALALAGONLAINELAMPELANCELAPINLARGELARMELASERLASSOLAVERLEGERLENTELEVERLEVRELIANELIBRELIEGELIGNELILASLINGELISTELITRELIVRELOCALLOGERLOGISLOTUSLOUPELOURDLOUVELUEURLUNDILUTINLYCEEMACONMAGIEMAGMAMAIREMAJORMALINMAMIEMANIEMANTEMARDIMARGEMARINMASSEMATCHMATINMAUVEMECHEMEDIAMELEEMELONMENERMERCIMERLEMESSEMETALMETREMETROMIEUXMILLEMINCEMOINEMONDEMORALMORSEMORUEMOTIFMOTTEMOULEMOYENMULETMUSEEMYTHENACRENAGERNAPPENAVETNEIGENEUVENEVEUNICHENOBLENOEUDNOIRENOTERNOUERNUAGENYLONOASISOBJETOCEANODEUROFFREOLIVEOMBREONCLEONGLEOPALEOPERAORAGEORDREORGUEORTIEOSIEROTAGEOUTILOVALEPACTEPAIREPANDAPANNEPARMIPARTIPASSEPATIOPATTEPAUSEPAVOTPAYERPEAGEPECHEPEINEPELLEPENTEPEPINPERILPERLEPERTEPESERPESTEPETITPHAREPHASEPHOTOPIANOPIECEPIEGEPINCEPIQUEPISTEPITIEPIVOTPIZZAPLACEPLAGEPLANTPLEINPLIERPLOMBPLUIEPLUMEPOCHEPOELEPOEMEPOETEPOIDSPOINGPOINTPOIREPOLKAPOMMEPOMPEPONEYPORTEPOSERPOSTEPOTINPOUCEPOULEPRIERPRIMEPRISEPRIVEPROIEPROSEPROUEPRUNEPUITSPULPEPUNIRPUREEQUARTQUETEQUEUEQUOTARABOTRADARRADIORADISRAFLERAMERRAMPERATERRATONRAVINRAYONRECIFRECITREGLEREINERENTEREPASRESTEREVERREVUERHUMERICHERIVALROBOTROCHEROMANRONCERONDEROSEEROTINROUGEROUTEROYALRUBANRUCHERUGBYRUINERURALSABLESABOTSABRESAINTSALLESALONSALUTSAMBASAPINSATINSAUCESAUGESAULESCENESCIERSCOUTSECTESEIZESELLESEMERSERRESERUMSEUILSIEGESIGNESINGESIROPSOEURSOLDESOMMESONDESORTESOUCISOUPESPORTSTADESTAGESTANDSTOCKSTORESTYLESUCRESUEURSUITESUJETSUPERTABACTABLETACHETALONTANGOTANTETAPIRTAPISTAROTTARTETASSETAUPETEINTTEMPSTENIRTENORTENTETERMETERRETEXTETHEMETIARETIGRETITRETOASTTOILETOMBETONNETOQUETORSETOTALTOTEMTRACETRAINTRAITTRAMETREVETRIBUTROISTRONCTUILETULLETUYAUUNIONUSAGEUSINEVACHEVAGUEVALETVALSEVANNEVASTEVEINEVENINVENIRVENTEVERBEVERREVERSOVERTUVESTEVEUVEVIDEOVIEUXVIGNEVILLAVILLEVIRUSVISERVITREVIVREVOILEVOLERVOLETVOTERVOYOUVRAIEWAGONYACHTZEBREZESTE", EXTRA_RAW = "ABIMEABRISADAGEAGIESAGILEAGIRAAGITEAIDAIAIDASAIDEEAIDESAIDEZAIGREAIMAIAIMASAIMEEAIMESAIMEZAISEEALIBIALORSAMANTAMENAAMENEAMIESANCRAANGESANIMAANIMEAPPATARGOTARIDEARMERARMESARRETASPICASSEZASSISATLASAUBESAUDITAUSSIAUTREAVANTAVIDEAVISOAXIALBACHEBACONBAGNEBAIESBAINSBALTEBANCSBARGEBARILBARREBASALBASESBASTEBATIEBATIRBATISBATITBATTUBAUGEBAYERBEAUXBEBESBECHEBEIGEBELERBELGEBENIRBERCEBERGEBERMEBETESBETTEBIAISBIBLEBIDETBIDONBIENSBIGREBINERBISESBISOUBLAMEBLASEBLEMEBLOCSBLUESBLUFFBOCALBOISEBOLETBONDEBONDIBONDSBONTEBOOTSBORDSBOSCOBOUCSBOUESBOUGABOUGEBOUSEBOUTSBOXERBOYAUBRAIEBRAMEBRASEBRIBEBRICKBRINSBROCSBROIEBROMEBROUTBRUNIBRUTEBUGGYBUSESBUSTEBUTINBUTORBUTTEBUVEZCABASCACHACACHECAFESCAGESCAHOTCAIDSCALEECALMACALOTCAMEECAMPACAMPECAMPSCANESCANIFCANOECAPESCAPOTCAPRECARATCARDECARRECASEECASSACASTECATINCAUSACAVESCEDAICEDASCEDEECEDERCEDESCEDEZCEDRECEPESCERFSCERNECESSECHAPECHATSCHAUXCHEFSCHERECHERICHICSCHIOTCHIPSCHOPECHOUXCHUTECIBLECIELSCIEUXCINESCIREECIRESCISTECITERCIVILCLAIECLAMECLANSCLAPECLERCCLINSCLONECLOSECLOUSCOACHCOCONCODESCOINSCOITECOLINCOLLACOMMECONESCORSECOSSECOTEECOTESCOUACCOUDSCOUICCOULACOULECOUPACOUVECRADECRANSCRASHCRAWLCREERCRIAICRIASCRIEECRIERCRIESCRIEZCRINSCRUESCUBESCUIRSCULOTCULTECURESCUVERDAGUEDALLEDAMERDAMESDANDYDANSADARDEDATERDATESDEBITDECESDECHUDEDIEDEFISDELITDEMIEDENTSDEPITDEUILDEVOTDIEUXDIGUEDINAIDINASDINEEDINESDINEZDINGODIRAIDITESDIVINDODUSDOGMEDONNADONNEDOREEDORERDOSERDOTEEDOUERDOUTADOUVEDOYENDRAPSDRONEDUELSDUNESDUREEDUREREBENEECARTECHOSECROUECRUEEGALEEGARDELANSELIREELOGEEMAILEMOISEMULEENCASENFERENTRAENTREENVOIEPAISEPEESEPIEREPOUXERGOTERRERESSORETAINETAUXETUVEEVADEEVENTEVITAEVITEEXCESEXIGEEXILSEXODEFACESFACHEFADESFAGOTFAITSFAKIRFALOTFANGEFANONFAONSFARCIFARDSFASSEFASTEFATALFECALFELERFEMURFENDUFENTEFERMAFERREFESSEFETAIFETASFETEEFETERFETESFETEZFEUILFICHUFIELSFIGERFILERFILOUFINESFINIEFINISFINITFIOLEFIORDFIRMEFISSAFIXAIFIXASFIXEEFIXESFIXEZFJORDFLEAUFLIRTFLOTSFOEHNFOIESFOINSFOLLEFONCEFONDSFONDUFOUIRFOURSFRENEFRISEFROLEFUITEFUMERFUMETFURETFUTURGAFFEGAGNAGAGNEGAINEGALBEGALESGALONGAMMEGANGSGANTSGARCEGARDAGARDEGARESGATERGAULEGAVEEGAZERGELAIGELASGELERGELESGELEZGEMIRGENESGENETGERERGESIRGIBETGIFLEGIGOTGITESGLOSEGNOMEGOBERGODETGONGSGOSSEGOUGEGOURDGOUTAGOUTEGRISEGUETSGUISEGYPSEHABITHAIESHAINEHALLSHALOSHANTEHARDIHATERHATESHAUTEHAUTSHAVREHELERHEUREHEURTHOCHEHOTESHOTTEHOULEHUEESHUMERHURLAHURLEHYDREHYENEIDEESILOTSIMPIEIMPOTINOUIINTERISOLEISSUEIVRESJABOTJACTEJADESJADISJARREJASERJATTEJAUGEJAVELJEANSJETAIJETASJETEEJETERJETESJETEZJEUDIJEUNEJOIESJOINTJOUAIJOUASJOUEEJOUESJOUEZJOURSJOYAUJUDASJUDOSJUGAIJUGASJUGEEJUGESJUGEZJUIVEJUMBOJUNTEJUPESJURERJURONJURYSKILOSLABELLACETLACHELACTELAICSLAIDELAITSLAMASLAMESLANCALANDELAPONLAQUELARVELATINLATTELAVAILAVASLAVEELAVESLAVEZLECHELEGALLEPRELESTELEVAILEVASLEVEELEVESLEVEZLICOLLICOULIENSLIEUELIEUXLIMBELIMERLIMESLIONSLIRESLISSELIVRALOBBYLOBESLOGESLOPINLOQUELOTTELOUAILOUASLOUEELOUERLOUESLOUEZLOUPSLOYALLOYERLUGERLUGESLUIRELUNESLUXERLUXESLYRESMACHOMADREMAFIAMAGESMAGOTMAINSMALLEMANGAMANGEMANNEMAREEMARESMARISMARREMARRIMARTEMATERMATOUMAUREMEFIEMEGOTMELAIMELASMELERMELESMELEZMENAIMENASMENEEMENESMENEZMENUEMENUSMERESMETISMEULEMEURTMIAOUMICROMIDISMIENSMIMERMINESMINETMINOUMINUSMISERMITREMIXERMOCHEMODALMODEMMODESMOINSMOISIMOITEMOLLEMOMIEMONTAMONTEMONTSMOQUEMORDUMORNEMORTSMORVEMOTOSMOUESMOULTMUETSMUFLEMULESMULTIMUNIRMURERMURESMURIEMURIRMURISMURITMUSCSMUSERMUTERMYOPENAGAINAGASNAGEENAGESNAGEZNAIFSNAINSNANTINARRENASALNATALNATIFNATTENEANTNEFLENEIGANERFSNETTENEUFSNIAISNIECENIMBENIPPENOCESNOIRSNOMMENONNENOTAINOTASNOTEENOTESNOTEZNOUAINOUASNOUBANOUEENOUESNOUEZNOYAUNOYERNUEESNUIRENUITSNULLENUQUEOBEIEOBEIROBEISOBEITOBESEOBOLEOCREROCTETOEUFSOGIVEOGRESOISIFONCESONDEEONDESOPEREOPINEOPIUMOPTERORGIEORNERORQUEOSAITOSEESOSENTOSERAOSONSOTAITOTENTOTERAOTONSOUATEOUBLIOUESTOUIESOURLEOURSEOUTREOVINSOXYDEOZONEPAGESPAIENPAINSPAIRSPALIEPALIRPALISPALITPALMEPANELPANERPANSEPAPESPARCSPARERPARISPARLAPARLEPARTSPASSAPATESPATINPATIRPAUMEPAVERPAVESPAYAIPAYASPAYEEPAYESPAYEZPEAUXPEINTPENDUPENSAPENSEPERCEPERDUPERESPERIRPERSOPESAIPESASPESEEPESESPESEZPETONPIEDSPIEUXPILONPINTEPIONSPIPERPIPESPIRESPITREPLACAPLAIDPLAIEPLANEPLATSPLEBEPLEURPLIAIPLIASPLIEEPLIESPLIEZPLOTSPNEUSPOILSPOLARPOLIRPONTEPONTSPORCSPORTAPORTSPOSAIPOSASPOSEEPOSESPOSEZPOUAHPOUFSPOUPEPRETAPRETEPREVUPRIAIPRIASPRIEEPRIESPRIEZPROBEPRUDEPUANTPUCESPULLSPUNIEPUNISPUNITPURGEQUAISQUANDQUASIRACESRADESRADINRAGESRAGOTRAIDERAIESRAILSRAIRERALERRAMAIRAMASRAMEERAMESRAMEZRANCERANGARANGERANGSRARESRASERRATAIRATASRATEERATESRATEZRAVIRRAYERRECELRECHERECUSREGALREGIEREGIRREINSREJETRELIEREMISRENNEREPLIRESTARETROREUNIREVAIREVASREVEEREVESREVETREVEZRICINRIDERRIEURRIMESRIPERRIRESRIVESROBESRODEORODERRONDSROSERROSESROSSEROTIRROUERROUESROUETROUGIROULAROULERUBISRUDESRUGIERUGIRRUGISRUGITRUMBARUSEERUSERRUSESSACRESAGESSAINESAISISALIESALIRSALISSALITSALUASALUESANGSSANTESAPERSAUTASAUTESAUVASAUVESAVONSAXONSCALPSCEAUSCIONSCORESEAUXSECHESEINSSELONSEMAISEMASSEMEESEMESSEMEZSEMISSENTISERFSSERINSERPESERTISERVISEULSSEVIRSEXESSHOOTSHORTSIEURSIGNASILEXSILOSSINUSSITARSITESSKIERSMASHSNACKSOBRESOCLESODASSOFASSOIESSOIFSSOINSSOIRSSONGESONNASONNESORTISORTSSOSIESOUDASOUDESOURDSOUTESPORESQUATSTARSSTELESTOPSSUAVESUBIESUBIRSUBISSUBITSUCERSUFFISUIESSUIVISURETSURFESURGITABOUTAIRETALUSTAMISTAPERTARIFTATERTAXERTAXISTEMPETENDUTENUETERNETERNITETEETETESTHONSTIEDETIENSTIERSTIGESTILDETINTETIQUETIRAITIRASTIREETIRERTIRESTIRETTIREZTISSUTOITSTOLESTOMBATONTETORDUTOURSTOUTETRACATRAHITRAPUTREMATRIERTRIPETROLLTRONETROUSTRUIETRUSTTUAITTUANTTUBASTUBESTUENTTUERATUEURTUNERTUONSTURBOTYPERTYPESULTRAUNIESUNIRAURINEUSAITUSENTUSERAUSONSUSUREUTILEVAGIRVAINEVALSAVARIEVASESVEAUXVELOSVENTSVERGEVERNIVERSEVETIRVETOSVIBREVICESVICIEVIDAIVIDASVIDEEVIDERVIDESVIDEZVIEILVIGIEVIRERVISAIVISASVISEEVISESVISEZVISSEVITESVIVATVOCALVODKAVOGUEVOICIVOIESVOIREVOLAIVOLASVOLEEVOLESVOLEZVOLTEVOMIRVOTAIVOTASVOTEEVOTESVOTEZVOTREVOULUVOUTEVOYEZZEROSZIPPEZONERZONES";
+const split5 = s => s.match(/.{5}/g) || [];
+const ANS = split5(ANS_RAW), DICT = new Set(ANS.concat(split5(EXTRA_RAW)));
+// ordre des mots du jour : mélange fixe, identique pour tout le monde
+function mulberry(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const ORDER = (() => { const r = mulberry(44240), a = ANS.slice(); for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; })();
+const dayIndex = () => { const d = new Date(), t = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()); return Math.floor((t - Date.UTC(2026, 0, 1)) / 864e5); };
+const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/Œ/g, "OE");
+
+const Snd = {
+  ctx: null, on: load("md_sound") !== "0",
+  init(){ if(!this.ctx){ const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return; this.ctx = new AC(); this.out = this.ctx.createGain(); this.out.gain.value = .8; this.out.connect(this.ctx.destination); } if(this.ctx.state === "suspended") this.ctx.resume(); },
+  tone(f0, f1, dur, peak, delay = 0, type = "sine"){ if(!this.on || !this.ctx) return; const c = this.ctx, t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .006); g.gain.exponentialRampToValueAtTime(.0001, t + dur); o.connect(g).connect(this.out); o.start(t); o.stop(t + dur + .02); },
+  key(){ this.tone(900 + Math.random() * 100, 700, .04, .05, 0, "triangle"); },
+  del(){ this.tone(500, 380, .05, .05, 0, "triangle"); },
+  res(k, d){ const f = k === "ok" ? 784 : k === "mis" ? 587 : 330; this.tone(f, f, .16, .08, d, k === "no" ? "sine" : "triangle"); },
+  bad(){ this.tone(200, 150, .25, .09, 0, "sawtooth"); },
+  win(){ [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, f, i === 4 ? .8 : .22, .12, .05 + i * .1, "triangle")); },
+  lose(){ [392, 349, 311, 262].forEach((f, i) => this.tone(f, f * .97, .4, .09, i * .25, "sawtooth")); }
+};
+function sndLabel(){ $("snd").textContent = Snd.on ? "🔊" : "🔇"; }
+$("snd").onclick = () => { Snd.on = !Snd.on; save("md_sound", Snd.on ? "1" : "0"); Snd.init(); sndLabel(); };
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => Snd.init(), {capture: true}));
+sndLabel();
+
+let cfg = {dict: 1, first: 0, hard: 0};
+try{ const o = JSON.parse(load("md_cfg") || "null"); if(o) cfg = Object.assign(cfg, o); }catch(e){}
+
+/* ================= PARTIE ================= */
+let G = null, busy = false, mode = load("md_mode") || "day";
+function startDay(){
+  const di = dayIndex(), word = ORDER[((di % ORDER.length) + ORDER.length) % ORDER.length];
+  let st = null; try{ st = JSON.parse(load("md_day") || "null"); }catch(e){}
+  if(st && st.day === di && st.word === word) G = st;
+  else G = {day: di, word, rows: [], done: false, won: false, first: cfg.first};
+  G.mode = "day"; G.cur = "";
+}
+function startFree(){
+  let st = null; try{ st = JSON.parse(load("md_free") || "null"); }catch(e){}
+  if(st && !st.done && st.word) G = st;
+  else G = {word: ANS[Math.floor(Math.random() * ANS.length)], rows: [], done: false, won: false, first: cfg.first};
+  G.mode = "free"; G.cur = "";
+}
+function persist(){ save(G.mode === "day" ? "md_day" : "md_free", JSON.stringify({day: G.day, word: G.word, rows: G.rows, done: G.done, won: G.won, first: G.first})); }
+function setMode(m){ mode = m; save("md_mode", m); m === "day" ? startDay() : startFree(); $("endbox").hidden = true; render(true); if(G.done && m === "day") setTimeout(showEnd, 300); }
+
+function score(guess, word){
+  const res = Array(5).fill("no"), left = {};
+  for(let i = 0; i < 5; i++){ if(guess[i] === word[i]) res[i] = "ok"; else left[word[i]] = (left[word[i]] || 0) + 1; }
+  for(let i = 0; i < 5; i++) if(res[i] !== "ok" && left[guess[i]]){ res[i] = "mis"; left[guess[i]]--; }
+  return res;
+}
+
+/* ================= AFFICHAGE ================= */
+const tiles = [];
+function buildBoard(){
+  const b = $("board");
+  for(let r = 0; r < 6; r++){ const row = document.createElement("div"); row.className = "row"; tiles.push([]);
+    for(let c = 0; c < 5; c++){ const t = document.createElement("div"); t.className = "t"; row.appendChild(t); tiles[r].push(t); } b.appendChild(row); }
+  const rows = ["AZERTYUIOP", "QSDFGHJKLM", "+WXCVBN-"];
+  $("kb").innerHTML = rows.map(r => `<div class="kr">${[...r].map(ch => ch === "+" ? `<button class="k wide" data-k="Enter">Entrée</button>` : ch === "-" ? `<button class="k wide" data-k="Backspace" aria-label="Effacer">⌫</button>` : `<button class="k" data-k="${ch}">${ch}</button>`).join("")}</div>`).join("");
+  $("kb").addEventListener("click", e => { const b = e.target.closest("button"); if(b) press(b.dataset.k); });
+}
+function keyStates(){
+  const st = {}, rank = {no: 1, mis: 2, ok: 3};
+  G.rows.forEach(g => score(g, G.word).forEach((k, i) => { const ch = g[i]; if(!st[ch] || rank[k] > rank[st[ch]]) st[ch] = k; }));
+  return st;
+}
+function render(){
+  document.querySelectorAll(".modes button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.m === mode)));
+  for(let r = 0; r < 6; r++) for(let c = 0; c < 5; c++){
+    const t = tiles[r][c]; t.className = "t"; t.textContent = "";
+    if(r < G.rows.length){ t.textContent = G.rows[r][c]; t.classList.add(score(G.rows[r], G.word)[c]); }
+    else if(r === G.rows.length && !G.done){
+      if(G.cur[c]){ t.textContent = G.cur[c]; t.classList.add("fill"); }
+      else if(c === 0 && G.first){ t.textContent = G.word[0]; t.classList.add("hintl"); }
+    }
+  }
+  const ks = keyStates();
+  document.querySelectorAll(".k[data-k]").forEach(k => { k.classList.remove("ok", "mis", "no"); const s = ks[k.dataset.k]; if(s) k.classList.add(s); });
+  const n = dayIndex() + 1;
+  $("sub").textContent = mode === "day" ? `Mot n° ${n} · ${new Date().toLocaleDateString("fr-FR", {weekday: "long", day: "numeric", month: "long"})}${G.done ? (G.won ? " · trouvé ✓" : " · raté") : ""}` : "Partie libre · un nouveau mot à chaque partie";
+}
+let toastT = 0;
+function toast(t, ms = 1600){ const e = $("toast"); e.textContent = t; e.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => e.hidden = true, ms); }
+
+/* ================= SAISIE ================= */
+function press(k){
+  if(!G || G.done || busy) return;
+  if(k === "Enter") return submit();
+  if(k === "Backspace"){ if(G.cur.length){ G.cur = G.cur.slice(0, -1); Snd.del(); render(); } return; }
+  if(/^[A-Z]$/.test(k) && G.cur.length < 5){ G.cur += k; Snd.key(); render(); }
+}
+document.addEventListener("keydown", e => {
+  if(e.ctrlKey || e.metaKey || e.altKey) return;
+  if(!$("settings").hidden || !$("endbox").hidden){ if(e.key === "Escape"){ $("settings").hidden = true; $("endbox").hidden = true; } return; }
+  if(e.key === "Enter"){ e.preventDefault(); press("Enter"); }
+  else if(e.key === "Backspace"){ e.preventDefault(); press("Backspace"); }
+  else { const ch = norm(e.key); if(/^[A-Z]$/.test(ch)) press(ch); }
+});
+function shakeRow(msg){
+  const row = $("board").children[G.rows.length]; row.classList.remove("shake"); void row.offsetWidth; row.classList.add("shake");
+  Snd.bad(); toast(msg);
+}
+async function submit(){
+  let g = G.cur;
+  if(G.first && g.length === 4 && g[0] !== G.word[0]) g = G.word[0] + g;
+  if(g.length < 5) return shakeRow("Il faut 5 lettres");
+  if(cfg.dict && !DICT.has(g)) return shakeRow("Ce mot n'est pas dans le dictionnaire");
+  if(cfg.hard && G.rows.length){
+    for(const prev of G.rows){ const s = score(prev, G.word);
+      for(let i = 0; i < 5; i++){ if(s[i] === "ok" && g[i] !== prev[i]) return shakeRow(`La ${i + 1}ᵉ lettre doit être ${prev[i]}`);
+        if(s[i] === "mis" && !g.includes(prev[i])) return shakeRow(`Le mot doit contenir ${prev[i]}`); } }
+  }
+  busy = true;
+  const r = G.rows.length, res = score(g, G.word);
+  for(let c = 0; c < 5; c++){ tiles[r][c].textContent = g[c]; }
+  for(let c = 0; c < 5; c++){
+    const t = tiles[r][c];
+    if(!reduced){ t.classList.add("flip"); await sleep(250); }
+    t.classList.remove("fill", "hintl"); t.classList.add(res[c]); Snd.res(res[c], 0);
+    if(!reduced) await sleep(110);
+  }
+  G.rows.push(g); G.cur = "";
+  const won = g === G.word;
+  if(won || G.rows.length === 6){ G.done = true; G.won = won; recordStats(); }
+  persist(); render(); busy = false;
+  if(won){
+    Snd.win(); toast(["Génial !", "Magnifique !", "Superbe !", "Bravo !", "Bien joué !", "Ouf !"][G.rows.length - 1], 1500);
+    if(!reduced) tiles[r].forEach((t, c) => setTimeout(() => t.classList.add("win"), c * 90));
+    setTimeout(showEnd, reduced ? 300 : 1600);
+  } else if(G.done){ Snd.lose(); setTimeout(showEnd, 900); }
+}
+
+/* ================= STATISTIQUES ================= */
+function getStats(){ try{ return Object.assign({played: 0, won: 0, streak: 0, best: 0, dist: [0, 0, 0, 0, 0, 0], last: -9}, JSON.parse(load("md_stats") || "{}")); }catch(e){ return {played: 0, won: 0, streak: 0, best: 0, dist: [0, 0, 0, 0, 0, 0], last: -9}; } }
+function recordStats(){
+  if(G.mode !== "day") return;
+  const s = getStats(); if(s.last === G.day) return;
+  s.played++;
+  if(G.won){ s.won++; s.dist[G.rows.length - 1]++; s.streak = s.last === G.day - 1 ? s.streak + 1 : 1; s.best = Math.max(s.best, s.streak); }
+  else s.streak = 0;
+  s.last = G.day; save("md_stats", JSON.stringify(s));
+}
+function showEnd(statsOnly){
+  const s = getStats();
+  if(statsOnly || !G.done){ $("endt").textContent = "Statistiques"; $("endw").textContent = ""; $("endp").textContent = "Pour les mots du jour."; }
+  else {
+    $("endt").textContent = G.won ? "Trouvé !" : "Perdu…";
+    $("endw").textContent = G.word;
+    $("endp").textContent = G.won ? `En ${G.rows.length} essai${G.rows.length > 1 ? "s" : ""}.` + (G.mode === "day" ? " Revenez demain pour un nouveau mot." : "") : "Le mot était celui-ci." + (G.mode === "day" ? " Revenez demain pour un nouveau mot." : "");
+  }
+  $("stats").innerHTML = [[s.played, "Jouées"], [s.played ? Math.round(s.won / s.played * 100) : 0, "% gagnées"], [s.streak, "Série"], [s.best, "Meilleure série"]].map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join("");
+  const mx = Math.max(1, ...s.dist);
+  $("dist").innerHTML = s.dist.map((v, k) => `<div>${k + 1}<i class="${G.mode === "day" && G.done && G.won && G.rows.length === k + 1 ? "me" : ""}" style="width:${8 + v / mx * 82}%">${v}</i></div>`).join("");
+  $("share").hidden = statsOnly || !G.done;
+  $("endbox").hidden = false;
+}
+$("share").onclick = async () => {
+  const em = {ok: "🟩", mis: "🟨", no: "⬛"};
+  const head = G.mode === "day" ? `Le mot du jour n° ${G.day + 1} : ${G.won ? G.rows.length : "X"}/6` : `Le mot du jour (partie libre) : ${G.won ? G.rows.length : "X"}/6`;
+  const txt = head + "\n" + G.rows.map(r => score(r, G.word).map(k => em[k]).join("")).join("\n");
+  try{ await navigator.clipboard.writeText(txt); toast("Résultat copié !"); }catch(e){ toast("Copie impossible sur cet appareil"); }
+};
+$("again").onclick = () => { save("md_free", ""); setMode("free"); startFree(); render(); };
+$("endx").onclick = () => { $("endbox").hidden = true; };
+$("statbtn").onclick = () => showEnd(true);
+document.querySelectorAll(".modes button").forEach(b => b.onclick = () => setMode(b.dataset.m));
+
+let draft = null;
+function paintSet(){ document.querySelectorAll("#settings .seg").forEach(seg => seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(draft[seg.dataset.k]) === b.dataset.v))); }
+$("setbtn").onclick = () => { draft = Object.assign({}, cfg); paintSet(); $("settings").hidden = false; };
+document.querySelectorAll("#settings .seg").forEach(seg => seg.addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; draft[seg.dataset.k] = +b.dataset.v; paintSet(); }));
+$("setcancel").onclick = () => { $("settings").hidden = true; };
+$("setok").onclick = () => { cfg = draft; save("md_cfg", JSON.stringify(cfg)); $("settings").hidden = true; if(G && !G.rows.length && !G.done){ G.first = cfg.first; } render(); };
+
+buildBoard();
+setMode(mode);
+})();
+</script>

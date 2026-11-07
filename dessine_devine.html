@@ -1,0 +1,433 @@
+<title>Dessine et devine</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gochi+Hand&family=Nunito:wght@600;800;900&display=swap">
+<style>
+/* Layout : un tableau blanc au centre ; au-dessus le mot à deviner (ou à dessiner) et le chrono, dessous la palette ou la zone de propositions. */
+:root{
+  color-scheme:dark;
+  --bg:#2b2350; --bg2:#151030; --ink:#f7f4ff; --muted:#c3bce0; --edge:rgba(247,244,255,.18);
+  --pink:#ef476f; --yellow:#ffd166; --green:#06d6a0; --blue:#118ab2; --navy:#1f2a44;
+  --board:#ffffff;
+  --hand:"Gochi Hand","Comic Sans MS",cursive;
+  --ui:"Nunito","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0;font-family:var(--ui);color:var(--ink);-webkit-tap-highlight-color:transparent;background:radial-gradient(ellipse 80% 60% at 50% 20%,#40347a 0,var(--bg) 50%,var(--bg2) 100%) fixed,var(--bg)}
+.app{max-width:720px;margin:0 auto;padding-block:10px 24px;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:10px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{margin:0;font-family:var(--hand);font-weight:400;font-size:clamp(1.8rem,8vw,2.6rem);line-height:1}
+h1 .a{color:var(--yellow)}h1 .b{color:var(--pink)}
+.tools{display:flex;gap:6px}
+button{font:inherit;font-weight:800;color:var(--ink);background:rgba(255,255,255,.08);border:1px solid var(--edge);border-radius:11px;padding:8px 12px;cursor:pointer}
+button:hover:not(:disabled){border-color:rgba(255,255,255,.5)}
+button:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
+button:disabled{opacity:.4;cursor:default}
+.primary{background:var(--yellow);color:#2a1d05;border-color:var(--yellow)}
+.pink{background:var(--pink);border-color:var(--pink);color:#fff}
+.players{display:flex;flex-wrap:wrap;gap:6px}
+.pl{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.28);border:1px solid var(--edge);border-radius:99px;padding:5px 11px;font-weight:800;font-size:.85rem}
+.pl.dr{background:var(--yellow);color:#2a1d05;border-color:var(--yellow)}
+.pl.ok{background:var(--green);color:#043a2c;border-color:var(--green)}
+.pl b{font-variant-numeric:tabular-nums}
+.bar{display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.28);border:1px solid var(--edge);border-radius:14px;padding:8px 12px;min-height:56px}
+.bar .word{flex:1;min-width:0;font-family:var(--hand);font-size:clamp(1.4rem,6vw,2rem);letter-spacing:.12em;line-height:1.1;overflow-wrap:anywhere}
+.bar .word small{display:block;font-family:var(--ui);font-size:.75rem;letter-spacing:0;color:var(--muted);font-weight:800}
+.clock{flex:none;width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.05rem;background:conic-gradient(var(--pink) var(--p,100%),rgba(255,255,255,.12) 0);position:relative}
+.clock::before{content:"";position:absolute;inset:5px;border-radius:50%;background:#2b2350}
+.clock span{position:relative}
+.boardwrap{position:relative;border-radius:14px;overflow:hidden;background:var(--board);box-shadow:0 14px 30px rgba(0,0,0,.45),inset 0 0 0 1px rgba(0,0,0,.08)}
+canvas{display:block;width:100%;aspect-ratio:4/3;touch-action:none;cursor:crosshair}
+.overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(31,42,68,.88);color:#fff;text-align:center;padding:16px}
+.overlay h2{margin:0;font-family:var(--hand);font-weight:400;font-size:clamp(1.6rem,6vw,2.2rem);color:var(--yellow)}
+.overlay p{margin:0;color:#dcd6f5;font-weight:700;max-width:420px;line-height:1.4}
+.overlay .choices{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.overlay .choices button{font-family:var(--hand);font-size:1.5rem;font-weight:400;padding:8px 16px;background:#fff;color:var(--navy)}
+.overlay .big{font-family:var(--hand);font-size:clamp(2rem,9vw,3rem);color:#fff}
+.overlay ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-weight:800}
+.palette{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center}
+.sw{width:32px;height:32px;border-radius:50%;border:3px solid rgba(255,255,255,.25);padding:0;cursor:pointer}
+.sw[aria-pressed="true"]{border-color:#fff;transform:scale(1.15);box-shadow:0 0 0 2px var(--pink)}
+.sz{width:38px;height:38px;padding:0;display:flex;align-items:center;justify-content:center}
+.sz i{display:block;border-radius:50%;background:#fff}
+.sz[aria-pressed="true"]{background:var(--yellow)}.sz[aria-pressed="true"] i{background:#2a1d05}
+.guess{display:flex;gap:8px}
+.guess input{flex:1;min-width:0;font:inherit;font-weight:800;font-size:1.05rem;color:var(--ink);background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:11px;padding:11px 12px}
+.guess input:focus{outline:3px solid var(--yellow);outline-offset:1px}
+.chat{list-style:none;margin:0;padding:8px 10px;background:rgba(0,0,0,.22);border:1px solid var(--edge);border-radius:12px;max-height:150px;overflow:auto;display:flex;flex-direction:column;gap:3px;font-size:.9rem}
+.chat li b{color:var(--muted)}
+.chat li.ok{color:var(--green);font-weight:900}
+.chat li.near{color:var(--yellow);font-weight:800}
+.chat li.sys{color:var(--muted);font-style:italic}
+.found{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.found button{flex:1 1 120px}
+.rules{background:rgba(0,0,0,.22);border:1px solid var(--edge);border-radius:14px;padding:12px 14px;font-size:.9rem;line-height:1.5;color:var(--muted)}
+.rules summary{cursor:pointer;font-weight:800;color:var(--ink)}
+.rules ul{margin:8px 0 0;padding-left:18px}
+.modal{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(10,8,25,.7);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px}
+.modal .box{background:#2f2758;border:1px solid var(--edge);border-radius:16px;padding:20px;width:100%;max-width:460px;max-height:100%;overflow:auto;box-shadow:0 20px 40px rgba(0,0,0,.5)}
+.modal h2{margin:0 0 12px;font-family:var(--hand);font-weight:400;font-size:2rem;color:var(--yellow)}
+.modal p{margin:0 0 12px;color:var(--muted);line-height:1.45;font-size:.92rem}
+.modal .row{display:flex;gap:8px}.modal .row button{flex:1}
+.opt{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.opt .lbl{font-weight:800;font-size:.9rem}
+.seg{display:flex;flex-wrap:wrap;background:rgba(0,0,0,.25);border:1px solid var(--edge);border-radius:12px;padding:3px;gap:2px}
+.seg button{flex:1 1 auto;border:0;background:transparent;padding:7px 8px;border-radius:9px;color:var(--muted);font-size:.85rem}
+.seg button[aria-pressed="true"]{background:var(--yellow);color:#2a1d05}
+.names{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.names input{font:inherit;font-weight:700;color:var(--ink);background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:9px;padding:7px 9px;min-width:0}
+@media (max-width:480px){.tools .t{display:none}.sw{width:28px;height:28px}.sz{width:34px;height:34px}}
+</style>
+
+<div class="app">
+  <div class="top">
+    <h1><span class="a">Dessine</span> et <span class="b">devine</span></h1>
+    <div class="tools">
+      <button id="setbtn" aria-label="Réglages">⚙️<span class="t"> Réglages</span></button>
+      <button id="snd" aria-label="Activer ou couper le son"></button>
+    </div>
+  </div>
+  <div class="players" id="players"></div>
+  <div class="bar"><div class="word" id="word"></div><div class="clock" id="clock"><span id="clocktxt"></span></div></div>
+  <div class="boardwrap"><canvas id="cv" width="1000" height="750" aria-label="Tableau à dessin"></canvas><div class="overlay" id="ov" hidden></div></div>
+  <div id="tools" hidden>
+    <div class="palette" id="palette"></div>
+  </div>
+  <div id="guessbox" hidden>
+    <div class="guess"><input id="gin" placeholder="Votre proposition…" autocomplete="off" maxlength="40" enterkeyhint="send"><button class="primary" id="gbtn">Proposer</button></div>
+  </div>
+  <div class="found" id="foundbox" hidden></div>
+  <ul class="chat" id="chat" hidden></ul>
+  <div style="display:flex;justify-content:center"><button id="newg">Nouvelle partie</button></div>
+  <details class="rules">
+    <summary>Règles du jeu</summary>
+    <ul>
+      <li>À tour de rôle, un joueur choisit un mot parmi trois et le <b>dessine</b>, sans lettres ni chiffres.</li>
+      <li>Les autres <b>devinent</b> le plus vite possible. En ligne, chacun tape ses propositions sur son téléphone : le premier qui trouve gagne le plus de points (100, puis 85, 70…), et le dessinateur gagne 25 points par joueur qui a trouvé.</li>
+      <li>Sur le même écran, on devine à voix haute et le dessinateur indique qui a trouvé : 10 points pour celui qui trouve, 5 pour le dessinateur.</li>
+      <li>Quand le temps passe, des lettres du mot se dévoilent pour aider.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="modal" id="settings" hidden><div class="box" role="dialog" aria-labelledby="sett">
+  <h2 id="sett">Réglages</h2>
+  <div class="opt" id="optn"><span class="lbl">Joueurs (même écran)</span><div class="seg" data-k="n"><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button><button data-v="6">6</button><button data-v="8">8</button></div></div>
+  <div class="opt" id="optnames"><span class="lbl">Prénoms</span><div class="names" id="names"></div></div>
+  <div class="opt"><span class="lbl">Temps pour dessiner</span><div class="seg" data-k="time"><button data-v="60">60 s</button><button data-v="80">80 s</button><button data-v="120">2 min</button></div></div>
+  <div class="opt"><span class="lbl">Tours de dessin par joueur</span><div class="seg" data-k="turns"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button></div></div>
+  <div class="opt"><span class="lbl">Mots</span><div class="seg" data-k="lvl"><button data-v="0">Faciles</button><button data-v="1">Moyens</button><button data-v="2">Difficiles</button><button data-v="3">Mélange</button></div></div>
+  <div class="opt"><span class="lbl">Lettres dévoilées en cours de route</span><div class="seg" data-k="hints"><button data-v="2">2 lettres</button><button data-v="1">1 lettre</button><button data-v="0">Aucune</button></div></div>
+  <p>En ligne, ce sont les réglages de la personne qui crée la table qui comptent.</p>
+  <div class="row"><button id="setcancel">Annuler</button><button id="setok" class="primary">Appliquer</button></div>
+</div></div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const load = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const save = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+const esc = t => String(t).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"})[c]);
+
+const Snd = {
+  ctx: null, on: load("dd_sound") !== "0", nb: null,
+  init(){ if(!this.ctx){ const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return; this.ctx = new AC(); this.out = this.ctx.createGain(); this.out.gain.value = .85; this.out.connect(this.ctx.destination);
+    const n = this.ctx.sampleRate, b = this.ctx.createBuffer(1, n, n), d = b.getChannelData(0); for(let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; this.nb = b; }
+    if(this.ctx.state === "suspended") this.ctx.resume(); },
+  ok(){ return this.on && this.ctx; },
+  hit(f, q, peak, dur, delay = 0, type = "bandpass"){ if(!this.ok()) return; const c = this.ctx, t = c.currentTime + delay, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.nb; fl.type = type; fl.frequency.value = f; fl.Q.value = q; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .006); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    s.connect(fl).connect(g).connect(this.out); s.start(t, Math.random() * .5); s.stop(t + dur + .02); },
+  tone(f0, f1, dur, peak, delay = 0, type = "sine"){ if(!this.ok()) return; const c = this.ctx, t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .006); g.gain.exponentialRampToValueAtTime(.0001, t + dur); o.connect(g).connect(this.out); o.start(t); o.stop(t + dur + .02); },
+  marker(){ this.hit(5000 + Math.random() * 2000, 1, .025, .05); },
+  pop(){ this.tone(600, 1200, .08, .08, 0, "triangle"); },
+  found(){ [784, 988, 1319].forEach((f, i) => this.tone(f, f, .18, .11, i * .07, "triangle")); },
+  other(){ this.tone(988, 988, .12, .07, 0, "triangle"); },
+  msg(){ this.tone(1400, 1300, .04, .04, 0, "sine"); },
+  tick(){ this.tone(1500, 1500, .03, .05, 0, "square"); },
+  hint(){ this.tone(660, 990, .15, .08, 0, "triangle"); },
+  end(){ [523, 440, 392].forEach((f, i) => this.tone(f, f, .2, .09, i * .1, "triangle")); },
+  win(){ [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, f, i === 4 ? .9 : .28, .14, .1 + i * .12, "triangle")); }
+};
+function sndLabel(){ $("snd").textContent = Snd.on ? "🔊" : "🔇"; }
+$("snd").onclick = () => { Snd.on = !Snd.on; save("dd_sound", Snd.on ? "1" : "0"); Snd.init(); sndLabel(); };
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => Snd.init(), {capture: true}));
+sndLabel();
+
+/* ================= MOTS ================= */
+const WORDS = [
+ "chat chien maison soleil arbre voiture fleur pomme poisson bateau lune étoile ballon vélo oiseau gâteau chapeau clé livre lunettes parapluie banane escargot nuage cœur montagne train avion fusée glace pizza carotte araignée serpent tortue lapin cochon vache éléphant girafe souris abeille papillon crayon ciseaux téléphone télévision horloge lampe chaise table lit porte fenêtre bougie cadeau sapin pied main œil nez bouche oreille dent chaussure chaussette pantalon robe couronne épée château pont tente feu arc-en-ciel éclair pluie plage île requin baleine crabe canard poule œuf fromage pain citron fraise cerise raisin champignon tomate ananas",
+ "pirate sorcière fantôme robot dragon licorne sirène chevalier roi reine clown pompier docteur astronaute cow-boy extraterrestre vampire momie phare moulin volcan cascade désert igloo pyramide statue manège toboggan balançoire piscine skateboard trottinette hélicoptère sous-marin tracteur ambulance camion moto montgolfière parachute ancre boussole coffre diamant bague collier miroir peigne savon baignoire douche frigo casserole fourchette couteau cuillère tasse théière bouteille sandwich hamburger frites croissant baguette crêpe popcorn guitare piano batterie trompette violon micro ordinateur clavier ampoule aimant loupe télescope marteau scie échelle brouette arrosoir épouvantail nid kangourou pingouin hibou chauve-souris dauphin pieuvre méduse crocodile zèbre singe ours renard loup hérisson coccinelle fourmi",
+ "embouteillage cauchemar vertige éternuement anniversaire mariage vacances déménagement ronflement hoquet jongleur équilibriste magicien plongée escalade pique-nique feu d'artifice tremblement de terre marée éclipse recyclage selfie tempête inondation avalanche labyrinthe puzzle carnaval cirque orchestre télécommande aspirateur ascenseur escalator péage parking autoroute rond-point feu rouge passage piéton boîte aux lettres facteur bibliothèque musée cinéma théâtre hôpital mairie prison boulangerie marché Noël Halloween fête foraine sieste réveil rêve ombre reflet"
+].map(s => s.split(" "));
+// les mots de plusieurs morceaux sont écrits avec des espaces insécables pour le découpage ci-dessus
+WORDS[2] = WORDS[2].join(" ").replace("feu d'artifice", "feu_d'artifice").replace("tremblement de terre", "tremblement_de_terre").replace("passage piéton", "passage_piéton").replace("boîte aux lettres", "boîte_aux_lettres").replace("fête foraine", "fête_foraine").replace("feu rouge", "feu_rouge").split(" ").map(w => w.replace(/_/g, " "));
+const norm = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/œ/g, "oe").replace(/[^a-z]/g, "");
+function lev(a, b){ const m = a.length, n = b.length; if(Math.abs(m - n) > 2) return 9; const d = Array.from({length: m + 1}, (_, i) => [i]); for(let j = 1; j <= n; j++) d[0][j] = j; for(let i = 1; i <= m; i++) for(let j = 1; j <= n; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); return d[m][n]; }
+const isRight = (g, w) => { const a = norm(g), b = norm(w); return a === b || a === b + "s" || a === b + "x"; };
+
+/* ================= RÉGLAGES ================= */
+let cfg = {n: 3, names: ["", "", "", "", "", "", "", ""], time: 80, turns: 1, lvl: 3, hints: 2};
+try{ const o = JSON.parse(load("dd_cfg") || "null"); if(o) cfg = Object.assign(cfg, o); }catch(e){}
+let NETON = false, localCfg = null;
+const NET = () => NETON;
+const RND = () => NETON ? Net.rand() : Math.random();
+
+/* ================= ÉTAT ================= */
+let S = null, token = 0;
+const ME = () => NET() ? Net.me : -1;
+const iDraw = () => S && S.drawer === ME();
+function newGame(){
+  token++;
+  if(NET()) Net.cancel();
+  const n = NET() ? Net.n : cfg.n;
+  const names = NET() ? Net.names.map((x, i) => i === Net.me ? "Vous" : x) : Array.from({length: n}, (_, i) => (cfg.names[i] || "").trim() || "Joueur " + (i + 1));
+  S = {n, names, score: Array(n).fill(0), turn: -1, total: n * cfg.turns, used: [], drawer: 0, choices: [], word: "", phase: "", strokes: [], keys: new Set(), found: [], gained: Array(n).fill(0), shown: [], t0: 0, chat: [], gameNo: (S && S.gameNo || 0) + 1, endSent: -1, hintSent: {}};
+  nextTurn();
+  if(NET()) netLoop();
+}
+function pickChoices(){
+  const lists = cfg.lvl === 3 ? [0, 1, 2] : [cfg.lvl], out = [];
+  let guard = 0;
+  while(out.length < 3 && guard++ < 200){
+    const L = WORDS[lists[out.length % lists.length]], w = L[Math.floor(RND() * L.length)];
+    if(!out.includes(w) && !S.used.includes(w)) out.push(w);
+  }
+  return out;
+}
+function nextTurn(){
+  S.turn++;
+  if(S.turn >= S.total) return finish();
+  S.drawer = S.turn % S.n; S.choices = pickChoices(); S.word = ""; S.phase = NET() ? "pick" : "pass";
+  S.strokes = []; S.keys = new Set(); S.found = []; S.gained = Array(S.n).fill(0); S.shown = []; S.chat = []; S.stroke = 0;
+  redraw(); render();
+}
+function startDraw(k){
+  S.word = S.choices[k] || S.choices[0]; S.used.push(S.word); S.phase = "draw"; S.t0 = Date.now(); S.lastTick = -1;
+  Snd.pop(); render();
+}
+function endTurn(){
+  if(S.phase !== "draw") return;
+  S.phase = "reveal"; S.revealAt = Date.now(); Snd.end(); render();
+}
+function finish(){ S.phase = "final"; Snd.win(); render(); }
+
+/* ---------- en ligne : actions dans l'ordre du journal ---------- */
+async function netLoop(){
+  const my = token;
+  while(NET() && my === token){ const a = await Net.next(); if(my !== token || !NET()) return; if(a) onAct(a); }
+}
+function send(a){ if(a.s === undefined) a.s = Net.me; if(a.i === undefined) a.i = S.turn; Net.send(a, a.s, "free"); }
+function onAct(a){
+  if(a.t === "again"){ if(S.phase === "final" && a.g === S.gameNo) newGame(); return; }
+  if(a.i !== S.turn) return;
+  switch(a.t){
+    case "pick": if(S.phase === "pick" && a.s === S.drawer) startDraw(a.k); break;
+    case "st": if(S.phase === "draw" && a.s === S.drawer && !S.keys.has(a.id)){ addStroke(a); } break;
+    case "undo": if(S.phase === "draw" && a.s === S.drawer && a.s !== ME()){ S.strokes = S.strokes.filter(s => s.n !== a.n); redraw(); } break;
+    case "clear": if(S.phase === "draw" && a.s === S.drawer && a.s !== ME()){ S.strokes = []; redraw(); } break;
+    case "g": if(S.phase === "draw") onGuess(a.s, String(a.txt || "").slice(0, 40)); break;
+    case "hint": if(S.phase === "draw") revealLetter(); break;
+    case "end": endTurn(); break;
+    case "next": if(S.phase === "reveal") nextTurn(); break;
+  }
+}
+function onGuess(s, txt){
+  if(s === S.drawer || S.found.includes(s)) return;
+  if(isRight(txt, S.word)){
+    S.found.push(s);
+    const g = Math.max(40, 100 - 15 * (S.found.length - 1));
+    S.score[s] += g; S.gained[s] += g; S.score[S.drawer] += 25; S.gained[S.drawer] += 25;
+    S.chat.push({k: "ok", t: `${s === ME() ? "Vous avez" : S.names[s] + " a"} trouvé !`});
+    s === ME() ? Snd.found() : Snd.other();
+    if(S.found.length >= S.n - 1){ render(); return endTurn(); }
+  } else {
+    const near = s === ME() && lev(norm(txt), norm(S.word)) === 1;
+    S.chat.push({k: near ? "near" : "", t: `<b>${esc(s === ME() ? "Vous" : S.names[s])} :</b> ${esc(txt)}${near ? " — presque !" : ""}`});
+    Snd.msg();
+  }
+  render();
+}
+function revealLetter(){
+  const idx = [...S.word].map((ch, i) => i).filter(i => /[a-zà-ÿœ]/i.test(S.word[i]) && !S.shown.includes(i));
+  if(idx.length <= 2) return;
+  S.shown.push(idx[Math.floor(RND() * idx.length)]); Snd.hint(); render();
+}
+
+/* ---------- minuterie (l'hôte arbitre en ligne) ---------- */
+setInterval(() => {
+  if(!S) return;
+  if(S.phase === "draw"){
+    const el = (Date.now() - S.t0) / 1000, left = Math.max(0, cfg.time - el);
+    $("clocktxt").textContent = Math.ceil(left); $("clock").style.setProperty("--p", (left / cfg.time * 100) + "%");
+    if(left <= 10 && Math.ceil(left) !== S.lastTick && left > 0){ S.lastTick = Math.ceil(left); Snd.tick(); }
+    const hintAt = [.5, .75].slice(0, cfg.hints);
+    hintAt.forEach((f, k) => { if(el >= cfg.time * f && !S.hintSent[S.turn + "_" + k]){ S.hintSent[S.turn + "_" + k] = 1; if(!NET()) {} else if(Net.isHost()) send({t: "hint", s: Net.me}); } });
+    if(left <= 0){
+      if(!NET()) endTurn();
+      else if(Net.isHost() && S.endSent !== S.turn){ S.endSent = S.turn; send({t: "end", s: Net.me}); }
+    }
+    if(NET() && Net.isHost() && Net._v && Net._v.away[S.drawer] && el > 10 && S.endSent !== S.turn){ S.endSent = S.turn; send({t: "end", s: Net.me}); }
+  } else { $("clocktxt").textContent = ""; $("clock").style.setProperty("--p", "100%"); }
+  if(NET() && Net.isHost() && Net._v){
+    if(S.phase === "pick" && Net._v.away[S.drawer] && !S["pk" + S.turn]){ S["pk" + S.turn] = 1; send({t: "pick", s: S.drawer, k: 0}); }
+    if(S.phase === "reveal" && Date.now() - S.revealAt > 6000 && !S["nx" + S.turn]){ S["nx" + S.turn] = 1; send({t: "next", s: Net.me}); }
+  }
+}, 250);
+
+/* ================= DESSIN ================= */
+const cv = $("cv"), ctx = cv.getContext("2d");
+const COLORS = ["#1f2a44", "#ef476f", "#f78c35", "#ffd166", "#06d6a0", "#118ab2", "#8d5cf6", "#8b5a2b", "#9aa0ad", "#ffffff"];
+const SIZES = [5, 12, 26];
+let pen = {c: 0, w: 1}, cur = null, pending = null, flushT = 0;
+function drawSeg(s){
+  ctx.strokeStyle = COLORS[s.c] || "#1f2a44"; ctx.lineWidth = SIZES[s.w] || 12; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  const p = s.p; if(p.length < 2) return;
+  ctx.beginPath(); ctx.moveTo(p[0], p[1]);
+  if(p.length === 2) ctx.lineTo(p[0] + .1, p[1]);
+  for(let k = 2; k < p.length; k += 2) ctx.lineTo(p[k], p[k + 1]);
+  ctx.stroke();
+}
+function redraw(){ ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, 1000, 750); S && S.strokes.forEach(drawSeg); }
+function addStroke(a){ const s = {id: a.id, n: a.n, c: a.c, w: a.w, p: a.p}; S.keys.add(a.id); S.strokes.push(s); drawSeg(s); }
+const canDraw = () => S && S.phase === "draw" && (NET() ? iDraw() : true);
+function ptFrom(e){ const r = cv.getBoundingClientRect(); return [Math.round((e.clientX - r.left) / r.width * 1000), Math.round((e.clientY - r.top) / r.height * 750)]; }
+cv.addEventListener("pointerdown", e => {
+  if(!canDraw()) return;
+  e.preventDefault(); cv.setPointerCapture && cv.setPointerCapture(e.pointerId);
+  S.stroke++;
+  cur = {n: S.stroke, k: 0, c: pen.c, w: pen.w, p: ptFrom(e)};
+  pending = {n: cur.n, c: cur.c, w: cur.w, p: cur.p.slice()};
+  drawSeg({c: cur.c, w: cur.w, p: cur.p}); Snd.marker();
+});
+cv.addEventListener("pointermove", e => {
+  if(!cur) return;
+  const [x, y] = ptFrom(e), p = pending.p;
+  if(Math.hypot(x - p[p.length - 2], y - p[p.length - 1]) < 4) return;
+  drawSeg({c: cur.c, w: cur.w, p: [p[p.length - 2], p[p.length - 1], x, y]});
+  p.push(x, y);
+  if(Math.random() < .15) Snd.marker();
+  if(NET() && p.length >= 40) flush(false);
+});
+const up = () => { if(!cur) return; flush(true); cur = null; };
+cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up); cv.addEventListener("pointerleave", up);
+setInterval(() => { if(cur && pending && pending.p.length > 4 && NET()) flush(false); }, 300);
+function flush(last){
+  if(!pending) return;
+  const id = `${pending.n}.${cur ? cur.k++ : 0}`, seg = {id, n: pending.n, c: pending.c, w: pending.w, p: pending.p};
+  S.keys.add(id); S.strokes.push({id, n: seg.n, c: seg.c, w: seg.w, p: seg.p});
+  if(NET()) send(Object.assign({t: "st"}, seg));
+  const lx = seg.p[seg.p.length - 2], ly = seg.p[seg.p.length - 1];
+  pending = last ? null : {n: seg.n, c: seg.c, w: seg.w, p: [lx, ly]};
+}
+function buildPalette(){
+  $("palette").innerHTML = COLORS.map((c, k) => `<button class="sw" data-c="${k}" style="background:${c}" aria-label="${k === 9 ? "Gomme" : "Couleur " + (k + 1)}" aria-pressed="${pen.c === k}">${k === 9 ? "🧽" : ""}</button>`).join("") +
+    SIZES.map((s, k) => `<button class="sz" data-w="${k}" aria-label="Épaisseur ${k + 1}" aria-pressed="${pen.w === k}"><i style="width:${[6, 11, 18][k]}px;height:${[6, 11, 18][k]}px"></i></button>`).join("") +
+    `<button id="undo">↶</button><button id="clear">🗑</button>${NET() ? `<button id="giveup" class="pink">Passer</button>` : ""}`;
+}
+$("palette").addEventListener("click", e => {
+  const b = e.target.closest("button"); if(!b || !canDraw()) return;
+  if(b.dataset.c){ pen.c = +b.dataset.c; Snd.pop(); buildPalette(); }
+  else if(b.dataset.w){ pen.w = +b.dataset.w; Snd.pop(); buildPalette(); }
+  else if(b.id === "undo"){ const last = S.strokes.length ? S.strokes[S.strokes.length - 1].n : null; if(last === null) return; S.strokes = S.strokes.filter(s => s.n !== last); redraw(); if(NET()) send({t: "undo", n: last}); }
+  else if(b.id === "clear"){ S.strokes = []; redraw(); if(NET()) send({t: "clear"}); }
+  else if(b.id === "giveup"){ if(NET()) send({t: "end"}); }
+});
+
+/* ================= AFFICHAGE ================= */
+function maskWord(){
+  return [...S.word].map((ch, i) => /[a-zà-ÿœ]/i.test(ch) ? (S.shown.includes(i) ? ch.toUpperCase() : "_") : ch === " " ? "  " : ch).join(" ");
+}
+function render(){
+  if(!S) return;
+  const who = i => i === ME() ? "Vous" : S.names[i];
+  $("players").innerHTML = S.names.map((nm, i) => `<span class="pl${i === S.drawer && S.phase !== "final" ? " dr" : ""}${S.found.includes(i) ? " ok" : ""}">${i === S.drawer && S.phase !== "final" ? "✏️ " : ""}${esc(who(i))} <b>${S.score[i]}</b></span>`).join("");
+  const ov = $("ov"), w = $("word");
+  $("tools").hidden = !canDraw();
+  $("guessbox").hidden = !(NET() && S.phase === "draw" && !iDraw() && !S.found.includes(ME()));
+  $("chat").hidden = !NET() || S.phase === "final";
+  $("foundbox").hidden = !(!NET() && S.phase === "draw");
+  if(canDraw()) buildPalette();
+  ov.hidden = true;
+  const turnTxt = `Tour ${Math.min(S.turn + 1, S.total)} / ${S.total}`;
+  if(S.phase === "pass"){
+    w.innerHTML = `<small>${turnTxt}</small>${esc(S.names[S.drawer])} va dessiner`;
+    ov.hidden = false;
+    ov.innerHTML = `<h2>Au tour de ${esc(S.names[S.drawer])} !</h2><p>Donnez-lui le téléphone. Les autres, ne regardez pas l'écran pendant qu'il choisit son mot.</p><button class="primary" id="ovgo">Je suis ${esc(S.names[S.drawer])}, voir les mots</button>`;
+    $("ovgo").onclick = () => { S.phase = "pick"; Snd.pop(); render(); };
+  } else if(S.phase === "pick"){
+    w.innerHTML = `<small>${turnTxt}</small>${iDraw() || !NET() ? "Choisissez un mot" : esc(S.names[S.drawer]) + " choisit un mot…"}`;
+    ov.hidden = false;
+    if(iDraw() || !NET()) ov.innerHTML = `<h2>Que voulez-vous dessiner ?</h2><div class="choices">${S.choices.map((c, k) => `<button data-k="${k}">${esc(c)}</button>`).join("")}</div><p>${NET() ? "Les autres joueurs devinent sur leur téléphone." : "Montrez ensuite l'écran à tout le monde : on devine à voix haute."}</p>`;
+    else ov.innerHTML = `<h2>${esc(S.names[S.drawer])} choisit un mot…</h2><p>Préparez-vous à deviner !</p>`;
+    ov.querySelectorAll(".choices button").forEach(b => b.onclick = () => { const k = +b.dataset.k; if(NET()) send({t: "pick", k}); else startDraw(k); });
+  } else if(S.phase === "draw"){
+    if(NET() && iDraw()) w.innerHTML = `<small>Dessinez :</small>${esc(S.word)}`;
+    else if(!NET()) w.innerHTML = `<small>${esc(S.names[S.drawer])} dessine · ${S.word.length} lettres</small><button id="peek" style="font-family:var(--ui);font-size:.85rem;letter-spacing:0">👁 Maintenir pour voir le mot</button>`;
+    else w.innerHTML = `<small>${S.found.includes(ME()) ? "Bravo, vous avez trouvé : " + esc(S.word) : `${esc(S.names[S.drawer])} dessine · ${norm(S.word).length} lettres`}</small>${maskWord()}`;
+    const pk = $("peek");
+    if(pk){ const show = () => { pk.textContent = S.word.toUpperCase(); }, hide = () => { pk.textContent = "👁 Maintenir pour voir le mot"; };
+      pk.addEventListener("pointerdown", show); pk.addEventListener("pointerup", hide); pk.addEventListener("pointerleave", hide); }
+    if(!NET()) $("foundbox").innerHTML = S.names.map((nm, i) => i === S.drawer ? "" : `<button data-f="${i}" class="primary">${esc(nm)} a trouvé</button>`).join("") + `<button id="nobody">Personne</button>`;
+  } else if(S.phase === "reveal"){
+    w.innerHTML = `<small>Le mot était</small>${esc(S.word)}`;
+    ov.hidden = false; ov.style.background = "rgba(31,42,68,.82)";
+    const rows = [...Array(S.n).keys()].filter(i => S.gained[i]).sort((a, b) => S.gained[b] - S.gained[a]);
+    ov.innerHTML = `<p>Le mot était</p><div class="big">${esc(S.word)}</div>${rows.length ? `<ul>${rows.map(i => `<li>${esc(who(i))} +${S.gained[i]}</li>`).join("")}</ul>` : "<p>Personne n'a trouvé.</p>"}<button class="primary" id="ovnext">${S.turn + 1 >= S.total ? "Voir le classement" : "Tour suivant"}</button>`;
+    $("ovnext").onclick = () => { if(NET()) send({t: "next"}); else nextTurn(); };
+  } else if(S.phase === "final"){
+    const order = [...Array(S.n).keys()].sort((a, b) => S.score[b] - S.score[a]);
+    w.innerHTML = `<small>Partie terminée</small>${order[0] === ME() ? "Vous gagnez !" : esc(S.names[order[0]]) + " gagne !"}`;
+    ov.hidden = false;
+    ov.innerHTML = `<h2>Classement</h2><ul>${order.map((i, k) => `<li>${["🥇", "🥈", "🥉"][k] || (k + 1) + "."} ${esc(who(i))} — ${S.score[i]} pts</li>`).join("")}</ul><button class="primary" id="ovagain">Rejouer</button>`;
+    $("ovagain").onclick = () => { if(NET()) send({t: "again", g: S.gameNo, i: -1}); else newGame(); };
+  }
+  if(S.phase !== "reveal") ov.style.background = "";
+  $("chat").innerHTML = S.chat.slice(-30).map(m => `<li class="${m.k}">${m.t}</li>`).join("");
+  $("chat").scrollTop = 1e6;
+  $("newg").hidden = NET(); $("setbtn").disabled = NET();
+  if(window.Net) Net.refresh();
+}
+$("foundbox").addEventListener("click", e => {
+  const b = e.target.closest("button"); if(!b || NET() || S.phase !== "draw") return;
+  if(b.dataset.f){ const i = +b.dataset.f; S.score[i] += 10; S.gained[i] += 10; S.score[S.drawer] += 5; S.gained[S.drawer] += 5; S.found.push(i); Snd.found(); }
+  endTurn();
+});
+function sendGuess(){
+  const inp = $("gin"), t = inp.value.trim(); if(!t || !NET() || S.phase !== "draw") return;
+  inp.value = ""; send({t: "g", txt: t});
+}
+$("gbtn").onclick = sendGuess;
+$("gin").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); sendGuess(); } });
+$("newg").onclick = () => { if(!NET()) newGame(); };
+
+/* ================= RÉGLAGES ================= */
+let draft = null;
+function paintSet(){
+  document.querySelectorAll("#settings .seg").forEach(seg => seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(draft[seg.dataset.k]) === b.dataset.v)));
+  $("names").innerHTML = Array.from({length: draft.n}, (_, i) => `<input data-i="${i}" placeholder="Joueur ${i + 1}" maxlength="14" value="${esc(draft.names[i] || "")}">`).join("");
+  $("names").querySelectorAll("input").forEach(inp => inp.oninput = () => { draft.names[+inp.dataset.i] = inp.value; });
+}
+$("setbtn").onclick = () => { if(NET()) return; draft = JSON.parse(JSON.stringify(cfg)); paintSet(); $("settings").hidden = false; };
+document.querySelectorAll("#settings .seg").forEach(seg => seg.addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; draft[seg.dataset.k] = +b.dataset.v; paintSet(); }));
+$("setcancel").onclick = () => { $("settings").hidden = true; };
+$("setok").onclick = () => { cfg = draft; save("dd_cfg", JSON.stringify(cfg)); $("settings").hidden = true; newGame(); };
+document.addEventListener("keydown", e => { if(e.key === "Escape") $("settings").hidden = true; });
+
+newGame();
+
+/* ================= EN LIGNE ================= */
+if(window.Net) Net.setup({
+  game: "dessine-devine", name: "Dessine et devine", min: 2, max: 8, bots: false, seats: () => 4,
+  cfg: () => cfg,
+  seatName: k => "Joueur " + (k + 1),
+  current: () => -1,
+  start(info){ localCfg = JSON.parse(JSON.stringify(cfg)); cfg = Object.assign({}, cfg, info.cfg); NETON = true; newGame(); },
+  leave(){ NETON = false; if(localCfg) cfg = localCfg; newGame(); }
+});
+})();
+</script>

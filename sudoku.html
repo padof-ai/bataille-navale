@@ -1,0 +1,361 @@
+<title>Sudoku</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Nunito:wght@600;800&display=swap">
+<style>
+/* Layout : une feuille de papier quadrillée ; en haut le niveau, le chrono et les erreurs, au milieu la grille, dessous le pavé de chiffres. */
+:root{
+  color-scheme:light;
+  --desk:#2f3b52; --desk2:#1c2433;
+  --paper:#fbf8f0; --ink:#1d2a44; --pen:#2563c9; --muted:#6d7488;
+  --line:#c9c3b3; --thick:#1d2a44;
+  --sel:#ffe7a3; --zone:#eef1f8; --same:#d5e2fb; --bad:#d63a3a; --badbg:#fde2e2; --good:#2f9e5a;
+  --accent:#f2b84b;
+  --display:"Fraunces","Georgia",serif;
+  --ui:"Nunito","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0;font-family:var(--ui);color:var(--ink);-webkit-tap-highlight-color:transparent;background:radial-gradient(ellipse 80% 60% at 50% 20%,#3d4b66 0,var(--desk) 50%,var(--desk2) 100%) fixed,var(--desk)}
+.app{max-width:520px;margin:0 auto;padding-block:10px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:10px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{margin:0;font-family:var(--display);font-weight:800;font-size:clamp(1.8rem,8vw,2.5rem);line-height:1;color:#fbf8f0;letter-spacing:-.01em}
+h1 span{color:var(--accent)}
+.tools{display:flex;gap:6px}
+button{font:inherit;font-weight:800;color:#fbf8f0;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);border-radius:11px;padding:8px 12px;cursor:pointer}
+button:hover:not(:disabled){border-color:rgba(255,255,255,.5)}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.4;cursor:default}
+.levels{display:flex;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:3px;gap:2px}
+.levels button{flex:1;border:0;background:transparent;padding:7px 4px;border-radius:9px;color:#c9cfdc;font-size:.86rem}
+.levels button[aria-pressed="true"]{background:var(--accent);color:#2a1d05}
+.sheet{background:var(--paper);border-radius:14px;padding:12px;box-shadow:0 18px 36px rgba(0,0,0,.45),inset 0 0 0 1px rgba(0,0,0,.05)}
+.hud{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:.9rem;color:var(--muted);margin-bottom:8px;padding-inline:2px}
+.hud b{color:var(--ink);font-variant-numeric:tabular-nums}
+.hud .bad b{color:var(--bad)}
+.grid{display:grid;grid-template-columns:repeat(9,1fr);aspect-ratio:1;border:2.5px solid var(--thick);border-radius:6px;overflow:hidden;background:var(--line);gap:1px;container-type:inline-size;user-select:none;-webkit-user-select:none}
+.c{position:relative;background:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:600;font-size:6.6cqw;line-height:1;cursor:pointer;color:var(--pen);transition:background .12s}
+.c.given{color:var(--ink);font-weight:800}
+.c:nth-child(9n+3),.c:nth-child(9n+6){border-right:2px solid var(--thick)}
+.c.r2,.c.r5{border-bottom:2px solid var(--thick)}
+.c.zone{background:var(--zone)}
+.c.same{background:var(--same)}
+.c.sel{background:var(--sel)}
+.c.err{color:var(--bad);background:var(--badbg)}
+.c.sel.err{background:#ffd0b0}
+.c.pop{animation:pop .28s ease-out}
+@keyframes pop{40%{transform:scale(1.18)}}
+.c.wave{animation:wave .6s ease-out}
+@keyframes wave{40%{background:#c8f0d4}}
+.notes{position:absolute;inset:6%;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);font-family:var(--ui);font-weight:800;font-size:2.3cqw;color:var(--muted)}
+.notes i{font-style:normal;display:flex;align-items:center;justify-content:center}
+.notes i.hl{color:var(--pen)}
+.pad{display:grid;grid-template-columns:repeat(9,1fr);gap:5px}
+.pad button{background:#fff;color:var(--pen);border:1px solid var(--line);font-family:var(--display);font-size:clamp(1.3rem,6vw,1.8rem);padding:9px 0 5px;border-radius:10px;position:relative}
+.pad button small{display:block;font-family:var(--ui);font-size:.55rem;color:var(--muted);font-weight:800;margin-top:2px}
+.pad button.done{opacity:.3}
+.ctl{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.ctl button{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.78rem;padding:8px 4px}
+.ctl button span{font-size:1.25rem;line-height:1}
+.ctl button[aria-pressed="true"]{background:var(--accent);color:#2a1d05;border-color:var(--accent)}
+.rules{background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:12px 14px;font-size:.9rem;line-height:1.5;color:#c9cfdc}
+.rules summary{cursor:pointer;font-weight:800;color:#fbf8f0}
+.rules ul{margin:8px 0 0;padding-left:18px}
+.modal{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(10,14,24,.6);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px}
+.modal .box{background:var(--paper);color:var(--ink);border-radius:16px;padding:20px;width:100%;max-width:420px;max-height:100%;overflow:auto;box-shadow:0 20px 40px rgba(0,0,0,.5)}
+.modal h2{margin:0 0 10px;font-family:var(--display);font-weight:800;font-size:1.7rem}
+.modal p{margin:0 0 14px;color:var(--muted);line-height:1.45}
+.modal .row{display:flex;gap:8px}.modal .row button{flex:1}
+.modal button{color:var(--ink);background:#fff;border-color:var(--line)}
+.modal .primary{background:var(--accent);color:#2a1d05;border-color:var(--accent)}
+.opt{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.opt .lbl{font-weight:800;font-size:.9rem}
+.seg{display:flex;flex-wrap:wrap;background:#efe9da;border-radius:12px;padding:3px;gap:2px}
+.seg button{flex:1 1 auto;border:0;background:transparent;padding:7px 8px;border-radius:9px;color:var(--muted);font-size:.85rem}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.seg .off{font-weight:600;font-size:.72rem;opacity:.85}
+@media (max-width:420px){.tools .t{display:none}.levels button{font-size:.8rem}}
+@media (prefers-reduced-motion:reduce){.c.pop,.c.wave{animation:none}}
+</style>
+
+<div class="app">
+  <div class="top">
+    <h1>Su<span>do</span>ku</h1>
+    <div class="tools">
+      <button id="setbtn" aria-label="Réglages">⚙️<span class="t"> Réglages</span></button>
+      <button id="snd" aria-label="Activer ou couper le son"></button>
+    </div>
+  </div>
+  <div class="levels" id="levels" role="group" aria-label="Niveau">
+    <button data-l="0">Facile</button><button data-l="1">Moyen</button><button data-l="2">Difficile</button><button data-l="3">Expert</button>
+  </div>
+  <div class="sheet">
+    <div class="hud"><span>⏱ <b id="time">0:00</b></span><span id="errw">Erreurs <b id="errs">0</b></span><span>Record <b id="best">—</b></span></div>
+    <div class="grid" id="grid" role="grid" aria-label="Grille de sudoku"></div>
+  </div>
+  <div class="pad" id="pad"></div>
+  <div class="ctl">
+    <button id="undo"><span>↶</span>Annuler</button>
+    <button id="erase"><span>⌫</span>Effacer</button>
+    <button id="notes" aria-pressed="false"><span>✏️</span>Notes</button>
+    <button id="hint"><span>💡</span>Indice</button>
+  </div>
+  <div style="display:flex;justify-content:center"><button id="newg">Nouvelle grille</button></div>
+  <details class="rules">
+    <summary>Règles du jeu</summary>
+    <ul>
+      <li>Remplissez la grille pour que chaque <b>ligne</b>, chaque <b>colonne</b> et chaque <b>carré de 3 × 3</b> contienne une seule fois chaque chiffre de 1 à 9.</li>
+      <li>Chaque grille n'a qu'une seule solution, que l'on peut trouver par simple logique.</li>
+      <li>Touchez une case puis un chiffre. En mode <b>Notes</b>, vous notez les candidats en petit.</li>
+      <li>Au clavier : chiffres, flèches, Retour arrière pour effacer, N pour les notes.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="modal" id="endbox" hidden><div class="box"><h2 id="endt">Bravo !</h2><p id="endp"></p><div class="row"><button id="again" class="primary">Nouvelle grille</button></div></div></div>
+<div class="modal" id="lostbox" hidden><div class="box"><h2>Trois erreurs…</h2><p>La grille est perdue avec cette règle. Vous pouvez continuer quand même ou recommencer.</p><div class="row"><button id="cont">Continuer</button><button id="again2" class="primary">Nouvelle grille</button></div></div></div>
+<div class="modal" id="settings" hidden><div class="box" role="dialog" aria-labelledby="sett">
+  <h2 id="sett">Réglages</h2>
+  <div class="opt"><span class="lbl">Erreurs</span><div class="seg" data-k="check"><button data-v="1">Signalées tout de suite</button><button data-v="0">Non signalées <span class="off">· officiel</span></button></div></div>
+  <div class="opt"><span class="lbl">Limite d'erreurs</span><div class="seg" data-k="limit"><button data-v="0">Aucune</button><button data-v="3">3 erreurs</button></div></div>
+  <div class="opt"><span class="lbl">Effacer les notes automatiquement</span><div class="seg" data-k="auto"><button data-v="1">Oui</button><button data-v="0">Non</button></div></div>
+  <div class="opt"><span class="lbl">Surligner les chiffres identiques</span><div class="seg" data-k="same"><button data-v="1">Oui</button><button data-v="0">Non</button></div></div>
+  <div class="row"><button id="setcancel">Annuler</button><button id="setok" class="primary">Appliquer</button></div>
+</div></div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const load = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const save = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+const reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const Snd = {
+  ctx: null, on: load("su_sound") !== "0",
+  init(){ if(!this.ctx){ const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return; this.ctx = new AC(); this.out = this.ctx.createGain(); this.out.gain.value = .8; this.out.connect(this.ctx.destination); } if(this.ctx.state === "suspended") this.ctx.resume(); },
+  tone(f0, f1, dur, peak, delay = 0, type = "sine"){ if(!this.on || !this.ctx) return; const c = this.ctx, t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .006); g.gain.exponentialRampToValueAtTime(.0001, t + dur); o.connect(g).connect(this.out); o.start(t); o.stop(t + dur + .02); },
+  tap(){ this.tone(1400, 900, .05, .06, 0, "triangle"); },
+  pen(){ this.tone(520, 700, .07, .08, 0, "triangle"); },
+  note(){ this.tone(1800, 1600, .04, .04, 0, "sine"); },
+  bad(){ this.tone(240, 170, .22, .1, 0, "sawtooth"); },
+  unit(){ [880, 1175].forEach((f, i) => this.tone(f, f, .14, .07, i * .07, "triangle")); },
+  win(){ [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, f, i === 4 ? .8 : .25, .12, .05 + i * .1, "triangle")); }
+};
+function sndLabel(){ $("snd").textContent = Snd.on ? "🔊" : "🔇"; }
+$("snd").onclick = () => { Snd.on = !Snd.on; save("su_sound", Snd.on ? "1" : "0"); Snd.init(); sndLabel(); };
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => Snd.init(), {capture: true}));
+sndLabel();
+
+let cfg = {check: 0, limit: 0, auto: 1, same: 1};
+try{ const o = JSON.parse(load("su_cfg") || "null"); if(o) cfg = Object.assign(cfg, o); }catch(e){}
+
+/* ================= GÉNÉRATEUR ================= */
+const ROW = i => Math.floor(i / 9), COL = i => i % 9, BOX = i => Math.floor(ROW(i) / 3) * 3 + Math.floor(COL(i) / 3);
+const PEERS = Array.from({length: 81}, (_, i) => { const s = new Set(); for(let j = 0; j < 81; j++) if(j !== i && (ROW(j) === ROW(i) || COL(j) === COL(i) || BOX(j) === BOX(i))) s.add(j); return [...s]; });
+const shuffled = a => { a = a.slice(); for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+// solveur par masques de bits : compte les solutions (jusqu'à « limit »)
+function countSol(g, limit = 2){
+  const rows = new Array(9).fill(0), cols = new Array(9).fill(0), boxes = new Array(9).fill(0), a = g.slice();
+  for(let i = 0; i < 81; i++) if(a[i]){ const b = 1 << a[i]; rows[ROW(i)] |= b; cols[COL(i)] |= b; boxes[BOX(i)] |= b; }
+  let count = 0;
+  (function rec(){
+    if(count >= limit) return;
+    let best = -1, bestM = 0, bestN = 10;
+    for(let i = 0; i < 81; i++) if(!a[i]){
+      const m = ~(rows[ROW(i)] | cols[COL(i)] | boxes[BOX(i)]) & 0x3FE; let n = 0, x = m; while(x){ x &= x - 1; n++; }
+      if(n < bestN){ bestN = n; best = i; bestM = m; if(n <= 1) break; }
+    }
+    if(best < 0){ count++; return; }
+    if(!bestN) return;
+    for(let d = 1; d <= 9; d++) if(bestM & (1 << d)){
+      const b = 1 << d, r = ROW(best), c = COL(best), x = BOX(best);
+      a[best] = d; rows[r] |= b; cols[c] |= b; boxes[x] |= b;
+      rec();
+      a[best] = 0; rows[r] &= ~b; cols[c] &= ~b; boxes[x] &= ~b;
+      if(count >= limit) return;
+    }
+  })();
+  return count;
+}
+function fullGrid(){
+  const a = new Array(81).fill(0);
+  (function rec(i){
+    if(i === 81) return true;
+    for(const d of shuffled([1, 2, 3, 4, 5, 6, 7, 8, 9])){ if(PEERS[i].some(j => a[j] === d)) continue; a[i] = d; if(rec(i + 1)) return true; }
+    a[i] = 0; return false;
+  })(0);
+  return a;
+}
+const TARGET = [38, 31, 26, 0];   // indices conservés visés (Expert : on retire tout ce qui peut l'être)
+function makePuzzle(lvl){
+  const sol = fullGrid(), puz = sol.slice();
+  let clues = 81;
+  // retrait par paires symétriques, comme dans les grilles de journaux
+  for(const i of shuffled([...Array(41).keys()])){
+    if(clues <= TARGET[lvl]) break;
+    const j = 80 - i, keep = [puz[i], puz[j]];
+    puz[i] = 0; puz[j] = 0;
+    if(countSol(puz) !== 1){ puz[i] = keep[0]; puz[j] = keep[1]; }
+    else clues -= i === j ? 1 : 2;
+  }
+  // second passage case par case pour les niveaux difficiles
+  if(lvl >= 2) for(const i of shuffled([...Array(81).keys()])){
+    if(clues <= TARGET[lvl] || !puz[i]) continue;
+    const k = puz[i]; puz[i] = 0;
+    if(countSol(puz) !== 1) puz[i] = k; else clues--;
+  }
+  return {puz, sol, clues};
+}
+function bestPuzzle(lvl){
+  // pour l'expert, on garde la grille la plus dépouillée parmi plusieurs essais
+  let best = makePuzzle(lvl);
+  for(let k = 0; lvl === 3 && k < 6; k++){ const p = makePuzzle(lvl); if(p.clues < best.clues) best = p; }
+  return best;
+}
+
+/* ================= ÉTAT ================= */
+let G = null, sel = -1, notesMode = false, timer = 0, hist = [];
+const LV = ["Facile", "Moyen", "Difficile", "Expert"];
+let level = +(load("su_lvl") || 1);
+function newGame(lvl = level){
+  level = lvl; save("su_lvl", lvl);
+  const {puz, sol} = bestPuzzle(lvl);
+  G = {lvl, puz, sol, val: puz.slice(), notes: Array.from({length: 81}, () => 0), errs: 0, t: 0, done: false, hints: 0, lostShown: false};
+  hist = []; sel = puz.findIndex(v => !v);
+  $("endbox").hidden = true; $("lostbox").hidden = true;
+  persist(); paint(true);
+}
+function persist(){ if(G) save("su_game", JSON.stringify(G)); }
+function restoreSaved(){ try{ const o = JSON.parse(load("su_game") || "null"); if(o && o.sol && !o.done){ G = o; level = o.lvl; sel = G.puz.findIndex(v => !v); paint(true); return true; } }catch(e){} return false; }
+setInterval(() => { if(G && !G.done && !document.hidden && $("settings").hidden){ G.t++; $("time").textContent = fmt(G.t); if(G.t % 5 === 0) persist(); } }, 1000);
+const fmt = s => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+
+/* ================= AFFICHAGE ================= */
+const cellsEl = [];
+function build(){
+  const g = $("grid");
+  for(let i = 0; i < 81; i++){
+    const c = document.createElement("div"); c.className = "c" + (ROW(i) === 2 ? " r2" : ROW(i) === 5 ? " r5" : "");
+    c.setAttribute("role", "gridcell"); c.addEventListener("pointerdown", () => { sel = i; Snd.tap(); paint(); });
+    g.appendChild(c); cellsEl.push(c);
+  }
+  $("pad").innerHTML = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(d => `<button data-d="${d}">${d}<small></small></button>`).join("");
+  $("pad").addEventListener("click", e => { const b = e.target.closest("button"); if(b) input(+b.dataset.d); });
+}
+function conflict(i){ const v = G.val[i]; return v && PEERS[i].some(j => G.val[j] === v); }
+function paint(full){
+  document.querySelectorAll("#levels button").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.l === level)));
+  const sv = sel >= 0 ? G.val[sel] : 0;
+  for(let i = 0; i < 81; i++){
+    const c = cellsEl[i], v = G.val[i], given = !!G.puz[i];
+    c.classList.toggle("given", given);
+    c.classList.toggle("sel", i === sel);
+    c.classList.toggle("zone", sel >= 0 && i !== sel && (ROW(i) === ROW(sel) || COL(i) === COL(sel) || BOX(i) === BOX(sel)));
+    c.classList.toggle("same", !!(cfg.same && sv && v === sv && i !== sel));
+    c.classList.toggle("err", !given && !!v && !!cfg.check && (v !== G.sol[i] || conflict(i)));
+    if(v) c.innerHTML = v;
+    else if(G.notes[i]) c.innerHTML = `<div class="notes">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(d => `<i class="${cfg.same && sv === d ? "hl" : ""}">${G.notes[i] & (1 << d) ? d : ""}</i>`).join("")}</div>`;
+    else c.innerHTML = "";
+    c.setAttribute("aria-label", `Ligne ${ROW(i) + 1}, colonne ${COL(i) + 1}${v ? ", " + v : ", vide"}`);
+  }
+  const cnt = d => G.val.filter((v, i) => v === d && (!cfg.check || v === G.sol[i])).length;
+  document.querySelectorAll("#pad button").forEach(b => { const d = +b.dataset.d, n = cnt(d); b.classList.toggle("done", n >= 9); b.querySelector("small").textContent = 9 - n > 0 ? 9 - n : "✓"; });
+  $("notes").setAttribute("aria-pressed", String(notesMode));
+  $("errs").textContent = G.errs + (cfg.limit ? " / " + cfg.limit : "");
+  $("errw").classList.toggle("bad", G.errs > 0);
+  $("errw").hidden = !cfg.check;
+  $("time").textContent = fmt(G.t);
+  const b = load("su_best_" + level); $("best").textContent = b ? fmt(+b) : "—";
+  $("undo").disabled = !hist.length;
+}
+
+/* ================= SAISIE ================= */
+function snap(){ hist.push(JSON.stringify({val: G.val, notes: G.notes})); if(hist.length > 300) hist.shift(); }
+function input(d){
+  if(!G || G.done || sel < 0 || G.puz[sel]) return;
+  const i = sel;
+  if(notesMode){
+    if(G.val[i]) return;
+    snap(); G.notes[i] ^= (1 << d); Snd.note(); persist(); return paint();
+  }
+  if(G.val[i] === d){ snap(); G.val[i] = 0; persist(); return paint(); }
+  snap();
+  G.val[i] = d; G.notes[i] = 0;
+  if(cfg.auto) PEERS[i].forEach(j => { G.notes[j] &= ~(1 << d); });
+  const wrong = d !== G.sol[i];
+  if(wrong && cfg.check){ G.errs++; Snd.bad(); }
+  else Snd.pen();
+  cellsEl[i].classList.remove("pop"); void cellsEl[i].offsetWidth; cellsEl[i].classList.add("pop");
+  if(!wrong) celebrateUnits(i);
+  paint(); persist();
+  if(cfg.check && cfg.limit && G.errs >= cfg.limit && !G.lostShown){ G.lostShown = true; $("lostbox").hidden = false; }
+  checkWin();
+}
+function celebrateUnits(i){
+  if(reduced) return;
+  const units = [[...Array(9).keys()].map(k => ROW(i) * 9 + k), [...Array(9).keys()].map(k => k * 9 + COL(i)), [...Array(81).keys()].filter(j => BOX(j) === BOX(i))];
+  let any = false;
+  units.forEach(u => { if(u.every(j => G.val[j] === G.sol[j])){ any = true; u.forEach((j, k) => setTimeout(() => { cellsEl[j].classList.remove("wave"); void cellsEl[j].offsetWidth; cellsEl[j].classList.add("wave"); }, k * 35)); } });
+  if(any) Snd.unit();
+}
+function checkWin(){
+  if(G.val.every((v, i) => v === G.sol[i])){
+    G.done = true; persist();
+    const k = "su_best_" + G.lvl, best = +(load(k) || 0), rec = !best || G.t < best;
+    if(rec && !G.hints) save(k, G.t);
+    paint(); Snd.win();
+    if(!reduced) cellsEl.forEach((c, j) => setTimeout(() => { c.classList.remove("wave"); void c.offsetWidth; c.classList.add("wave"); }, (ROW(j) + COL(j)) * 45));
+    setTimeout(() => {
+      $("endt").textContent = rec && !G.hints ? "Nouveau record !" : "Bravo !";
+      $("endp").textContent = `Grille ${LV[G.lvl].toLowerCase()} terminée en ${fmt(G.t)}${cfg.check ? `, avec ${G.errs} erreur${G.errs > 1 ? "s" : ""}` : ""}${G.hints ? ` et ${G.hints} indice${G.hints > 1 ? "s" : ""} (pas de record avec les indices)` : ""}.`;
+      $("endbox").hidden = false;
+    }, reduced ? 200 : 1100);
+  }
+}
+$("erase").onclick = () => { if(!G || G.done || sel < 0 || G.puz[sel]) return; if(!G.val[sel] && !G.notes[sel]) return; snap(); G.val[sel] = 0; G.notes[sel] = 0; Snd.note(); persist(); paint(); };
+$("undo").onclick = () => { if(!hist.length || G.done) return; const o = JSON.parse(hist.pop()); G.val = o.val; G.notes = o.notes; Snd.note(); persist(); paint(); };
+$("notes").onclick = () => { notesMode = !notesMode; Snd.tap(); paint(); };
+$("hint").onclick = () => {
+  if(!G || G.done) return;
+  // case choisie si elle est vide ou fausse, sinon la case vide la plus contrainte
+  let i = sel;
+  if(i < 0 || G.puz[i] || G.val[i] === G.sol[i]){
+    let best = -1, bn = 10;
+    for(let j = 0; j < 81; j++) if(G.val[j] !== G.sol[j]){ const n = 9 - new Set(PEERS[j].map(k => G.val[k]).filter(Boolean)).size; if(n < bn){ bn = n; best = j; } }
+    i = best;
+  }
+  if(i < 0) return;
+  snap(); G.val[i] = G.sol[i]; G.notes[i] = 0; G.hints++;
+  if(cfg.auto) PEERS[i].forEach(j => { G.notes[j] &= ~(1 << G.sol[i]); });
+  sel = i; Snd.unit(); paint(); persist(); celebrateUnits(i); checkWin();
+};
+document.addEventListener("keydown", e => {
+  if(!$("settings").hidden){ if(e.key === "Escape") $("settings").hidden = true; return; }
+  if(!G) return;
+  if(/^[1-9]$/.test(e.key)){ e.preventDefault(); return input(+e.key); }
+  if(e.key === "Backspace" || e.key === "Delete" || e.key === "0"){ e.preventDefault(); return $("erase").onclick(); }
+  if(e.key === "n" || e.key === "N"){ return $("notes").onclick(); }
+  if((e.ctrlKey || e.metaKey) && e.key === "z"){ e.preventDefault(); return $("undo").onclick(); }
+  const mv = {ArrowUp: -9, ArrowDown: 9, ArrowLeft: -1, ArrowRight: 1}[e.key];
+  if(mv !== undefined){ e.preventDefault(); if(sel < 0) sel = 0; else { const r = ROW(sel), c = COL(sel); sel = mv === -9 ? ((r + 8) % 9) * 9 + c : mv === 9 ? ((r + 1) % 9) * 9 + c : mv === -1 ? r * 9 + (c + 8) % 9 : r * 9 + (c + 1) % 9; } paint(); }
+});
+document.querySelectorAll("#levels button").forEach(b => b.onclick = () => { newGame(+b.dataset.l); });
+$("newg").onclick = () => newGame();
+$("again").onclick = () => newGame();
+$("again2").onclick = () => newGame();
+$("cont").onclick = () => { $("lostbox").hidden = true; };
+
+let draft = null;
+function paintSet(){ document.querySelectorAll("#settings .seg").forEach(seg => seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(draft[seg.dataset.k]) === b.dataset.v))); }
+$("setbtn").onclick = () => { draft = Object.assign({}, cfg); paintSet(); $("settings").hidden = false; };
+document.querySelectorAll("#settings .seg").forEach(seg => seg.addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; draft[seg.dataset.k] = +b.dataset.v; paintSet(); }));
+$("setcancel").onclick = () => { $("settings").hidden = true; };
+$("setok").onclick = () => { cfg = draft; save("su_cfg", JSON.stringify(cfg)); $("settings").hidden = true; paint(); };
+
+build();
+if(!restoreSaved()) newGame();
+})();
+</script>
