@@ -1,4 +1,4 @@
-<title>Skyjo</title>
+<title>Grille basse</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@600;800&display=swap">
@@ -134,7 +134,7 @@ button:disabled{opacity:.45;cursor:default}
 
 <div class="app">
   <div class="top">
-    <h1>Skyjo</h1>
+    <h1>Grille basse</h1>
     <div class="tools">
       <button id="setbtn" aria-label="Réglages">⚙️<span class="t"> Réglages</span></button>
       <button id="scorebtn" aria-label="Scores">📋<span class="t"> Scores</span></button>
@@ -811,7 +811,7 @@ render = function(){ _render(); $("newg").hidden = NET(); $("setbtn").disabled =
 newGame();
 
 if(window.Net) Net.setup({
-  game: "skyjo", name: "Skyjo", min: 2, max: 8, bots: true, seats: () => cfg.n,
+  game: "skyjo", name: "Grille basse", min: 2, max: 8, bots: true, seats: () => cfg.n,
   cfg: () => cfg,
   current: () => G && G.cur >= 0 && G.phase !== "end" ? G.cur : -1,
   start(info){ localCfg = Object.assign({}, cfg); cfg = Object.assign({}, cfg, info.cfg, {n: info.n, who: "ai"}); NETON = true; newGame(); },

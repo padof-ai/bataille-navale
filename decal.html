@@ -1,4 +1,4 @@
-<title>Décal</title>
+<title>Décalage</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Nunito:wght@600;800&display=swap">
@@ -118,7 +118,7 @@ button:disabled{opacity:.45;cursor:default}
 
 <div class="app">
   <div class="top">
-    <h1>Dé<span>cal</span></h1>
+    <h1>Déca<span>lage</span></h1>
     <div class="tools">
       <div class="seg" id="np" role="group" aria-label="Nombre de joueurs"><button data-v="2" aria-pressed="true">2</button><button data-v="3" aria-pressed="false">3</button><button data-v="4" aria-pressed="false">4</button></div>
       <div class="seg" id="who" role="group" aria-label="Adversaires"><button data-v="ai" aria-pressed="true">Ordinateurs</button><button data-v="hot" aria-pressed="false">Même écran</button></div>
@@ -585,7 +585,7 @@ render = function(){ _render(); $("np").hidden = NET(); $("who").hidden = NET();
 newGame();
 
 if(window.Net) Net.setup({
-  game: "decal", name: "Décal", min: 2, max: 4, bots: true, seats: () => cfg.n,
+  game: "decal", name: "Décalage", min: 2, max: 4, bots: true, seats: () => cfg.n,
   cfg: () => cfg,
   current: () => S && S.phase === "take" ? S.order[S.opos] : -1,
   start(info){ localCfg = Object.assign({}, cfg); cfg = {n: info.n, who: "ai"}; NETON = true; newGame(); },

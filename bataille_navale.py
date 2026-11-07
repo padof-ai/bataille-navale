@@ -410,6 +410,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_body(200, hub_page(), html)
         elif p == "/bataille-navale":
             self.send_body(200, PAGE.replace("<body>", "<body>" + BACKBAR, 1), html)
+        elif p in OLD_SLUGS:   # anciens noms des jeux
+            return self.redirect(OLD_SLUGS[p] + ("?" + url.query if url.query else ""))
         elif p in STATIC_GAMES:
             g = STATIC_GAMES[p]
             page = game_page(g)
@@ -545,8 +547,8 @@ ART = {
       <rect x="68" y="60.5" width="13" height="6" rx="1.5" fill="#d3dbe4"/>
       <circle cx="62" cy="63.5" r="2.2" fill="#56626f"/><circle cx="88" cy="63.5" r="2.2" fill="#56626f"/>
       <circle cx="100" cy="31" r="8" fill="#ff8a3d" opacity=".35"/><circle cx="100" cy="31" r="4" fill="#ffd36b"/>''',
-    "puissance-4": _p4_art(),
-    "dix-de-chute": '''
+    "quatre-en-ligne": _p4_art(),
+    "chute-libre": '''
       <rect x="56" y="5" width="48" height="90" rx="10" fill="#6a3df0" stroke="#2b1580" stroke-width="2"/>
       <rect x="61" y="9" width="10" height="82" rx="5" fill="#120a2e"/>
       <circle cx="88" cy="27" r="12" fill="#19b7c9" stroke="#0b5a68" stroke-width="2"/>
@@ -575,7 +577,7 @@ ART = {
         <g fill="#1b1b22"><circle cx="50" cy="42" r="3.6"/><circle cx="70" cy="42" r="3.6"/><circle cx="50" cy="62" r="3.6"/><circle cx="70" cy="62" r="3.6"/></g><circle cx="60" cy="52" r="3.6" fill="#1b1b22"/></g>
       <g transform="rotate(14 102 48)"><rect x="82" y="28" width="40" height="40" rx="8" fill="#fbf6e9" stroke="#d8ccae" stroke-width="1.5"/>
         <g fill="#1b1b22"><circle cx="92" cy="38" r="3.6"/><circle cx="112" cy="38" r="3.6"/><circle cx="92" cy="58" r="3.6"/><circle cx="112" cy="58" r="3.6"/><circle cx="102" cy="48" r="3.6"/></g></g>''',
-    "mastermind": '''
+    "code-secret": '''
       <rect x="18" y="30" width="124" height="40" rx="12" fill="#3c322b" stroke="#120e0b" stroke-width="2"/>
       ''' + "".join('<circle cx="%d" cy="50" r="10" fill="%s"/><circle cx="%d" cy="46" r="3" fill="#fff" opacity=".7"/>' % (36 + 24 * i, col, 33 + 24 * i)
                     for i, col in enumerate(["#e53935", "#fdd835", "#43a047", "#1e88e5"])) + '''
@@ -593,19 +595,19 @@ ART = {
       <circle cx="62" cy="60" r="19" fill="url(#aDmB)"/><circle cx="62" cy="60" r="11" fill="none" stroke="#000" stroke-opacity=".45"/><circle cx="62" cy="60" r="5" fill="none" stroke="#000" stroke-opacity=".45"/>
       <circle cx="100" cy="56" r="19" fill="#b8955f"/><circle cx="100" cy="48" r="19" fill="url(#aDmW)"/>
       <path d="M89 52 l4 -10 l7 6 l7 -6 l4 10 z" fill="#e9b949" stroke="#7a5310" stroke-width="1.2" stroke-linejoin="round"/>''',
-    "decal": '''
+    "decalage": '''
       <g transform="rotate(-14 52 54)"><rect x="37" y="32" width="30" height="42" rx="5" fill="#fffdf7" stroke="#3a74d1" stroke-width="2.4"/><text x="52" y="61" text-anchor="middle" font-size="20" font-weight="800" fill="#3a74d1" font-family="Fredoka,Nunito,sans-serif">3</text></g>
       <g><rect x="65" y="26" width="30" height="42" rx="5" fill="#fffdf7" stroke="#3a74d1" stroke-width="2.4"/><text x="80" y="55" text-anchor="middle" font-size="20" font-weight="800" fill="#3a74d1" font-family="Fredoka,Nunito,sans-serif">3</text></g>
       <g transform="rotate(14 108 54)"><rect x="93" y="32" width="30" height="42" rx="5" fill="#24356b" stroke="#fff8ec" stroke-width="2.4"/><text x="108" y="59" text-anchor="middle" font-size="16" font-weight="800" fill="#fff8ec" font-family="Nunito,sans-serif">&#8646;</text></g>''',
-    "skyjo": '''
+    "grille-basse": '''
       <g transform="rotate(-10 58 52)"><rect x="40" y="24" width="36" height="52" rx="6" fill="#2fa84f" stroke="#fff" stroke-width="2.4"/><text x="58" y="58" text-anchor="middle" font-size="22" font-weight="800" fill="#fff" font-family="Fredoka,Nunito,sans-serif">4</text></g>
       <g><rect x="62" y="20" width="36" height="52" rx="6" fill="#2a63d4" stroke="#fff" stroke-width="2.4"/><text x="80" y="54" text-anchor="middle" font-size="20" font-weight="800" fill="#fff" font-family="Fredoka,Nunito,sans-serif">-2</text></g>
       <g transform="rotate(10 102 52)"><rect x="84" y="24" width="36" height="52" rx="6" fill="#e2453c" stroke="#fff" stroke-width="2.4"/><text x="102" y="58" text-anchor="middle" font-size="20" font-weight="800" fill="#fff" font-family="Fredoka,Nunito,sans-serif">12</text></g>''',
-    "uno": '''
-      <g transform="rotate(-12 62 52)"><rect x="44" y="20" width="38" height="58" rx="6" fill="#e3242b" stroke="#fff" stroke-width="3"/><ellipse cx="63" cy="49" rx="14" ry="20" fill="#fff" transform="rotate(25 63 49)"/><text x="63" y="57" text-anchor="middle" font-size="22" font-weight="800" fill="#e3242b" font-family="Fredoka,Nunito,sans-serif">7</text></g>
+    "couleurs-chiffres": '''
+      <g transform="rotate(-12 62 52)"><rect x="44" y="20" width="38" height="58" rx="6" fill="#e3242b" stroke="#fff" stroke-width="3"/><circle cx="63" cy="49" r="13" fill="#fff"/><text x="63" y="57" text-anchor="middle" font-size="22" font-weight="800" fill="#e3242b" font-family="Fredoka,Nunito,sans-serif">7</text></g>
       <g transform="rotate(10 98 50)"><rect x="78" y="20" width="38" height="58" rx="6" fill="#1b1b22" stroke="#fff" stroke-width="3"/>
         <circle cx="91" cy="41" r="6" fill="#e3242b"/><circle cx="103" cy="41" r="6" fill="#f7c600"/><circle cx="91" cy="55" r="6" fill="#2a63d4"/><circle cx="103" cy="55" r="6" fill="#2fa84f"/></g>''',
-    "mille-bornes": '''
+    "rallye-des-bornes": '''
       <rect x="20" y="66" width="120" height="14" rx="3" fill="#3b3b44"/><path d="M28 73 H44 M56 73 H72 M84 73 H100 M112 73 H128" stroke="#f6f0e4" stroke-width="2.4"/>
       <path d="M62 20 h36 a10 10 0 0 1 10 10 v30 h-56 v-30 a10 10 0 0 1 10 -10 z" fill="#fffaf0" stroke="#c4142c" stroke-width="3"/>
       <rect x="52" y="22" width="56" height="12" rx="4" fill="#c4142c"/>
@@ -614,7 +616,7 @@ ART = {
       <rect x="10" y="8" width="140" height="84" rx="14" fill="#145a3a" stroke="#d6b26a" stroke-width="2"/>
       <g transform="rotate(-14 62 54)"><rect x="44" y="24" width="36" height="52" rx="5" fill="#fffdf7" stroke="#cfc7b5"/><text x="62" y="47" text-anchor="middle" font-size="16" font-weight="700" fill="#c8202c" font-family="Georgia,serif">R</text><text x="62" y="66" text-anchor="middle" font-size="16" fill="#c8202c">&#9829;</text></g>
       <g transform="rotate(12 98 52)"><rect x="80" y="22" width="36" height="52" rx="5" fill="#fffdf7" stroke="#cfc7b5"/><text x="98" y="45" text-anchor="middle" font-size="16" font-weight="700" fill="#c8202c" font-family="Georgia,serif">D</text><text x="98" y="64" text-anchor="middle" font-size="16" fill="#c8202c">&#9829;</text></g>''',
-    "rummikub": '''
+    "rami-des-tuiles": '''
       <rect x="18" y="62" width="124" height="16" rx="4" fill="#b88a4a" stroke="#6b4a1f" stroke-width="2"/>
       <rect x="24" y="24" width="26" height="36" rx="4" fill="#fbf6e9" stroke="#d8ccae" stroke-width="1.5"/><text x="37" y="49" text-anchor="middle" font-size="17" font-weight="800" fill="#c4142c" font-family="Nunito,sans-serif">7</text><rect x="53" y="24" width="26" height="36" rx="4" fill="#fbf6e9" stroke="#d8ccae" stroke-width="1.5"/><text x="66" y="49" text-anchor="middle" font-size="17" font-weight="800" fill="#1f3fa6" font-family="Nunito,sans-serif">7</text><rect x="82" y="24" width="26" height="36" rx="4" fill="#fbf6e9" stroke="#d8ccae" stroke-width="1.5"/><text x="95" y="49" text-anchor="middle" font-size="17" font-weight="800" fill="#1b1b22" font-family="Nunito,sans-serif">7</text><rect x="111" y="24" width="26" height="36" rx="4" fill="#fbf6e9" stroke="#d8ccae" stroke-width="1.5"/><text x="124" y="49" text-anchor="middle" font-size="17" font-weight="800" fill="#e08a00" font-family="Nunito,sans-serif">7</text>
       <path d="M128 24 l0 0" />''',
@@ -634,37 +636,54 @@ ART = {
       <path d="M70 58 C66 44 68 34 76 32" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
       <path d="M70 58 C66 44 68 34 76 32" fill="none" stroke="#4a3418" stroke-width="1.6"/>
       <circle cx="76" cy="31" r="6" fill="#fff" stroke="#4a3418" stroke-width="1.6"/><path d="M81 30 l9 2 l-9 3 z" fill="#f08a1a" stroke="#4a3418"/>''',
+    "snake": '''
+      <rect x="20" y="8" width="120" height="84" rx="12" fill="#a7d55f"/>
+      <path d="M38 70 H70 V40 H104 V58" fill="none" stroke="#2a55b8" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M38 70 H70 V40 H104 V58" fill="none" stroke="#3d6fe0" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="104" cy="60" r="9" fill="#3d6fe0"/><circle cx="100" cy="63" r="3" fill="#fff"/><circle cx="108" cy="63" r="3" fill="#fff"/><circle cx="100" cy="64" r="1.4" fill="#1a1a2a"/><circle cx="108" cy="64" r="1.4" fill="#1a1a2a"/>
+      <circle cx="104" cy="82" r="6" fill="#e8423a"/><path d="M104 76 l2 -4" stroke="#6b3b12" stroke-width="1.5"/>''',
+    "paires": '''
+      <g transform="rotate(-10 58 50)"><rect x="40" y="18" width="36" height="48" rx="6" fill="#fffaf0" stroke="#ffb84d" stroke-width="3"/><text x="58" y="50" text-anchor="middle" font-size="22">🦊</text></g>
+      <g transform="rotate(8 100 50)"><rect x="82" y="18" width="36" height="48" rx="6" fill="#fffaf0" stroke="#ffb84d" stroke-width="3"/><text x="100" y="50" text-anchor="middle" font-size="22">🦊</text></g>
+      <rect x="62" y="56" width="36" height="40" rx="6" fill="#1f8a8a" stroke="#f5f0ff" stroke-width="3"/>''',
+    "portraits": '''
+      <rect x="18" y="8" width="124" height="84" rx="12" fill="#c8352d"/>
+      <rect x="28" y="16" width="30" height="38" rx="4" fill="#cfe8f7" stroke="#fff" stroke-width="2"/><circle cx="43" cy="34" r="9" fill="#f8d9bf"/><path d="M34 32 Q34 22 43 22 Q52 22 52 32 Q48 27 43 28 Q38 27 34 32 Z" fill="#f0c45a"/>
+      <rect x="65" y="16" width="30" height="38" rx="4" fill="#f9e3a8" stroke="#fff" stroke-width="2"/><circle cx="80" cy="34" r="9" fill="#8d5a3b"/><path d="M68 26 Q80 22 92 26 L90 28 Q80 26 70 28 Z M72 26 Q72 16 80 16 Q88 16 88 26 Z" fill="#c8352d"/>
+      <rect x="102" y="16" width="30" height="38" rx="4" fill="#e3f0d0" stroke="#fff" stroke-width="2"/><circle cx="117" cy="34" r="9" fill="#f8d9bf"/><path d="M109 34 Q110 46 117 46 Q124 46 125 34 Q121 40 117 38 Q113 40 109 34 Z" fill="#d0622a"/>
+      <path d="M30 70 h100 v14 h-100 z" fill="#8f1f1a"/>
+      <text x="80" y="82" text-anchor="middle" font-family="Fredoka,Nunito,sans-serif" font-weight="700" font-size="13" fill="#ffcb47">?</text>''',
 }
 
 GAMES = [
     {"slug": "bataille-navale", "file": None, "name": "Bataille navale", "lid": "#0e2a4a",
      "hook": "Coulez la flotte adverse sur deux téléphones, chacun chez soi, ou affrontez l'amiral de l'ordinateur.",
      "facts": "1–2 joueurs · 15 min", "modes": ["En ligne à deux", "Contre l'ordi"]},
-    {"slug": "puissance-4", "file": "puissance4.html", "name": "Puissance 4", "lid": "#f7c600",
+    {"slug": "quatre-en-ligne", "file": "puissance4.html", "name": "Quatre en ligne", "lid": "#f7c600",
      "hook": "Alignez quatre pions avant l'autre.", "facts": "1–2 joueurs · 5 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
-    {"slug": "dix-de-chute", "file": "dix_de_chute.html", "name": "Dix de Chute", "lid": "#19a7b8",
+    {"slug": "chute-libre", "file": "dix_de_chute.html", "name": "Chute libre", "lid": "#19a7b8",
      "hook": "Tournez les roues, faites tomber vos jetons.", "facts": "1–2 joueurs · 10 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "morpion", "file": "morpion.html", "name": "Morpion", "lid": "#fdfcf6",
      "hook": "Le classique du cahier d'écolier.", "facts": "1–2 joueurs · 2 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "yams", "file": "yams.html", "name": "Yam's", "lid": "#1e6b45",
      "hook": "Trois lancers pour remplir la feuille.", "facts": "1–2 joueurs · 15 min", "modes": ["En ligne", "Solo", "Contre l'ordi", "Même écran"]},
-    {"slug": "mastermind", "file": "mastermind.html", "name": "Mastermind", "lid": "#5a4636",
-     "hook": "Percez le code secret en dix essais.", "facts": "1–2 joueurs · 10 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
+    {"slug": "code-secret", "file": "mastermind.html", "name": "Code secret", "cat": "solo", "lid": "#5a4636",
+     "hook": "Percez le code secret en dix essais.", "facts": "1–2 joueurs · 10 min", "modes": ["Solo", "Contre l'ordi", "Même écran", "En ligne"]},
     {"slug": "echecs", "file": "echecs.html", "name": "Échecs", "lid": "#2e5a45",
      "hook": "Toutes les règles, trois niveaux d'ordinateur.", "facts": "1–2 joueurs · 30 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "dames", "file": "dames.html", "name": "Dames", "lid": "#8c2626",
      "hook": "Damier de 10 × 10, règles françaises.", "facts": "1–2 joueurs · 30 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
-    {"slug": "decal", "file": "decal.html", "name": "Décal", "lid": "#e2572c",
+    {"slug": "decalage", "file": "decal.html", "name": "Décalage", "lid": "#e2572c",
      "hook": "Glissez vos cartes, formez des paires.", "facts": "1–4 joueurs · 15 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
-    {"slug": "skyjo", "file": "skyjo.html", "name": "Skyjo", "lid": "#2fa84f",
+    {"slug": "grille-basse", "file": "skyjo.html", "name": "Grille basse", "lid": "#2fa84f",
      "hook": "Retournez, échangez, faites le plus petit total.", "facts": "1–4 joueurs · 20 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
-    {"slug": "uno", "file": "uno.html", "name": "Uno", "lid": "#e3242b",
-     "hook": "Couleur ou chiffre, et n'oubliez pas de dire Uno !", "facts": "1–4 joueurs · 15 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
-    {"slug": "mille-bornes", "file": "mille_bornes.html", "name": "1000 Bornes", "lid": "#c4142c",
+    {"slug": "couleurs-chiffres", "file": "uno.html", "name": "Couleurs & chiffres", "lid": "#e3242b",
+     "hook": "Couleur ou chiffre, et n'oubliez pas d'annoncer votre dernière carte !", "facts": "1–4 joueurs · 15 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
+    {"slug": "rallye-des-bornes", "file": "mille_bornes.html", "name": "Rallye des bornes", "lid": "#c4142c",
      "hook": "Feux rouges, crevaisons et as du volant.", "facts": "1–4 joueurs · 25 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "belote", "file": "belote.html", "name": "Belote", "lid": "#145a3a",
      "hook": "Belote, rebelote et dix de der, à quatre en ligne ou avec l'ordinateur.", "facts": "1–4 joueurs · 30 min", "modes": ["En ligne", "Contre l'ordi"]},
-    {"slug": "rummikub", "file": "rummikub.html", "name": "Rummikub", "lid": "#b88a4a",
+    {"slug": "rami-des-tuiles", "file": "rummikub.html", "name": "Rami des tuiles", "lid": "#b88a4a",
      "hook": "Suites et séries de tuiles, la table se réarrange.", "facts": "1–4 joueurs · 30 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "tarot", "file": "tarot.html", "name": "Tarot", "lid": "#16335c",
      "hook": "Petite, garde, garde sans… et le petit au bout.", "facts": "3–4 joueurs · 30 min", "modes": ["En ligne", "Contre l'ordi"]},
@@ -672,7 +691,15 @@ GAMES = [
      "hook": "Faites un 6 pour sortir de l'écurie, puis grimpez l'escalier.", "facts": "2–4 joueurs · 30 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"], "new": "Nouveau"},
     {"slug": "jeu-oie", "file": "jeu_oie.html", "name": "Jeu de l'oie", "lid": "#2d5a4c",
      "hook": "D'oie en oie jusqu'à la case 63, gare au puits et à la tête de mort.", "facts": "2–6 joueurs · 20 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"], "new": "Nouveau"},
+    {"slug": "snake", "file": "snake.html", "name": "Snake", "cat": "solo", "lid": "#3d6fe0",
+     "hook": "Croquez les pommes, grandissez, et ne vous mordez pas la queue.", "facts": "1 joueur · 5 min", "modes": ["Solo"], "new": "Nouveau"},
+    {"slug": "paires", "file": "paires.html", "name": "Jeu des paires", "cat": "solo", "lid": "#7a4fc9",
+     "hook": "Retournez deux cartes et retrouvez les paires, seul ou à plusieurs.", "facts": "1–4 joueurs · 10 min", "modes": ["Solo", "En ligne", "Contre l'ordi", "Même écran"], "new": "Nouveau"},
+    {"slug": "portraits", "file": "portraits.html", "name": "Portraits mystère", "lid": "#c8352d",
+     "hook": "Posez les bonnes questions pour démasquer le personnage de votre adversaire.", "facts": "2 joueurs · 10 min", "modes": ["En ligne", "Contre l'ordi"], "new": "Nouveau"},
 ]
+OLD_SLUGS = {"/puissance-4": "/quatre-en-ligne", "/dix-de-chute": "/chute-libre", "/mastermind": "/code-secret", "/decal": "/decalage",
+             "/skyjo": "/grille-basse", "/uno": "/couleurs-chiffres", "/mille-bornes": "/rallye-des-bornes", "/rummikub": "/rami-des-tuiles"}
 STATIC_GAMES = {"/" + g["slug"]: g for g in GAMES if g["file"]}
 
 
@@ -685,7 +712,7 @@ def esc(t):
 
 
 def hub_page():
-    boxes = []
+    boxes = {"solo": [], "multi": []}
     for g in GAMES:
         ok = game_available(g)
         feat = g["slug"] == "bataille-navale"
@@ -694,13 +721,14 @@ def hub_page():
         chips = "".join("<li>%s</li>" % esc(m) for m in g["modes"])
         sticker = '<span class="sticker">%s</span>' % esc(g["new"]) if g.get("new") else ""
         missing = "" if ok else '<p class="missing">Fichier « %s » absent du serveur</p>' % esc(g["file"])
-        boxes.append(
+        boxes[g.get("cat", "multi")].append(
             '<%s class="box%s%s"%s style="--lid:%s">%s'
             '<div class="art"><svg viewBox="0 0 160 100" aria-hidden="true">%s</svg></div>'
             '<div class="label"><h2>%s</h2><p class="hook">%s</p><p class="facts">%s</p><ul class="modes">%s</ul>%s</div></%s>'
             % (tag, " feat" if feat else "", "" if ok else " off", href, g["lid"], sticker, ART[g["slug"]],
                esc(g["name"]), esc(g["hook"]), esc(g["facts"]), chips, missing, tag))
-    return HUB_PAGE.replace("<!--BOXES-->", "\n".join(boxes)).replace("<!--COUNT-->", str(len(GAMES)))
+    return (HUB_PAGE.replace("<!--MULTI-->", "\n".join(boxes["multi"])).replace("<!--SOLO-->", "\n".join(boxes["solo"]))
+            .replace("<!--COUNT-->", str(len(GAMES))).replace("<!--NMULTI-->", str(len(boxes["multi"]))).replace("<!--NSOLO-->", str(len(boxes["solo"]))))
 
 
 HUB_PAGE = r"""<!doctype html>
@@ -745,6 +773,11 @@ h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(2.6rem,10
 .sub{margin:0;color:var(--muted);font-size:1.02rem;max-width:56ch;line-height:1.45}
 .sub b{color:var(--cream)}
 
+.rooms{display:flex;flex-direction:column;gap:30px}
+.rooms section{display:flex;flex-direction:column;gap:14px}
+.shelfhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;padding-bottom:8px;border-bottom:3px solid rgba(246,238,223,.14)}
+.shelfhead h2{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(1.7rem,6vw,2.3rem);line-height:1;color:var(--cream);letter-spacing:.03em}
+.shelfhead p{margin:0;color:var(--muted);font-size:.92rem;font-weight:800}
 .shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:18px}
 @media (max-width:560px){.shelf{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.label{padding:10px 10px 12px;gap:5px}.label h2{font-size:1.2rem}.hook{font-size:.8rem}.modes li{font-size:.68rem;padding:3px 6px}.box:not(.feat) .art{aspect-ratio:4/3}.sticker{font-size:.7rem;top:8px}}
 .box{position:relative;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;text-decoration:none;color:inherit;background:var(--side);
@@ -790,10 +823,21 @@ a.box:focus-visible{outline:3px solid var(--gold);outline-offset:4px}
 <div class="wrap">
   <header>
     <h1>Salle de jeux</h1>
-    <p class="sub"><b><!--COUNT--> jeux de société</b>, avec leurs vrais plateaux et leurs bruits de pions. Seul contre l'ordinateur, à plusieurs sur le même écran, ou à deux sur deux téléphones pour la bataille navale.</p>
+    <p class="sub"><b><!--COUNT--> jeux</b>, avec leurs vrais plateaux et leurs bruits de pions. À plusieurs, chacun sur son téléphone ou sur le même écran, contre l'ordinateur, ou tout seul.</p>
   </header>
-  <main class="shelf">
-<!--BOXES-->
+  <main class="rooms">
+    <section aria-labelledby="h-multi">
+      <div class="shelfhead"><h2 id="h-multi">À plusieurs</h2><p>En ligne, sur le même écran ou contre l'ordinateur · <!--NMULTI--> jeux</p></div>
+      <div class="shelf">
+<!--MULTI-->
+      </div>
+    </section>
+    <section aria-labelledby="h-solo">
+      <div class="shelfhead"><h2 id="h-solo">En solo</h2><p>Pour jouer seul, battre son record ou faire une pause · <!--NSOLO--> jeux</p></div>
+      <div class="shelf">
+<!--SOLO-->
+      </div>
+    </section>
   </main>
   <div class="tip" id="tip">
     <p><b>Comme une application.</b> Sur iPhone : bouton Partager, puis « Sur l'écran d'accueil ». Sur Android : menu ⋮ du navigateur, puis « Installer l'application ».</p>

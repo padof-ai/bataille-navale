@@ -1,4 +1,4 @@
-<title>Mastermind</title>
+<title>Code secret</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800&display=swap">
@@ -108,7 +108,7 @@ button:disabled{opacity:.4;cursor:default}
 
 <div class="app">
   <div class="top">
-    <h1>Mastermind</h1>
+    <h1>Code secret</h1>
     <button id="snd" aria-label="Activer ou couper le son"></button>
   </div>
 
@@ -461,7 +461,7 @@ function start(data){
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
 
 if(window.Net) Net.setup({
-  game: "mastermind", name: "Mastermind", min: 2, max: 2, bots: false,
+  game: "mastermind", name: "Code secret", min: 2, max: 2, bots: false,
   cfg: () => ({rep: S ? S.rep : true}),
   seatName: k => k === 0 ? "Compose le 1er code" : "Devine le 1er code",
   current: () => !NET() || S.phase === "over" ? -1 : S.phase === "setup" ? S.maker : 1 - S.maker,

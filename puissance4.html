@@ -1,4 +1,4 @@
-<title>Puissance 4</title>
+<title>Quatre en ligne</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800&display=swap">
@@ -71,7 +71,7 @@ button:disabled{opacity:.4;cursor:default}
 
 <div class="app">
   <div class="top">
-    <h1>Puissance<b>4</b></h1>
+    <h1><b>4</b> en ligne</h1>
     <button id="snd" aria-label="Activer ou couper le son"></button>
   </div>
 
@@ -82,7 +82,7 @@ button:disabled{opacity:.4;cursor:default}
   </div>
 
   <div class="stage">
-    <svg id="bd" viewBox="-40 -118 780 795" role="img" aria-label="Support de Puissance 4, 7 colonnes et 6 rangées">
+    <svg id="bd" viewBox="-40 -118 780 795" role="img" aria-label="Support de Quatre en ligne, 7 colonnes et 6 rangées">
       <defs>
         <radialGradient id="gR" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#ff8f80"/><stop offset=".45" stop-color="#e3242b"/><stop offset="1" stop-color="#860b12"/></radialGradient>
         <radialGradient id="gY" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#fff5a8"/><stop offset=".45" stop-color="#f7c600"/><stop offset="1" stop-color="#a87b00"/></radialGradient>
@@ -484,7 +484,7 @@ function hardReset(){
   anims.clear(); busy = false;
 }
 if(window.Net) Net.setup({
-  game: "puissance-4", name: "Puissance 4", min: 2, max: 2, bots: false,
+  game: "puissance-4", name: "Quatre en ligne", min: 2, max: 2, bots: false,
   seatName: k => ["Rouge", "Jaune"][k],
   current: () => over ? -1 : turn - 1,
   start(info){ hardReset(); mode = "net"; NETC = info.me + 1; scores = {1: 0, 2: 0}; starter = 1; reset(); },

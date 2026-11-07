@@ -1,0 +1,424 @@
+<title>Portraits mystère</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Nunito:wght@600;800&display=swap">
+<style>
+/* Layout : un plateau rouge façon cadre à fenêtres ; vos 24 portraits en grille, votre personnage secret à côté du tableau des scores, les questions dessous. */
+:root{
+  color-scheme:dark;
+  --bg:#3a1414; --bg2:#1a0808;
+  --tray:#c8352d; --tray2:#8f1f1a;
+  --ink:#fff4ee; --muted:#e6c9c0; --edge:rgba(255,244,238,.2);
+  --accent:#ffcb47; --yes:#3fbf6a; --no:#e5533d;
+  --display:"Fredoka","Trebuchet MS",sans-serif;
+  --ui:"Nunito","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0;font-family:var(--ui);color:var(--ink);-webkit-tap-highlight-color:transparent;
+  background:radial-gradient(ellipse 80% 60% at 50% 25%,#5a2420 0,var(--bg) 55%,var(--bg2) 100%) fixed,var(--bg)}
+.app{max-width:760px;margin:0 auto;padding-block:10px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:10px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{margin:0;font-family:var(--display);font-weight:700;font-size:clamp(1.6rem,7vw,2.4rem);line-height:1;color:var(--accent);text-shadow:0 3px 0 #6a1a10,0 8px 18px rgba(0,0,0,.4);white-space:nowrap}
+.tools{display:flex;gap:8px}
+button{font:inherit;font-weight:800;color:var(--ink);background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:11px;padding:8px 12px;cursor:pointer}
+button:hover:not(:disabled){border-color:rgba(255,244,238,.5)}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+.head{display:flex;gap:10px;align-items:stretch}
+.secret{flex:none;width:92px;background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:14px;padding:6px;text-align:center;font-size:.7rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.secret .pt{margin-top:4px}
+.side{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
+.bar{display:flex;gap:8px}
+.bar .st{flex:1;background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:12px;padding:6px 10px;min-width:0}
+.bar .st.act{background:var(--accent);color:#3a1a04;border-color:var(--accent)}
+.bar .st b{display:block;font-family:var(--display);font-weight:700;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .st span{font-size:.78rem;font-weight:800;opacity:.85}
+#status{background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:12px;padding:9px 12px;font-weight:800;line-height:1.35;min-height:2.8em;flex:1}
+#status .yes{color:var(--yes)} #status .no{color:var(--no)}
+.tray{border-radius:18px;padding:10px;background:linear-gradient(180deg,var(--tray),var(--tray2));box-shadow:inset 0 2px 0 rgba(255,255,255,.2),0 14px 26px rgba(0,0,0,.45)}
+.board{display:grid;grid-template-columns:repeat(6,1fr);gap:7px}
+@media (max-width:560px){.board{grid-template-columns:repeat(4,1fr)}}
+.pt{position:relative;border:0;padding:0;background:none;border-radius:10px;cursor:pointer;perspective:600px;display:block;width:100%}
+.pt .in{display:block;transition:transform .35s cubic-bezier(.3,.7,.3,1.1);transform-origin:50% 100%;transform-style:preserve-3d}
+.pt.down .in{transform:rotateX(-78deg)}
+.pt .face{display:block;border-radius:10px;overflow:hidden;background:#fff;border:3px solid #fff;box-shadow:0 3px 6px rgba(0,0,0,.35)}
+.pt svg{display:block;width:100%;height:auto}
+.pt .nm{display:block;background:#fff;color:#3a1a14;font-family:var(--display);font-weight:700;font-size:clamp(.62rem,2.6vw,.85rem);padding:1px 0 2px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pt.down .face{filter:brightness(.6)}
+.pt.pick .face{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent)}
+.board.accuse .pt:not(.down) .face{animation:wig 1.2s ease-in-out infinite}
+@keyframes wig{50%{transform:rotate(1.5deg)}}
+.pt:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.ask{background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:14px;padding:10px}
+.ask h3{margin:0 0 8px;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.qs{display:flex;flex-wrap:wrap;gap:6px}
+.qs button{font-size:.85rem;padding:7px 10px;border-radius:999px;background:rgba(255,255,255,.08)}
+.qs button.used{text-decoration:line-through;opacity:.4}
+.acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.acts button{flex:1}
+#accbtn{background:var(--accent);color:#3a1a04;border-color:var(--accent)}
+.hist{background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:14px;padding:10px 12px;font-size:.88rem;max-height:180px;overflow:auto}
+.hist h3{margin:0 0 6px;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.hist ol{margin:0;padding-left:18px;display:flex;flex-direction:column-reverse;gap:3px}
+.hist .yes{color:var(--yes);font-weight:800}.hist .no{color:var(--no);font-weight:800}
+.bubble{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);z-index:50;font-family:var(--display);font-weight:700;font-size:clamp(2.4rem,14vw,5rem);padding:10px 34px;border-radius:30px;color:#fff;box-shadow:0 14px 30px rgba(0,0,0,.5);animation:bub .9s cubic-bezier(.3,1.7,.5,1);pointer-events:none}
+@keyframes bub{from{transform:translate(-50%,-50%) scale(.2)}}
+.foot{display:flex;justify-content:center;gap:8px}
+.rules{background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:14px;padding:12px 14px;font-size:.9rem;line-height:1.5;color:var(--muted)}
+.rules summary{cursor:pointer;font-weight:800;color:var(--ink)}
+.rules ul{margin:8px 0 0;padding-left:18px}
+.modal{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(20,6,6,.66);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px}
+.modal .box{background:#4a1c18;border:1px solid var(--edge);border-radius:16px;padding:20px;width:100%;max-width:440px;max-height:100%;overflow:auto;text-align:center}
+.modal h2{margin:0 0 12px;font-family:var(--display);font-weight:700;font-size:1.6rem;line-height:1.2;color:var(--accent)}
+.modal p{margin:0 0 12px;color:var(--muted);font-size:.92rem;line-height:1.45}
+.modal .duo{display:flex;gap:12px;justify-content:center;margin-bottom:12px}
+.modal .duo div{width:96px;font-size:.75rem;font-weight:800;color:var(--muted)}
+.modal .row{display:flex;gap:8px}.modal .row button{flex:1}
+.modal.left .box{text-align:left}
+.primary{background:var(--accent);color:#3a1a04;border-color:var(--accent)}
+.opt{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.opt .lbl{font-weight:800;font-size:.9rem}
+.seg{display:flex;flex-wrap:wrap;background:rgba(0,0,0,.25);border:1px solid var(--edge);border-radius:12px;padding:3px;gap:2px}
+.seg button{flex:1 1 auto;border:0;background:transparent;padding:7px 8px;border-radius:9px;color:var(--muted);font-size:.85rem}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#3a1a04}
+.seg .off{font-weight:600;font-size:.72rem;opacity:.85}
+@media (max-width:480px){.tools .t{display:none}}
+@media (prefers-reduced-motion:reduce){.pt .in{transition:none}.bubble{animation:none}.board.accuse .pt .face{animation:none}}
+</style>
+
+<div class="app">
+  <div class="top">
+    <h1>Portraits mystère</h1>
+    <div class="tools">
+      <button id="setbtn" aria-label="Réglages">⚙️<span class="t"> Réglages</span></button>
+      <button id="snd" aria-label="Activer ou couper le son"></button>
+    </div>
+  </div>
+  <div class="head">
+    <div class="secret">Votre personnage<div id="mine"></div></div>
+    <div class="side">
+      <div class="bar" id="bar"></div>
+      <div id="status" aria-live="polite"></div>
+    </div>
+  </div>
+  <div class="tray"><div class="board" id="board"></div></div>
+  <div class="ask" id="ask">
+    <h3>Posez une question</h3>
+    <div class="qs" id="qs"></div>
+    <div class="acts"><button id="accbtn">Je sais qui c'est !</button></div>
+  </div>
+  <div class="hist"><h3>Questions posées</h3><ol id="hist"></ol></div>
+  <div class="foot"><button id="newg">Nouvelle partie</button></div>
+  <details class="rules">
+    <summary>Règles du jeu</summary>
+    <ul>
+      <li>Chaque joueur a un personnage secret parmi les 24 du plateau. Il faut découvrir celui de l'adversaire avant qu'il ne trouve le vôtre.</li>
+      <li>À votre tour, posez une question à laquelle on répond par oui ou par non. Les personnages qui ne correspondent plus se baissent (vous pouvez aussi les baisser ou les relever en les touchant).</li>
+      <li>Quand vous pensez savoir, touchez « Je sais qui c'est ! » puis le personnage. Bonne réponse : vous gagnez la manche. Mauvaise : vous la perdez.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="modal" id="endbox" hidden><div class="box"><h2 id="endt"></h2><p id="endp"></p><div class="duo" id="duo"></div><div class="row"><button id="again" class="primary">Manche suivante</button></div></div></div>
+<div class="modal" id="confirm" hidden><div class="box"><h2 id="cft"></h2><p>Si ce n'est pas le bon personnage, vous perdez la manche.</p><div class="duo" id="cfpt"></div><div class="row"><button id="cfno">Annuler</button><button id="cfyes" class="primary">C'est lui ou elle !</button></div></div></div>
+<div class="modal left" id="settings" hidden><div class="box" role="dialog" aria-labelledby="sett">
+  <h2 id="sett">Réglages</h2>
+  <div class="opt"><span class="lbl">Niveau de l'ordinateur</span><div class="seg" data-k="lvl"><button data-v="1">Facile</button><button data-v="2">Moyen</button><button data-v="3">Difficile</button></div></div>
+  <div class="opt"><span class="lbl">Après une réponse</span><div class="seg" data-k="auto"><button data-v="1">Baisser les portraits tout seul</button><button data-v="0">Je les baisse moi-même <span class="off">· comme le vrai jeu</span></button></div></div>
+  <div class="opt"><span class="lbl">Mauvaise accusation</span><div class="seg" data-k="wrong"><button data-v="1">Manche perdue <span class="off">· officiel</span></button><button data-v="0">On passe son tour</button></div></div>
+  <p style="color:var(--muted);font-size:.9rem">Sur le site, le bouton « Jouer en ligne » permet d'affronter un ami.</p>
+  <div class="row"><button id="setcancel">Annuler</button><button id="setok" class="primary">Appliquer</button></div>
+</div></div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const load = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const save = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const D = ms => reduced ? Math.min(ms, 200) : ms;
+
+/* ================= SONS ================= */
+const Snd = {
+  ctx: null, on: load("pm_sound") !== "0",
+  init(){ if(!this.ctx){ const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return; this.ctx = new AC(); this.out = this.ctx.createGain(); this.out.gain.value = .85; this.out.connect(this.ctx.destination); } if(this.ctx.state === "suspended") this.ctx.resume(); },
+  ok(){ return this.on && this.ctx; },
+  tone(f0, f1, dur, peak, delay = 0, type = "sine"){
+    if(!this.ok()) return;
+    const c = this.ctx, t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + .006); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(this.out); o.start(t); o.stop(t + dur + .02);
+  },
+  clack(k = 0){ this.tone(240, 140, .07, .14, k, "square"); this.tone(1200, 800, .03, .05, k, "triangle"); },
+  ask(){ this.tone(520, 700, .16, .1, 0, "triangle"); },
+  yes(){ this.tone(660, 990, .18, .14, 0, "triangle"); this.tone(990, 1320, .2, .1, .12, "triangle"); },
+  no(){ this.tone(440, 300, .22, .12, 0, "sawtooth"); this.tone(300, 220, .25, .08, .12, "sawtooth"); },
+  win(){ [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, f, i === 4 ? .9 : .28, .15, .1 + i * .12, "triangle")); },
+  lose(){ [392, 370, 349, 294].forEach((f, i) => this.tone(f, f * .97, .45, .1, .1 + i * .3, "sawtooth")); }
+};
+function sndLabel(){ $("snd").textContent = Snd.on ? "🔊" : "🔇"; $("snd").title = Snd.on ? "Son activé" : "Son coupé"; }
+$("snd").onclick = () => { Snd.on = !Snd.on; save("pm_sound", Snd.on ? "1" : "0"); Snd.init(); sndLabel(); };
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => Snd.init(), {capture: true}));
+sndLabel();
+
+/* ================= LES 24 PERSONNAGES ================= */
+// g : f/h · hair : noir, brun, roux, blond, blanc, chauve · long · eyes : bleus, marron, verts · lun, hat (couleur), barbe, moust, bo (boucles d'oreilles), nez (gros nez) · skin 0-2 · fond, habit
+const P24 = [
+  ["Alice", "f", "blond", 1, "bleus", 0, "", 0, 0, 1, 0, 0, "#cfe8f7", "#e0607e"],
+  ["Bernard", "h", "chauve", 0, "marron", 1, "", 1, 0, 0, 1, 1, "#f7e2c4", "#4f7fb8"],
+  ["Camille", "f", "roux", 1, "verts", 1, "", 0, 0, 0, 0, 0, "#dff3d6", "#7a5ab0"],
+  ["David", "h", "noir", 0, "marron", 0, "#c8352d", 0, 1, 0, 0, 2, "#f9e3a8", "#2f8a6a"],
+  ["Emma", "f", "brun", 1, "marron", 0, "", 0, 0, 1, 0, 1, "#f2d5e8", "#e08a2a"],
+  ["Félix", "h", "blond", 0, "bleus", 0, "", 0, 0, 0, 1, 0, "#d9e4f7", "#c8352d"],
+  ["Gaston", "h", "blanc", 0, "bleus", 1, "", 1, 1, 0, 0, 0, "#efe3d0", "#6a6a8a"],
+  ["Hélène", "f", "noir", 0, "verts", 0, "#7a4fc9", 0, 0, 1, 0, 2, "#f7d6c8", "#2a9d8f"],
+  ["Igor", "h", "roux", 0, "verts", 0, "", 1, 0, 0, 0, 0, "#e3f0d0", "#8a5a2a"],
+  ["Julie", "f", "blond", 0, "bleus", 1, "", 0, 0, 0, 0, 1, "#fde0cc", "#3d6fe0"],
+  ["Karim", "h", "noir", 0, "marron", 0, "", 1, 0, 0, 0, 2, "#d8ecf0", "#d9a12a"],
+  ["Léa", "f", "roux", 0, "marron", 0, "#2f9e48", 0, 0, 1, 0, 0, "#f6efc9", "#c84a7a"],
+  ["Marc", "h", "brun", 0, "bleus", 0, "#2a55b8", 0, 1, 0, 1, 0, "#f3dccb", "#9a3a2a"],
+  ["Nina", "f", "noir", 1, "marron", 0, "", 0, 0, 0, 0, 2, "#e6dcf6", "#f0b21a"],
+  ["Oscar", "h", "roux", 0, "bleus", 1, "", 0, 0, 0, 0, 1, "#d6f0ea", "#4a4a6a"],
+  ["Paul", "h", "brun", 0, "verts", 0, "", 0, 1, 0, 0, 1, "#f7e8c8", "#3f9b6c"],
+  ["Rose", "f", "blanc", 0, "bleus", 1, "", 0, 0, 1, 0, 0, "#f9d8dc", "#9a4fb0"],
+  ["Samuel", "h", "blond", 0, "marron", 0, "#ef7d1a", 1, 0, 0, 0, 1, "#dfe9f6", "#2a6a9a"],
+  ["Théo", "h", "brun", 0, "marron", 0, "", 0, 0, 0, 1, 0, "#e8f3d8", "#d84a3a"],
+  ["Ursule", "f", "brun", 0, "verts", 0, "", 0, 0, 0, 1, 1, "#f6e0c8", "#5a8a3a"],
+  ["Victor", "h", "chauve", 0, "bleus", 0, "", 0, 1, 0, 1, 2, "#e0e6f2", "#b8862a"],
+  ["Zoé", "f", "blond", 1, "verts", 0, "", 0, 0, 0, 0, 0, "#fbe6d0", "#2f7fb8"],
+  ["Yann", "h", "noir", 1, "bleus", 0, "", 0, 0, 0, 0, 0, "#dcefe6", "#c8352d"],
+  ["Jules", "h", "blanc", 0, "marron", 0, "", 0, 0, 0, 0, 1, "#efe6f6", "#3a6a4a"]
+].map(([name, g, hair, long, eyes, lun, hat, barbe, moust, bo, nez, skin, bg, cloth], id) => ({id, name, g, hair, long, eyes, lun, hat, barbe, moust, bo, nez, skin, bg, cloth}));
+
+const QUESTIONS = [
+  {id: "f", t: "Est-ce une femme ?", ok: c => c.g === "f"},
+  {id: "h", t: "Est-ce un homme ?", ok: c => c.g === "h"},
+  {id: "noir", t: "A-t-il ou elle les cheveux noirs ?", s: "Cheveux noirs", ok: c => c.hair === "noir"},
+  {id: "brun", t: "A-t-il ou elle les cheveux bruns ?", s: "Cheveux bruns", ok: c => c.hair === "brun"},
+  {id: "roux", t: "Est-il ou elle roux ?", s: "Roux", ok: c => c.hair === "roux"},
+  {id: "blond", t: "Est-il ou elle blond ?", s: "Blond", ok: c => c.hair === "blond"},
+  {id: "blanc", t: "A-t-il ou elle les cheveux blancs ?", s: "Cheveux blancs", ok: c => c.hair === "blanc"},
+  {id: "chauve", t: "Est-il chauve ?", s: "Chauve", ok: c => c.hair === "chauve"},
+  {id: "long", t: "A-t-il ou elle les cheveux longs ?", s: "Cheveux longs", ok: c => !!c.long},
+  {id: "yb", t: "A-t-il ou elle les yeux bleus ?", s: "Yeux bleus", ok: c => c.eyes === "bleus"},
+  {id: "ym", t: "A-t-il ou elle les yeux marron ?", s: "Yeux marron", ok: c => c.eyes === "marron"},
+  {id: "yv", t: "A-t-il ou elle les yeux verts ?", s: "Yeux verts", ok: c => c.eyes === "verts"},
+  {id: "lun", t: "Porte-t-il ou elle des lunettes ?", s: "Lunettes", ok: c => !!c.lun},
+  {id: "hat", t: "Porte-t-il ou elle un chapeau ?", s: "Chapeau", ok: c => !!c.hat},
+  {id: "barbe", t: "A-t-il une barbe ?", s: "Barbe", ok: c => !!c.barbe},
+  {id: "moust", t: "A-t-il une moustache ?", s: "Moustache", ok: c => !!c.moust},
+  {id: "bo", t: "Porte-t-elle des boucles d'oreilles ?", s: "Boucles d'oreilles", ok: c => !!c.bo},
+  {id: "nez", t: "A-t-il ou elle un gros nez ?", s: "Gros nez", ok: c => !!c.nez}
+];
+QUESTIONS[0].s = "Une femme"; QUESTIONS[1].s = "Un homme";
+const Q = id => QUESTIONS.find(q => q.id === id);
+
+/* ================= DESSIN D'UN PORTRAIT (SVG) ================= */
+const SKIN = [["#f8d9bf", "#e9b896"], ["#e2a679", "#c98a5c"], ["#8d5a3b", "#6f4429"]];
+const HAIR = {noir: "#2a2120", brun: "#6b3d22", roux: "#d0622a", blond: "#f0c45a", blanc: "#e9e6e0", chauve: "#cfc6bd"};
+const IRIS = {bleus: "#3f86d8", marron: "#6b3d22", verts: "#3f9b5a"};
+function face(c){
+  const [sk, sk2] = SKIN[c.skin], hc = HAIR[c.hair], ink = "#2a1a14";
+  let s = `<svg viewBox="0 0 100 112" aria-hidden="true"><rect width="100" height="112" fill="${c.bg}"/>`;
+  // cheveux longs derrière la tête
+  if(c.long) s += `<path d="M22 46 Q18 92 30 104 H70 Q82 92 78 46 Q50 30 22 46 Z" fill="${hc}"/>`;
+  // buste
+  s += `<path d="M14 112 Q16 88 50 86 Q84 88 86 112 Z" fill="${c.cloth}"/><path d="M42 86 Q50 96 58 86" fill="${sk2}"/><rect x="43" y="74" width="14" height="14" fill="${sk2}"/>`;
+  // oreilles et tête
+  s += `<ellipse cx="27" cy="56" rx="5" ry="7.5" fill="${sk2}"/><ellipse cx="73" cy="56" rx="5" ry="7.5" fill="${sk2}"/>`;
+  s += `<ellipse cx="50" cy="54" rx="23" ry="27" fill="${sk}" stroke="${sk2}" stroke-width="1"/>`;
+  if(c.bo) s += `<circle cx="27" cy="66" r="3.2" fill="#f2c94c" stroke="#a87a10" stroke-width=".8"/><circle cx="73" cy="66" r="3.2" fill="#f2c94c" stroke="#a87a10" stroke-width=".8"/>`;
+  // cheveux
+  if(c.hair === "chauve") s += `<path d="M27 52 Q26 40 31 36 L32 52 Z M73 52 Q74 40 69 36 L68 52 Z" fill="${hc}"/>`;
+  else if(c.g === "f" && !c.long) s += `<path d="M25 58 Q22 26 50 25 Q78 26 75 58 Q72 44 66 38 Q52 44 34 38 Q28 44 25 58 Z" fill="${hc}"/><path d="M25 58 Q24 68 30 72 L30 54 Z M75 58 Q76 68 70 72 L70 54 Z" fill="${hc}"/>`;
+  else if(c.long) s += `<path d="M26 56 Q22 24 50 24 Q78 24 74 56 Q70 40 60 36 Q48 44 36 36 Q30 42 26 56 Z" fill="${hc}"/>`;
+  else s += `<path d="M27 50 Q26 26 50 26 Q74 26 73 50 Q70 38 62 34 Q50 40 38 34 Q30 38 27 50 Z" fill="${hc}"/>`;
+  // sourcils, yeux
+  const browc = c.hair === "chauve" ? "#8a7a6a" : c.hair === "blanc" ? "#bdb8b0" : hc === HAIR.blond ? "#c89a3a" : hc;
+  s += `<path d="M36 45 Q41 42 46 45 M54 45 Q59 42 64 45" stroke="${browc}" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;
+  s += `<ellipse cx="41" cy="52" rx="5" ry="4" fill="#fff"/><ellipse cx="59" cy="52" rx="5" ry="4" fill="#fff"/><circle cx="41" cy="52.5" r="2.8" fill="${IRIS[c.eyes]}"/><circle cx="59" cy="52.5" r="2.8" fill="${IRIS[c.eyes]}"/><circle cx="41" cy="52.5" r="1.2" fill="${ink}"/><circle cx="59" cy="52.5" r="1.2" fill="${ink}"/><circle cx="42" cy="51.5" r=".7" fill="#fff"/><circle cx="60" cy="51.5" r=".7" fill="#fff"/>`;
+  if(c.g === "f") s += `<path d="M35.5 50 l-2 -2 M64.5 50 l2 -2" stroke="${ink}" stroke-width="1.2" stroke-linecap="round"/>`;
+  // nez
+  s += c.nez ? `<path d="M50 54 Q45 66 49 68 Q53 70 56 66" fill="${sk2}" stroke="${ink}" stroke-width="1" stroke-linejoin="round"/>` : `<path d="M50 56 Q48 62 51 63" fill="none" stroke="${sk2}" stroke-width="2" stroke-linecap="round"/>`;
+  // joues et bouche
+  s += `<circle cx="35" cy="63" r="4" fill="#f08a8a" opacity=".35"/><circle cx="65" cy="63" r="4" fill="#f08a8a" opacity=".35"/>`;
+  if(c.barbe) s += `<path d="M28 58 Q30 82 50 84 Q70 82 72 58 Q70 70 62 72 Q50 66 38 72 Q30 70 28 58 Z" fill="${c.hair === "chauve" ? "#8a7a6a" : hc}"/>`;
+  s += c.g === "f" ? `<path d="M43 72 Q50 77 57 72 Q50 74 43 72 Z" fill="#c84a5a" stroke="#c84a5a" stroke-width="1.2"/>` : `<path d="M43 72 Q50 76 57 72" fill="none" stroke="${ink}" stroke-width="1.6" stroke-linecap="round"/>`;
+  if(c.moust) s += `<path d="M40 69 Q45 64 50 68 Q55 64 60 69 Q55 68 50 70 Q45 68 40 69 Z" fill="${c.hair === "chauve" ? "#6a5a4a" : hc === HAIR.blanc ? "#d9d4cc" : hc}" stroke="${ink}" stroke-width=".5"/>`;
+  // lunettes
+  if(c.lun) s += `<circle cx="41" cy="52" r="7.5" fill="rgba(255,255,255,.15)" stroke="${ink}" stroke-width="2"/><circle cx="59" cy="52" r="7.5" fill="rgba(255,255,255,.15)" stroke="${ink}" stroke-width="2"/><path d="M48.5 52 h3 M33.5 51 l-6 -2 M66.5 51 l6 -2" stroke="${ink}" stroke-width="2"/>`;
+  // chapeau
+  if(c.hat) s += `<path d="M18 36 Q50 28 82 36 Q82 40 50 38 Q18 40 18 36 Z" fill="${c.hat}" stroke="${ink}" stroke-width="1"/><path d="M30 35 Q30 14 50 13 Q70 14 70 35 Z" fill="${c.hat}" stroke="${ink}" stroke-width="1"/><path d="M30.5 30 Q50 26 69.5 30 L69.8 34 Q50 30 30.2 34 Z" fill="rgba(0,0,0,.35)"/>`;
+  return s + `</svg>`;
+}
+const card = (c, extra = "") => `<span class="pt${extra}"><span class="in"><span class="face">${face(c)}<span class="nm">${c.name}</span></span></span></span>`;
+
+/* ================= RÉGLAGES ================= */
+let cfg = {lvl: 2, auto: 1, wrong: 1};
+try{ const o = JSON.parse(load("pm_cfg") || "null"); if(o) cfg = Object.assign(cfg, o); }catch(e){}
+let NETON = false, localCfg = null;
+const NET = () => NETON;
+const RND = () => NETON ? Net.rand() : Math.random();
+
+/* ================= ÉTAT ================= */
+let S = null, token = 0, accuse = false, pick = -1, scores = [0, 0], starter = 0;
+const ME = () => NET() ? Net.me : 0;
+const OPP = () => 1 - ME();
+const nameOf = i => i === ME() ? "Vous" : NET() ? Net.names[i] : "L'ordinateur";
+function newRound(first){
+  token++; accuse = false; pick = -1;
+  if(NET()) Net.cancel();
+  if(first){ scores = [0, 0]; starter = 0; } else starter = 1 - starter;
+  const secret = [Math.floor(RND() * 24), Math.floor(RND() * 24)];
+  // cand[i] : personnages encore possibles pour le joueur i (d'après les réponses) ; down : portraits baissés à l'écran
+  S = {secret, cur: starter, asked: [new Set(), new Set()], cand: [P24.map(c => c.id), P24.map(c => c.id)], down: new Set(), hist: [], over: false, msg: ""};
+  $("endbox").hidden = true; $("confirm").hidden = true;
+  $("mine").innerHTML = card(P24[secret[ME()]]);
+  buildBoard(); render();
+  step();
+}
+function buildBoard(){
+  $("board").innerHTML = P24.map(c => `<button class="pt" data-i="${c.id}" aria-label="${c.name}"><span class="in"><span class="face">${face(c)}<span class="nm">${c.name}</span></span></span></button>`).join("");
+  $("board").querySelectorAll(".pt").forEach(b => b.onclick = () => tapCard(+b.dataset.i));
+}
+function paintBoard(){
+  $("board").classList.toggle("accuse", accuse);
+  $("board").querySelectorAll(".pt").forEach(b => { const i = +b.dataset.i; b.classList.toggle("down", S.down.has(i)); b.classList.toggle("pick", i === pick); b.setAttribute("aria-label", P24[i].name + (S.down.has(i) ? " (baissé)" : "")); });
+}
+const myTurn = () => S && !S.over && !S.busy && S.cur === ME();
+function render(){
+  if(!S) return;
+  const opp = OPP();
+  $("bar").innerHTML = [ME(), opp].map(i => `<div class="st${i === S.cur && !S.over ? " act" : ""}"><b>${nameOf(i)}</b><span>${scores[i]} manche${scores[i] > 1 ? "s" : ""} · ${S.cand[i].length} possible${S.cand[i].length > 1 ? "s" : ""}</span></div>`).join("");
+  let t = S.msg;
+  if(!t && !S.over) t = myTurn() ? (accuse ? "Touchez le personnage que vous accusez." : "À vous : posez une question, ou accusez si vous savez.") : `${nameOf(S.cur)} réfléchit…`;
+  $("status").innerHTML = t;
+  const qs = $("qs");
+  qs.innerHTML = QUESTIONS.map(q => `<button data-q="${q.id}" class="${S.asked[ME()].has(q.id) ? "used" : ""}"${!myTurn() || accuse || S.asked[ME()].has(q.id) ? " disabled" : ""}>${q.s}</button>`).join("");
+  qs.querySelectorAll("button").forEach(b => b.onclick = () => humanAsk(b.dataset.q));
+  $("accbtn").disabled = !myTurn();
+  $("accbtn").textContent = accuse ? "Annuler l'accusation" : "Je sais qui c'est !";
+  $("hist").innerHTML = S.hist.map(h => `<li><b>${nameOf(h.p)}</b> : ${h.g !== undefined ? `« C'est ${P24[h.g].name} ? » <span class="${h.a ? "yes" : "no"}">${h.a ? "Gagné !" : "Raté !"}</span>` : `${Q(h.q).t} <span class="${h.a ? "yes" : "no"}">${h.a ? "Oui" : "Non"}</span>`}</li>`).join("");
+  paintBoard();
+  $("newg").hidden = NET(); $("setbtn").disabled = NET();
+  if(window.Net) Net.refresh();
+}
+function tapCard(i){
+  if(!S || S.over) return;
+  if(accuse){
+    if(!myTurn() || S.down.has(i)) return;
+    pick = i; paintBoard();
+    $("cft").textContent = `Est-ce ${P24[i].name} ?`; $("cfpt").innerHTML = `<div>${card(P24[i])}</div>`; $("confirm").hidden = false;
+    return;
+  }
+  S.down.has(i) ? S.down.delete(i) : S.down.add(i); Snd.clack(); paintBoard();
+}
+$("cfno").onclick = () => { $("confirm").hidden = true; pick = -1; paintBoard(); };
+$("cfyes").onclick = () => { $("confirm").hidden = true; const g = pick; accuse = false; pick = -1; if(!myTurn()) return; if(NET()) Net.send({g}); applyAction(ME(), {g}); };
+$("accbtn").onclick = () => { if(!myTurn()) return; accuse = !accuse; pick = -1; render(); };
+function humanAsk(id){ if(!myTurn() || accuse || S.asked[ME()].has(id)) return; if(NET()) Net.send({q: id}); applyAction(ME(), {q: id}); }
+
+/* une action : question ou accusation ; les réponses sont calculées pareil chez tout le monde */
+async function applyAction(p, a){
+  const my = token, other = 1 - p, sec = P24[S.secret[other]];
+  S.busy = true;
+  if(a.q){
+    const q = Q(a.q), ans = q.ok(sec);
+    S.asked[p].add(a.q);
+    S.cand[p] = S.cand[p].filter(id => q.ok(P24[id]) === ans);
+    S.hist.push({p, q: a.q, a: ans});
+    S.msg = `${nameOf(p)} ${p === ME() ? "demandez" : "demande"} : « ${q.t} »`;
+    Snd.ask(); render();
+    await sleep(D(700)); if(my !== token) return;
+    bubble(ans);
+    S.msg = `${q.t} <span class="${ans ? "yes" : "no"}">${ans ? "Oui !" : "Non !"}</span>`; render();
+    if(p === ME() && cfg.auto){
+      await sleep(D(700)); if(my !== token) return;
+      const drop = P24.filter(c => q.ok(c) !== ans && !S.down.has(c.id));
+      drop.forEach((c, k) => { S.down.add(c.id); Snd.clack(k * .05); });
+      paintBoard();
+    }
+    await sleep(D(1200)); if(my !== token) return;
+    S.msg = ""; S.cur = other; S.busy = false; render(); return step();
+  }
+  if(a.g !== undefined){
+    const ok = a.g === S.secret[other];
+    S.hist.push({p, g: a.g, a: ok});
+    S.msg = `${nameOf(p)} ${p === ME() ? "accusez" : "accuse"} ${P24[a.g].name}…`; render();
+    await sleep(D(1100)); if(my !== token) return;
+    bubble(ok);
+    if(ok || cfg.wrong) return endRound(ok ? p : other, ok);
+    S.cand[p] = S.cand[p].filter(id => id !== a.g); S.down.add(a.g);
+    S.msg = `Raté, ce n'est pas ${P24[a.g].name}.`; render();
+    await sleep(D(1300)); if(my !== token) return;
+    S.msg = ""; S.cur = other; S.busy = false; render(); return step();
+  }
+}
+function bubble(ok){
+  (ok ? Snd.yes : Snd.no).call(Snd);
+  const b = document.createElement("div"); b.className = "bubble"; b.textContent = ok ? "Oui !" : "Non !"; b.style.background = ok ? "var(--yes)" : "var(--no)";
+  document.body.appendChild(b); setTimeout(() => b.remove(), 1100);
+}
+function endRound(w, found){
+  S.over = true; scores[w]++; render();
+  const me = ME(), opp = OPP();
+  $("endt").textContent = w === me ? "Gagné !" : "Perdu…";
+  $("endp").textContent = found ? (w === me ? `Bravo, c'était bien ${P24[S.secret[opp]].name}.` : `${nameOf(w)} a trouvé votre personnage.`) : (w === me ? `${nameOf(opp)} s'est trompé de personnage.` : "Mauvaise accusation…");
+  $("duo").innerHTML = `<div>Le vôtre${card(P24[S.secret[me]])}</div><div>${NET() ? Net.names[opp] : "L'ordinateur"}${card(P24[S.secret[opp]])}</div>`;
+  setTimeout(() => { $("endbox").hidden = false; (w === me ? Snd.win : Snd.lose).call(Snd); }, 900);
+  if(NET()){ const my = token; Net.next().then(a => { if(my === token && NET() && a && a.t === "new") newRound(false); }); }
+}
+$("again").onclick = () => { if(NET()) return Net.send({t: "new"}, null, true); newRound(false); };
+$("newg").onclick = () => { if(!NET()) newRound(true); };
+
+async function step(){
+  const my = token;
+  if(S.over) return;
+  if(S.cur === ME()){ render(); if(NET()) Net.mine(a => { if(my === token) applyAction(ME(), a); }); return; }
+  render();
+  const ai = () => aiMove(S.cur);
+  let a;
+  if(NET()) a = await Net.turn(S.cur, ai);
+  else { await sleep(D(1100)); a = ai(); }
+  if(my !== token) return;
+  applyAction(S.cur, a);
+}
+
+/* ================= ORDINATEUR ================= */
+function aiMove(p){
+  const cand = S.cand[p], lvl = cfg.lvl;
+  if(cand.length === 1) return {g: cand[0]};
+  if(lvl === 1 && cand.length === 2 && Math.random() < .5) return {g: cand[Math.floor(Math.random() * 2)]};
+  const opts = QUESTIONS.filter(q => !S.asked[p].has(q.id)).map(q => { const y = cand.filter(id => q.ok(P24[id])).length; return {q, v: Math.abs(cand.length / 2 - y), use: y > 0 && y < cand.length}; }).filter(o => o.use);
+  if(!opts.length) return {g: cand[Math.floor(Math.random() * cand.length)]};
+  opts.sort((a, b) => a.v - b.v);
+  const pickFrom = lvl === 3 ? 1 : lvl === 2 ? 3 : opts.length;
+  return {q: opts[Math.floor(Math.random() * Math.min(pickFrom, opts.length))].q.id};
+}
+
+/* ================= RÉGLAGES ================= */
+let draft = null;
+function paint(){ document.querySelectorAll("#settings .seg").forEach(seg => seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(draft[seg.dataset.k]) === b.dataset.v))); }
+$("setbtn").onclick = () => { if(NET()) return; draft = Object.assign({}, cfg); paint(); $("settings").hidden = false; };
+document.querySelectorAll("#settings .seg").forEach(seg => seg.addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; draft[seg.dataset.k] = +b.dataset.v; paint(); }));
+$("setcancel").onclick = () => { $("settings").hidden = true; };
+$("setok").onclick = () => { cfg = draft; save("pm_cfg", JSON.stringify(cfg)); $("settings").hidden = true; newRound(true); };
+document.addEventListener("keydown", e => { if(e.key === "Escape"){ $("settings").hidden = true; $("confirm").hidden = true; } });
+
+newRound(true);
+
+/* ================= EN LIGNE (sur le site de la salle de jeux) ================= */
+if(window.Net) Net.setup({
+  game: "portraits", name: "Portraits mystère", min: 2, max: 2, bots: false,
+  cfg: () => cfg,
+  seatName: k => k ? "Joueur 2" : "Joueur 1",
+  current: () => S && !S.over ? S.cur : -1,
+  start(info){ localCfg = Object.assign({}, cfg); cfg = Object.assign({}, cfg, info.cfg); NETON = true; newRound(true); },
+  leave(){ NETON = false; if(localCfg) cfg = localCfg; newRound(true); }
+});
+})();
+</script>

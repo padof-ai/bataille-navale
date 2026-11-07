@@ -1,4 +1,4 @@
-<title>1000 Bornes</title>
+<title>Rallye des bornes</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;800&family=Nunito:wght@600;800&display=swap">
@@ -144,11 +144,12 @@ button:disabled{opacity:.45;cursor:default}
 .seg .off{font-weight:600;font-size:.72rem;opacity:.85}
 @media (max-width:480px){.tools .t{display:none}.tab,.tab.me{--cw:54px}}
 @media (prefers-reduced-motion:reduce){.road .fill,.road .car,.hand .mc{transition:none}.toast{animation:none}}
+h1{font-size:clamp(1.05rem,4.5vw,2.2rem)!important}
 </style>
 
 <div class="app">
   <div class="top">
-    <h1><svg viewBox="0 0 40 50" aria-hidden="true"><path d="M8 48V20a12 12 0 0 1 24 0v28z" fill="#f4f1ea" stroke="#9a968c" stroke-width="1.5"/><path d="M8 20a12 12 0 0 1 24 0v3H8z" fill="#d32f2f"/></svg><span>1000 Bornes</span></h1>
+    <h1><svg viewBox="0 0 40 50" aria-hidden="true"><path d="M8 48V20a12 12 0 0 1 24 0v28z" fill="#f4f1ea" stroke="#9a968c" stroke-width="1.5"/><path d="M8 20a12 12 0 0 1 24 0v3H8z" fill="#d32f2f"/></svg><span>Rallye des bornes</span></h1>
     <div class="tools">
       <button id="setbtn" aria-label="Réglages">⚙️<span class="t"> Réglages</span></button>
       <button id="scorebtn" aria-label="Scores">📋<span class="t"> Scores</span></button>
@@ -835,7 +836,7 @@ render = function(){ _render(); $("newg").hidden = NET(); $("setbtn").disabled =
 newGame();
 
 if(window.Net) Net.setup({
-  game: "mille-bornes", name: "1000 Bornes", min: 2, max: 4, bots: true, seats: () => cfg.n,
+  game: "mille-bornes", name: "Rallye des bornes", min: 2, max: 4, bots: true, seats: () => cfg.n,
   cfg: () => cfg,
   seatName: (k, n) => n === 4 && cfg.teams ? (k % 2 ? "Équipe B" : "Équipe A") : "Place " + (k + 1),
   current: () => S && S.cur >= 0 && S.phase === "play" ? S.cur : -1,

@@ -1,4 +1,4 @@
-<title>Uno</title>
+<title>Couleurs &amp; chiffres</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Titan+One&family=Nunito:wght@600;800&display=swap">
@@ -150,11 +150,12 @@ button:disabled{opacity:.45;cursor:default}
 .seg .off{font-weight:600;font-size:.72rem;opacity:.85}
 @media (max-width:480px){.tools .t{display:none}}
 @media (prefers-reduced-motion:reduce){.ring svg,#deck.go,#unobtn.hot,#contre,.bubble{animation:none}}
+h1{font-size:clamp(1.25rem,5.4vw,2.2rem)!important;white-space:nowrap}
 </style>
 
 <div class="app">
   <div class="top">
-    <h1><span class="d" aria-hidden="true"><i></i><i></i><i></i><i></i></span>Uno</h1>
+    <h1><span class="d" aria-hidden="true"><i></i><i></i><i></i><i></i></span>Couleurs &amp; chiffres</h1>
     <div class="tools">
       <button id="setbtn" aria-label="Réglages">⚙️<span class="t"> Réglages</span></button>
       <button id="scorebtn" aria-label="Scores">📋<span class="t"> Scores</span></button>
@@ -172,7 +173,7 @@ button:disabled{opacity:.45;cursor:default}
   </div>
   <div class="mewrap" style="position:relative">
     <div class="mehead"><span class="nm" id="mename"></span>
-      <div class="acts"><button id="contre" hidden>Contre-Uno !</button><button id="keep" hidden>Garder la carte</button><button id="unobtn">Uno !</button></div></div>
+      <div class="acts"><button id="contre" hidden>Contre !</button><button id="keep" hidden>Garder la carte</button><button id="unobtn">Une carte !</button></div></div>
     <div class="hand" id="hand"></div>
     <div class="curtain" id="curtain" hidden><h2 id="ctitle"></h2><p>Passez l'appareil. Les autres joueurs ne doivent pas regarder cette main.</p><button id="ready">Voir mes cartes</button></div>
   </div>
@@ -183,7 +184,7 @@ button:disabled{opacity:.45;cursor:default}
       <li>Posez une carte de <b>même couleur</b>, de <b>même chiffre</b> ou de <b>même symbole</b> que celle de la défausse. Sinon, piochez : si la carte piochée convient, vous pouvez la jouer aussitôt.</li>
       <li><b>Passe</b> : le joueur suivant passe son tour. <b>Inversion</b> : le sens du jeu change (à deux, elle fait passer le tour). <b>+2</b> : le suivant pioche 2 cartes et passe son tour.</li>
       <li><b>Joker</b> : vous choisissez la couleur. <b>+4</b> : vous choisissez la couleur, le suivant pioche 4 cartes et passe son tour. Il n'est permis que si vous n'avez aucune carte de la couleur demandée ; le suivant peut contester.</li>
-      <li>Touchez <b>Uno !</b> quand vous posez votre avant-dernière carte, sinon vous risquez 2 cartes de pénalité.</li>
+      <li>Touchez <b>Une carte !</b> quand vous posez votre avant-dernière carte, sinon vous risquez 2 cartes de pénalité.</li>
       <li>Le premier sans carte gagne la manche et marque les points des cartes adverses : chiffres à leur valeur, cartes action 20, jokers 50. Le premier à 500 points gagne la partie.</li>
     </ul>
   </details>
@@ -202,7 +203,7 @@ button:disabled{opacity:.45;cursor:default}
   <div class="opt"><span class="lbl">Cumul des +2 et +4</span><div class="seg" data-k="stack"><button data-v="0">Interdit <span class="off">· officiel</span></button><button data-v="1">+2 sur +2</button><button data-v="2">+2 et +4</button></div></div>
   <div class="opt"><span class="lbl">Quand on ne peut pas jouer</span><div class="seg" data-k="drawall"><button data-v="0">Piocher 1 carte <span class="off">· officiel</span></button><button data-v="1">Piocher jusqu'à pouvoir jouer</button></div></div>
   <div class="opt"><span class="lbl">Contester un +4</span><div class="seg" data-k="chal"><button data-v="1">Autorisé <span class="off">· officiel</span></button><button data-v="0">Non</button></div></div>
-  <div class="opt"><span class="lbl">Oubli de dire « Uno »</span><div class="seg" data-k="unopen"><button data-v="1">2 cartes de pénalité <span class="off">· officiel</span></button><button data-v="0">Sans pénalité</button></div></div>
+  <div class="opt"><span class="lbl">Oubli d'annoncer « Une carte ! »</span><div class="seg" data-k="unopen"><button data-v="1">2 cartes de pénalité <span class="off">· officiel</span></button><button data-v="0">Sans pénalité</button></div></div>
   <div class="opt"><span class="lbl">Carte « Mélange des mains »</span><div class="seg" data-k="mix"><button data-v="0">Sans <span class="off">· jeu classique</span></button><button data-v="1">Avec <span class="off">· édition récente</span></button></div></div>
   <p>Les changements démarrent une nouvelle partie.</p>
   <div class="btns"><button id="setcancel">Annuler</button><button id="setok" class="primary">Appliquer</button></div>
@@ -367,7 +368,7 @@ function render(){
     for(let k = 0; k < shown; k++){ const b = backNode(); b.style.left = (shown > 1 ? k * (52 / (shown - 1)) : 26) + "px"; b.style.transform = `rotate(${(k - (shown - 1) / 2) * 6}deg)`; fan.appendChild(b); }
     o.innerHTML = `<span class="nm" style="color:${PCOL[i]}">${p.name}</span>`;
     o.appendChild(fan);
-    o.insertAdjacentHTML("beforeend", `<span class="ct">${n} carte${n > 1 ? "s" : ""} · ${p.score} pts</span>${n === 1 && p.called ? '<span class="bubble">Uno !</span>' : ""}`);
+    o.insertAdjacentHTML("beforeend", `<span class="ct">${n} carte${n > 1 ? "s" : ""} · ${p.score} pts</span>${n === 1 && p.called ? '<span class="bubble">Une carte !</span>' : ""}`);
     opps.appendChild(o);
   });
   // pioche
@@ -394,7 +395,7 @@ function render(){
   ub.disabled = !canCall && !(me.called && me.hand.length <= 2);
   ub.classList.toggle("done", me.called && me.hand.length <= 2);
   ub.classList.toggle("hot", S.unoWindow === m && !me.called);
-  ub.textContent = me.called && me.hand.length <= 2 ? "Uno ! ✓" : "Uno !";
+  ub.textContent = me.called && me.hand.length <= 2 ? "Une carte ! ✓" : "Une carte !";
   $("keep").hidden = !(myTurn && S.phase === "drawn");
   $("contre").hidden = S.catchable === undefined || (cfg.who === "ai" && S.catchable === m);
   renderStatus();
@@ -704,8 +705,8 @@ async function unoCheck(i){
   const my = token, p = S.players[i];
   if(NET()){
     // en ligne : il faut toucher « Uno ! » avant de poser l'avant-dernière carte, sinon on pioche 2 cartes
-    if(p.called || !cfg.unopen){ if(p.called){ Snd.uno(); S.msg = `${p.name} : « Uno ! »`; render(); await sleep(D(700)); S.msg = ""; } render(); return; }
-    S.msg = `${p.name} a oublié de dire Uno ! Contre-Uno : 2 cartes.`; Snd.oops(); render();
+    if(p.called || !cfg.unopen){ if(p.called){ Snd.uno(); S.msg = `${p.name} : « Une carte ! »`; render(); await sleep(D(700)); S.msg = ""; } render(); return; }
+    S.msg = `${p.name} a oublié d'annoncer « Une carte ! » : 2 cartes de pénalité.`; Snd.oops(); render();
     await giveCards(i, 2, my); if(my !== token) return;
     await sleep(D(700)); S.msg = ""; render(); return;
   }
@@ -714,7 +715,7 @@ async function unoCheck(i){
     if(Math.random() < pr){ p.called = true; Snd.uno(); render(); await sleep(D(600)); return; }
   } else if(!p.called){
     // une petite seconde et demie pour se rattraper
-    S.unoWindow = i; S.msg = "Vite, touchez <b>Uno !</b>"; render();
+    S.unoWindow = i; S.msg = "Vite, touchez <b>Une carte !</b>"; render();
     const t0 = performance.now();
     while(performance.now() - t0 < 1600 && !p.called){ await sleep(80); if(my !== token) return; }
     S.unoWindow = undefined; S.msg = "";
@@ -724,7 +725,7 @@ async function unoCheck(i){
   const humanCatchers = S.players.some((x, j) => j !== i && !x.ai);
   S.caught = false;
   if(humanCatchers){
-    S.catchable = i; S.msg = `${p.name} a oublié de dire Uno !`; render();
+    S.catchable = i; S.msg = `${p.name} a oublié d'annoncer sa dernière carte !`; render();
     const t0 = performance.now();
     while(performance.now() - t0 < 2000 && !S.caught){ await sleep(80); if(my !== token) return; }
     S.catchable = undefined;
@@ -735,7 +736,7 @@ async function unoCheck(i){
     if(aiCatch && Math.random() < pr) S.caught = true;
   }
   if(S.caught){
-    S.msg = `Contre-Uno ! ${p.name} pioche 2 cartes.`; Snd.oops(); render();
+    S.msg = `Contre ! ${p.name} pioche 2 cartes.`; Snd.oops(); render();
     await giveCards(i, 2, my); if(my !== token) return;
     await sleep(D(700));
   }
@@ -888,7 +889,7 @@ render = function(){ _render(); netUI(); };
 newGame();
 
 if(window.Net) Net.setup({
-  game: "uno", name: "Uno", min: 2, max: 6, bots: true, seats: () => cfg.n,
+  game: "uno", name: "Couleurs & chiffres", min: 2, max: 6, bots: true, seats: () => cfg.n,
   cfg: () => cfg,
   current: () => S && S.cur >= 0 && S.phase !== "end" ? S.cur : -1,
   start(info){ localCfg = Object.assign({}, cfg); cfg = Object.assign({}, cfg, info.cfg, {n: info.n, who: "ai"}); NETON = true; newGame(); },

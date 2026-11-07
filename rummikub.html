@@ -1,4 +1,4 @@
-<title>Rummikub</title>
+<title>Rami des tuiles</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Nunito:wght@600;800&display=swap">
@@ -122,7 +122,7 @@ button:disabled{opacity:.45;cursor:default}
 
 <div class="app">
   <div class="top">
-    <h1 aria-label="Rummikub"><span>R</span><span>U</span><span>M</span><span>M</span><span>I</span><span>K</span><span>U</span><span>B</span></h1>
+    <h1 aria-label="Rami des tuiles"><span>R</span><span>A</span><span>M</span><span>I</span></h1>
     <div class="tools">
       <button id="setbtn" aria-label="Réglages">⚙️<span class="t"> Réglages</span></button>
       <button id="snd" aria-label="Activer ou couper le son"></button>
@@ -662,7 +662,7 @@ function endRound(w){
   const over = S.round >= cfg.rounds;
   const ranked = S.players.map((p, i) => ({p, i})).sort((a, b) => b.p.total - a.p.total);
   const wn = S.players[winner].name;
-  $("sct").textContent = over && cfg.rounds > 1 ? (ranked[0].p.name === "Vous" ? "Vous gagnez la partie !" : ranked[0].p.name + " gagne la partie !") : (wn === "Vous" ? "Rummikub ! Vous gagnez" : wn + " gagne la manche");
+  $("sct").textContent = over && cfg.rounds > 1 ? (ranked[0].p.name === "Vous" ? "Vous gagnez la partie !" : ranked[0].p.name + " gagne la partie !") : (wn === "Vous" ? "Rami ! Vous gagnez" : wn + " gagne la manche");
   $("scnote").textContent = w >= 0 ? `${wn} a posé toutes ses tuiles et marque les points restant chez les adversaires (joker : 30).` : `La pioche est vide : ${wn} a le plus petit total et marque la différence avec chaque adversaire.`;
   $("sctbl").innerHTML = `<tr><th>Joueur</th><th>Tuiles restantes</th><th>Manche</th><th>Total</th></tr>` +
     ranked.map(({p, i}) => `<tr class="${i === winner ? "best" : ""}"><td><span style="color:${PCOL[i]};font-weight:800">●</span> ${p.name}</td><td>${p.rack.length} (${sums[i]})</td><td>${res[i] > 0 ? "+" : ""}${res[i]}</td><td>${p.total}</td></tr>`).join("");
@@ -693,7 +693,7 @@ render = function(){ _render(); $("newg").hidden = NET(); $("setbtn").disabled =
 newGame();
 
 if(window.Net) Net.setup({
-  game: "rummikub", name: "Rummikub", min: 2, max: 4, bots: true, seats: () => cfg.n,
+  game: "rummikub", name: "Rami des tuiles", min: 2, max: 4, bots: true, seats: () => cfg.n,
   cfg: () => cfg,
   current: () => S && S.phase === "turn" ? S.cur : -1,
   start(info){ localCfg = Object.assign({}, cfg); cfg = Object.assign({}, cfg, info.cfg, {n: info.n, who: "ai"}); NETON = true; newGame(); },

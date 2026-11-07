@@ -1,4 +1,4 @@
-<title>Dix de Chute</title>
+<title>Chute libre</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800&display=swap">
@@ -89,7 +89,7 @@ details li{margin-bottom:4px}
 
 <div class="app">
   <div class="top">
-    <h1>Dix de <span>Chute</span></h1>
+    <h1>Chute <span>libre</span></h1>
     <button id="snd" aria-label="Activer ou couper le son"></button>
   </div>
 
@@ -569,7 +569,7 @@ function start(data){
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
 
 if(window.Net) Net.setup({
-  game: "dix-de-chute", name: "Dix de Chute", min: 2, max: 2, bots: false,
+  game: "dix-de-chute", name: "Chute libre", min: 2, max: 2, bots: false,
   seatName: k => COLORS[k],
   current: () => G && !G.over ? G.turn : -1,
   start(){ netGen++; mode = "net"; scores = [0, 0]; G = null; startGame(); },
