@@ -1,0 +1,1582 @@
+<title>GéoGlobe</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#03050b; --panel:rgba(12,18,32,.80); --line:rgba(255,255,255,.09);
+  --text:#e9edf5; --muted:#8e98ad; --accent:#f2c14e; --ok:#3ccf7a; --ko:#ff5a5f;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+#globe{cursor:grab;touch-action:none}
+#globe.dragging{cursor:grabbing}
+#panel{position:fixed;top:16px;right:16px;bottom:16px;width:360px;background:var(--panel);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--line);border-radius:20px;
+  padding:22px 22px 18px;overflow:auto;display:flex;flex-direction:column;gap:18px;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+.brand h1{font-family:Fraunces,serif;font-weight:700;font-size:30px;margin:0;letter-spacing:-.5px}
+.brand h1 span{color:var(--accent)}
+.brand p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.lbl{font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--muted);margin-bottom:7px;font-weight:600}
+.seg{display:flex;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:11px;padding:3px;gap:3px}
+.seg button{flex:1;border:0;background:transparent;color:var(--text);font:500 13px Inter,sans-serif;padding:8px 6px;border-radius:8px;cursor:pointer}
+.seg button:hover{background:rgba(255,255,255,.06)}
+.seg button.on{background:var(--accent);color:#1d1604;font-weight:600}
+select{width:100%;background:rgba(255,255,255,.05);color:var(--text);border:1px solid var(--line);border-radius:11px;padding:10px 12px;font:500 14px Inter,sans-serif;outline:none}
+select option{background:#121a2c}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:12px;padding:13px 16px;font:600 15px Inter,sans-serif;cursor:pointer;transition:transform .08s, filter .15s}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:linear-gradient(180deg,#f7cf68,#e9ad2c);color:#221802;box-shadow:0 6px 18px rgba(242,193,78,.25)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.ghost{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--line)}
+.btn.ghost:hover{background:rgba(255,255,255,.1)}
+.btn:disabled{opacity:.4;cursor:default}
+.row{display:flex;gap:8px}
+.row .btn{flex:1}
+.layers{display:grid;grid-template-columns:1fr 1fr;gap:7px 10px;font-size:13px}
+.layers label{display:flex;align-items:center;gap:8px;cursor:pointer;color:#cdd4e2}
+.layers input{accent-color:var(--accent);width:15px;height:15px}
+.help{font-size:12px;color:var(--muted);line-height:1.5;margin-top:auto}
+.help b{color:#c3cad8;font-weight:600}
+.card{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:14px;padding:14px}
+#info .nm{font-family:Fraunces,serif;font-size:22px}
+#info .sub{color:var(--muted);font-size:13px;margin-top:3px}
+.hidden{display:none!important}
+.qtop{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--muted)}
+.qtop b{color:var(--text);font-size:15px}
+.bar{height:5px;background:rgba(255,255,255,.08);border-radius:5px;overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.question{font-size:14px;color:var(--muted);margin-top:4px}
+.question .target{display:block;font-family:Fraunces,serif;font-size:34px;line-height:1.1;color:var(--text);margin-top:6px;letter-spacing:-.4px}
+.hint{font-size:13px;color:#f5d98f;background:rgba(242,193,78,.08);border:1px solid rgba(242,193,78,.25);border-radius:10px;padding:9px 11px}
+.fb{border-radius:14px;padding:13px 14px;font-size:14px;line-height:1.45;border:1px solid}
+.fb.ok{background:rgba(60,207,122,.1);border-color:rgba(60,207,122,.4)}
+.fb.ko{background:rgba(255,90,95,.09);border-color:rgba(255,90,95,.4)}
+.fb .t{font-weight:700;font-size:16px;margin-bottom:3px}
+.fb.ok .t{color:var(--ok)} .fb.ko .t{color:var(--ko)}
+.fb .pts{float:right;font-weight:700;color:var(--accent)}
+.big{font-family:Fraunces,serif;font-size:52px;line-height:1;color:var(--accent)}
+.stats{display:flex;gap:10px}
+.stats .card{flex:1;text-align:center;padding:10px}
+.stats .v{font-size:20px;font-weight:700}
+.stats .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.review{display:flex;flex-direction:column;gap:6px;max-height:240px;overflow:auto}
+.review button{display:flex;justify-content:space-between;gap:8px;text-align:left;background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:8px 10px;font:500 13px Inter,sans-serif;cursor:pointer}
+.review button:hover{background:rgba(255,255,255,.09)}
+.review .d{color:var(--muted);white-space:nowrap}
+.review .ok{color:var(--ok)} .review .ko{color:var(--ko)}
+#tooltip{position:fixed;pointer-events:none;background:rgba(8,12,22,.92);border:1px solid var(--line);color:var(--text);padding:7px 10px;border-radius:9px;font-size:13px;transform:translate(14px,14px);white-space:nowrap;z-index:5;display:none}
+#tooltip small{display:block;color:var(--muted);font-size:12px;margin-top:1px}
+#zoombox{position:fixed;left:18px;bottom:18px;display:flex;flex-direction:column;gap:6px;z-index:3}
+#zoombox button{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--panel);backdrop-filter:blur(10px);color:var(--text);font:600 18px Inter,sans-serif;cursor:pointer}
+#zoombox button:hover{background:rgba(30,40,62,.9)}
+#loading{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--bg);z-index:10;font-family:Fraunces,serif;font-size:22px;transition:opacity .6s}
+#loading .spin{width:46px;height:46px;border-radius:50%;border:3px solid rgba(255,255,255,.1);border-top-color:var(--accent);animation:sp 1s linear infinite}
+#loading small{font-family:Inter,sans-serif;font-size:13px;color:var(--muted)}
+@keyframes sp{to{transform:rotate(360deg)}}
+.pnames{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.pnames:empty{display:none}
+.pnames input{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:9px;color:var(--text);padding:8px 9px;font:500 13px Inter,sans-serif;outline:none}
+.pnames input:focus{border-color:var(--c)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}
+.turn{display:flex;align-items:center;gap:9px;font-size:15px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--c) 16%,transparent);border:1px solid color-mix(in srgb,var(--c) 50%,transparent)}
+.turn b{color:var(--c)}
+.board{display:flex;flex-direction:column;gap:5px}
+.board .p{display:flex;align-items:center;gap:8px;font-size:13px;padding:7px 10px;border-radius:9px;background:rgba(255,255,255,.04);border:1px solid transparent}
+.board .p.cur{border-color:var(--c);background:color-mix(in srgb,var(--c) 10%,transparent)}
+.board .p .sub{color:var(--muted);font-size:12px}
+.board .p b{margin-left:auto;font-size:14px}
+.board .medal{width:22px;text-align:center}
+.rules{font-size:12.5px;line-height:1.5;color:#c9d0de;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:11px;padding:9px 11px}
+.rules b{color:var(--accent)}
+.chrono{display:flex;align-items:baseline;gap:9px;font-size:13px;color:var(--muted)}
+.chrono .tv{font:600 24px Inter,sans-serif;font-variant-numeric:tabular-nums;color:var(--text)}
+.chrono .tp{margin-left:auto;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums}
+.chrono.stopped .tv{color:var(--muted)}
+.fb .detail{margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,.1);font-size:12.5px;color:#c3cad8}
+.seg button{line-height:1.2}
+.opts{display:grid;gap:6px}
+.opts:empty{display:none}
+.opts.flags{grid-template-columns:repeat(5,1fr)}
+.opts.caps{grid-template-columns:1fr 1fr}
+.opt{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:8px;color:var(--text);cursor:pointer;font:500 12.5px Inter,sans-serif;transition:background .12s,border-color .12s,opacity .2s}
+.opt.flag{aspect-ratio:3/2;padding:3px;display:flex}
+.opt.flag img{width:100%;height:100%;object-fit:cover;border-radius:4px;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+.opt.cap{padding:7px 9px;text-align:left;line-height:1.25}
+.opt:hover:not(:disabled){border-color:var(--accent);background:rgba(242,193,78,.12)}
+.opt:disabled{cursor:default}
+.opt.ok{border:2px solid var(--ok);background:rgba(60,207,122,.2);opacity:1}
+.opt.ko{border:2px solid var(--ko);background:rgba(255,90,95,.2);opacity:1}
+.opt.gone{opacity:.12}
+.step{font-size:11.5px;color:var(--accent);font-weight:700;letter-spacing:1.2px;text-transform:uppercase}
+.fb img.mini{height:18px;vertical-align:-4px;margin-right:6px;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.3)}
+.okc{color:var(--ok);font-weight:700} .koc{color:var(--ko);font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--text);border-radius:20px;padding:7px 11px;font:500 13px Inter,sans-serif;cursor:pointer}
+.chips button:hover{background:rgba(255,255,255,.1)}
+.chips button.on{background:var(--accent);border-color:var(--accent);color:#1d1604;font-weight:600}
+.opts.pop{display:flex;flex-direction:column;gap:8px}
+.popv{font:600 22px Inter,sans-serif;text-align:center;font-variant-numeric:tabular-nums;line-height:1.35}
+.popv .okc{font-size:16px}
+#pop-r{width:100%;accent-color:var(--accent)}
+.popscale{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+.fb .bonus:empty{display:none}
+.fb .bonus{margin-top:8px;display:flex;flex-direction:column;gap:3px}
+.fb .bl{display:flex;gap:8px;font-size:13px;align-items:center}
+.fb .bl .bv{color:#c3cad8;flex:1;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fb .bl .bp{color:var(--accent);font-weight:600;min-width:52px;text-align:right}
+.fb .detail:empty{display:none}
+kbd{font:600 11px Inter,sans-serif;background:rgba(255,255,255,.1);border-radius:5px;padding:1px 5px}
+@media (max-width:820px){
+  #panel{top:auto;left:8px;right:8px;bottom:8px;width:auto;height:43%;padding:16px;gap:14px;border-radius:18px}
+  .brand h1{font-size:24px}
+  .question .target{font-size:28px}
+  #zoombox{left:auto;right:14px;bottom:calc(43% + 18px)}
+  .help{display:none}
+}
+/* sur le site : la barre « Salle de jeux / Jouer en ligne » flotte au-dessus du globe */
+.sdj-back{position:fixed!important;top:0;left:0;right:0;max-width:none!important;margin:0!important;pointer-events:none;z-index:40!important}
+.sdj-back>*{pointer-events:auto}
+@media (min-width:821px){.sdj-back{right:400px!important}}
+.wait{font-size:13px;line-height:1.45;color:#c9d0de;background:rgba(78,168,255,.09);border:1px solid rgba(78,168,255,.35);border-radius:11px;padding:9px 11px}
+.wait b{color:#fff}
+.wait.urgent{background:rgba(255,90,95,.1);border-color:rgba(255,90,95,.45)}
+.netnote{font-size:12.5px;line-height:1.45;color:#c9d0de;background:rgba(78,168,255,.08);border:1px solid rgba(78,168,255,.3);border-radius:11px;padding:9px 11px}
+[hidden]{display:none!important}
+</style>
+<canvas id="stars"></canvas>
+<canvas id="globe"></canvas>
+<div id="tooltip"></div>
+<div id="zoombox">
+  <button id="zin" title="Zoomer">+</button>
+  <button id="zout" title="Dézoomer">−</button>
+  <button id="zreset" title="Vue d'ensemble">⟲</button>
+</div>
+
+<aside id="panel">
+  <div class="brand">
+    <h1>Géo<span>Globe</span></h1>
+    <p>Retrouve chaque pays du monde sur le globe.</p>
+  </div>
+
+  <!-- Réglages -->
+  <section id="v-setup" style="display:flex;flex-direction:column;gap:16px">
+    <div>
+      <div class="lbl">Je dois trouver</div>
+      <div class="seg" id="seg-mode">
+        <button data-v="pays" class="on">Les pays</button>
+        <button data-v="cap">Les capitales</button>
+      </div>
+      <div id="bonus-wrap" style="margin-top:12px">
+        <div class="lbl" style="margin-bottom:6px">Puis trouver aussi (bonus)</div>
+        <div class="chips" id="chips">
+          <button data-k="flag">🏳️ Drapeau</button><button data-k="cap">🏛 Capitale</button><button data-k="cur">💰 Monnaie</button><button data-k="lang">🗣 Langue</button><button data-k="pop">👥 Habitants</button>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:6px">Après avoir situé le pays : choix parmi 20 propositions (habitants : curseur).</div>
+      </div>
+    </div>
+    <div>
+      <div class="lbl">Région</div>
+      <select id="sel-region">
+        <option value="ALL">Monde entier</option>
+        <option value="EU">Europe</option>
+        <option value="AF">Afrique</option>
+        <option value="AS">Asie</option>
+        <option value="NA">Amérique du Nord, centrale &amp; Caraïbes</option>
+        <option value="SA">Amérique du Sud</option>
+        <option value="OC">Océanie</option>
+      </select>
+    </div>
+    <div>
+      <div class="lbl">Questions par joueur</div>
+      <div class="seg" id="seg-n">
+        <button data-v="10" class="on">10</button>
+        <button data-v="20">20</button>
+        <button data-v="40">40</button>
+        <button data-v="0">Tous</button>
+      </div>
+    </div>
+    <div>
+      <div class="lbl">Joueurs (chacun son tour)</div>
+      <div class="seg" id="seg-p">
+        <button data-v="1" class="on">1</button>
+        <button data-v="2">2</button>
+        <button data-v="3">3</button>
+        <button data-v="4">4</button>
+      </div>
+      <div class="pnames" id="pnames"></div>
+      <div class="netnote" id="netnote" hidden style="margin-top:8px">🌐 <b>Tous en même temps</b>, chacun sur son écran : touchez « Jouer en ligne » en haut, créez une table et donnez le code à vos amis. Tout le monde reçoit la même question au même moment.</div>
+    </div>
+    <div class="rules"><b>Règle :</b> chaque km d'écart = 1 point. Bonne réponse = 0. Chaque seconde = +10 points. Bonus raté = +1 000 (habitants : selon l'écart). Indice = +250, question passée = +5 000. <b>Le moins de points gagne !</b></div>
+    <button class="btn primary" id="b-start">Commencer le quiz</button>
+    <div class="card hidden" id="info"></div>
+    <div id="best" style="font-size:12px;color:var(--muted)"></div>
+  </section>
+
+  <!-- Quiz -->
+  <section id="v-quiz" class="hidden" style="display:flex;flex-direction:column;gap:14px">
+    <div>
+      <div class="qtop"><span>Question <b id="q-num">1</b> / <span id="q-tot">10</span></span><span>Points <b id="q-score">0</b></span></div>
+      <div class="bar"><i id="q-bar"></i></div>
+    </div>
+    <div class="turn hidden" id="q-turn"></div>
+    <div class="board hidden" id="q-board"></div>
+    <div class="question"><span id="q-ask">Clique sur</span><span class="target" id="q-target">—</span></div>
+    <div class="step hidden" id="q-step"></div>
+    <div class="opts" id="q-opts"></div>
+    <div class="chrono" id="q-chrono"></div>
+    <div class="hint hidden" id="q-hint"></div>
+    <div id="q-fb"></div>
+    <div class="row" id="q-actions">
+      <button class="btn ghost" id="b-hint">💡 Indice</button>
+      <button class="btn ghost" id="b-skip">Passer</button>
+    </div>
+    <div class="wait" id="q-wait" hidden></div>
+    <button class="btn primary hidden" id="b-next">Suivant <kbd>Entrée</kbd></button>
+    <button class="btn ghost" id="b-quit" style="padding:9px;font-size:13px">Abandonner</button>
+  </section>
+
+  <!-- Fin -->
+  <section id="v-end" class="hidden" style="display:flex;flex-direction:column;gap:14px">
+    <div>
+      <div class="lbl" id="e-lbl">Score final</div>
+      <div class="big" id="e-score">0</div>
+      <div id="e-best" style="font-size:13px;color:var(--muted);margin-top:6px"></div>
+    </div>
+    <div class="board hidden" id="e-rank"></div>
+    <div class="stats">
+      <div class="card"><div class="v" id="e-ok">0</div><div class="k">Trouvés</div></div>
+      <div class="card"><div class="v" id="e-pct">0 s</div><div class="k">Temps moyen</div></div>
+      <div class="card"><div class="v" id="e-dist">0</div><div class="k" id="e-distk">km d'écart moy.</div></div>
+    </div>
+    <div>
+      <div class="lbl">Récapitulatif — clique pour revoir</div>
+      <div class="review" id="e-review"></div>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="b-again">Rejouer</button>
+      <button class="btn ghost" id="b-menu">Menu</button>
+    </div>
+  </section>
+
+  <div>
+    <div class="lbl">Calques</div>
+    <div class="layers">
+      <label><input type="checkbox" data-l="relief" checked> Reliefs</label>
+      <label><input type="checkbox" data-l="rivers" checked> Fleuves &amp; lacs</label>
+      <label><input type="checkbox" data-l="caps" checked> Capitales ■</label>
+      <label><input type="checkbox" data-l="borders" checked> Frontières</label>
+      <label><input type="checkbox" data-l="seas" checked> Mers &amp; océans</label>
+      <label><input type="checkbox" data-l="rnames"> Noms des reliefs</label>
+      <label><input type="checkbox" data-l="cnames"> Noms des pays</label>
+      <label><input type="checkbox" data-l="grat" checked> Méridiens</label>
+    </div>
+  </div>
+  <div class="help"><b>Glisser</b> pour faire tourner · <b>molette</b> ou <b>pincer</b> pour zoomer · <b>survoler</b> un pays pour l'identifier (hors quiz). Les noms des pays sont masqués pendant le quiz.</div>
+</aside>
+
+<div id="loading"><div class="spin"></div>Chargement de la planète…<small id="load-msg">Téléchargement des cartes Natural Earth</small></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script>
+/* ================== DONNÉES : pays, capitales (lat, lon), région ================== */
+const COUNTRIES = [
+// Europe
+['ALB','Albanie','Tirana',41.33,19.82,'EU'],['AND','Andorre','Andorre-la-Vieille',42.51,1.52,'EU'],['AUT','Autriche','Vienne',48.21,16.37,'EU'],
+['BEL','Belgique','Bruxelles',50.85,4.35,'EU'],['BGR','Bulgarie','Sofia',42.70,23.32,'EU'],['BIH','Bosnie-Herzégovine','Sarajevo',43.86,18.41,'EU'],
+['BLR','Biélorussie','Minsk',53.90,27.57,'EU'],['CHE','Suisse','Berne',46.95,7.45,'EU'],['CYP','Chypre','Nicosie',35.17,33.36,'EU'],
+['CZE','Tchéquie','Prague',50.08,14.44,'EU'],['DEU','Allemagne','Berlin',52.52,13.40,'EU'],['DNK','Danemark','Copenhague',55.68,12.57,'EU'],
+['ESP','Espagne','Madrid',40.42,-3.70,'EU'],['EST','Estonie','Tallinn',59.44,24.75,'EU'],['FIN','Finlande','Helsinki',60.17,24.94,'EU'],
+['FRA','France','Paris',48.86,2.35,'EU'],['GBR','Royaume-Uni','Londres',51.51,-0.13,'EU'],['GRC','Grèce','Athènes',37.98,23.73,'EU'],
+['HRV','Croatie','Zagreb',45.81,15.98,'EU'],['HUN','Hongrie','Budapest',47.50,19.04,'EU'],['IRL','Irlande','Dublin',53.35,-6.26,'EU'],
+['ISL','Islande','Reykjavik',64.15,-21.94,'EU'],['ITA','Italie','Rome',41.90,12.50,'EU'],['XKX','Kosovo','Pristina',42.66,21.17,'EU'],
+['LIE','Liechtenstein','Vaduz',47.14,9.52,'EU'],['LTU','Lituanie','Vilnius',54.69,25.28,'EU'],['LUX','Luxembourg','Luxembourg',49.61,6.13,'EU'],
+['LVA','Lettonie','Riga',56.95,24.11,'EU'],['MCO','Monaco','Monaco',43.73,7.42,'EU'],['MDA','Moldavie','Chișinău',47.01,28.86,'EU'],
+['MKD','Macédoine du Nord','Skopje',42.00,21.43,'EU'],['MLT','Malte','La Valette',35.90,14.51,'EU'],['MNE','Monténégro','Podgorica',42.44,19.26,'EU'],
+['NLD','Pays-Bas','Amsterdam',52.37,4.90,'EU'],['NOR','Norvège','Oslo',59.91,10.75,'EU'],['POL','Pologne','Varsovie',52.23,21.01,'EU'],
+['PRT','Portugal','Lisbonne',38.72,-9.14,'EU'],['ROU','Roumanie','Bucarest',44.43,26.10,'EU'],['RUS','Russie','Moscou',55.76,37.62,'EU'],
+['SMR','Saint-Marin','Saint-Marin',43.94,12.45,'EU'],['SRB','Serbie','Belgrade',44.79,20.45,'EU'],['SVK','Slovaquie','Bratislava',48.15,17.11,'EU'],
+['SVN','Slovénie','Ljubljana',46.06,14.51,'EU'],['SWE','Suède','Stockholm',59.33,18.07,'EU'],['UKR','Ukraine','Kiev',50.45,30.52,'EU'],
+['VAT','Vatican','Vatican',41.90,12.45,'EU'],
+// Asie
+['AFG','Afghanistan','Kaboul',34.53,69.17,'AS'],['ARE','Émirats arabes unis','Abou Dabi',24.45,54.38,'AS'],['ARM','Arménie','Erevan',40.18,44.51,'AS'],
+['AZE','Azerbaïdjan','Bakou',40.41,49.87,'AS'],['BGD','Bangladesh','Dacca',23.81,90.41,'AS'],['BHR','Bahreïn','Manama',26.23,50.59,'AS'],
+['BRN','Brunei','Bandar Seri Begawan',4.89,114.94,'AS'],['BTN','Bhoutan','Thimphou',27.47,89.64,'AS'],['CHN','Chine','Pékin',39.90,116.41,'AS'],
+['GEO','Géorgie','Tbilissi',41.72,44.79,'AS'],['IDN','Indonésie','Jakarta',-6.21,106.85,'AS'],['IND','Inde','New Delhi',28.61,77.21,'AS'],
+['IRN','Iran','Téhéran',35.69,51.39,'AS'],['IRQ','Irak','Bagdad',33.31,44.36,'AS'],['ISR','Israël','Jérusalem',31.77,35.21,'AS'],
+['JOR','Jordanie','Amman',31.95,35.93,'AS'],['JPN','Japon','Tokyo',35.68,139.69,'AS'],['KAZ','Kazakhstan','Astana',51.17,71.45,'AS'],
+['KGZ','Kirghizistan','Bichkek',42.87,74.59,'AS'],['KHM','Cambodge','Phnom Penh',11.56,104.92,'AS'],['KOR','Corée du Sud','Séoul',37.57,126.98,'AS'],
+['KWT','Koweït','Koweït',29.38,47.99,'AS'],['LAO','Laos','Vientiane',17.98,102.63,'AS'],['LBN','Liban','Beyrouth',33.89,35.50,'AS'],
+['LKA','Sri Lanka','Sri Jayawardenapura Kotte',6.90,79.92,'AS'],['MDV','Maldives','Malé',4.18,73.51,'AS'],['MMR','Birmanie','Naypyidaw',19.76,96.08,'AS'],
+['MNG','Mongolie','Oulan-Bator',47.89,106.91,'AS'],['MYS','Malaisie','Kuala Lumpur',3.14,101.69,'AS'],['NPL','Népal','Katmandou',27.72,85.32,'AS'],
+['OMN','Oman','Mascate',23.59,58.41,'AS'],['PAK','Pakistan','Islamabad',33.68,73.05,'AS'],['PHL','Philippines','Manille',14.60,120.98,'AS'],
+['PRK','Corée du Nord','Pyongyang',39.04,125.76,'AS'],['PSE','Palestine','Ramallah',31.90,35.20,'AS'],['QAT','Qatar','Doha',25.29,51.53,'AS'],
+['SAU','Arabie saoudite','Riyad',24.71,46.68,'AS'],['SGP','Singapour','Singapour',1.29,103.85,'AS'],['SYR','Syrie','Damas',33.51,36.28,'AS'],
+['THA','Thaïlande','Bangkok',13.76,100.50,'AS'],['TJK','Tadjikistan','Douchanbé',38.56,68.79,'AS'],['TKM','Turkménistan','Achgabat',37.96,58.33,'AS'],
+['TLS','Timor oriental','Dili',-8.56,125.57,'AS'],['TUR','Turquie','Ankara',39.93,32.86,'AS'],['TWN','Taïwan','Taipei',25.03,121.57,'AS'],
+['UZB','Ouzbékistan','Tachkent',41.30,69.24,'AS'],['VNM','Viêt Nam','Hanoï',21.03,105.85,'AS'],['YEM','Yémen','Sanaa',15.37,44.19,'AS'],
+// Afrique
+['AGO','Angola','Luanda',-8.84,13.23,'AF'],['BDI','Burundi','Gitega',-3.43,29.93,'AF'],['BEN','Bénin','Porto-Novo',6.50,2.63,'AF'],
+['BFA','Burkina Faso','Ouagadougou',12.37,-1.52,'AF'],['BWA','Botswana','Gaborone',-24.63,25.92,'AF'],['CAF','Centrafrique','Bangui',4.39,18.56,'AF'],
+['CIV',"Côte d'Ivoire",'Yamoussoukro',6.83,-5.29,'AF'],['CMR','Cameroun','Yaoundé',3.85,11.50,'AF'],['COD','RD Congo','Kinshasa',-4.44,15.27,'AF'],
+['COG','Congo','Brazzaville',-4.27,15.28,'AF'],['COM','Comores','Moroni',-11.70,43.26,'AF'],['CPV','Cap-Vert','Praia',14.93,-23.51,'AF'],
+['DJI','Djibouti','Djibouti',11.59,43.15,'AF'],['DZA','Algérie','Alger',36.75,3.06,'AF'],['EGY','Égypte','Le Caire',30.04,31.24,'AF'],
+['ERI','Érythrée','Asmara',15.32,38.93,'AF'],['ETH','Éthiopie','Addis-Abeba',9.03,38.74,'AF'],['GAB','Gabon','Libreville',0.39,9.45,'AF'],
+['GHA','Ghana','Accra',5.60,-0.19,'AF'],['GIN','Guinée','Conakry',9.64,-13.58,'AF'],['GMB','Gambie','Banjul',13.45,-16.58,'AF'],
+['GNB','Guinée-Bissau','Bissau',11.86,-15.60,'AF'],['GNQ','Guinée équatoriale','Malabo',3.75,8.78,'AF'],['KEN','Kenya','Nairobi',-1.29,36.82,'AF'],
+['LBR','Liberia','Monrovia',6.30,-10.80,'AF'],['LBY','Libye','Tripoli',32.89,13.19,'AF'],['LSO','Lesotho','Maseru',-29.31,27.48,'AF'],
+['MAR','Maroc','Rabat',34.02,-6.84,'AF'],['MDG','Madagascar','Antananarivo',-18.88,47.51,'AF'],['MLI','Mali','Bamako',12.64,-8.00,'AF'],
+['MOZ','Mozambique','Maputo',-25.97,32.57,'AF'],['MRT','Mauritanie','Nouakchott',18.09,-15.98,'AF'],['MUS','Maurice','Port-Louis',-20.16,57.50,'AF'],
+['MWI','Malawi','Lilongwe',-13.96,33.79,'AF'],['NAM','Namibie','Windhoek',-22.56,17.08,'AF'],['NER','Niger','Niamey',13.51,2.11,'AF'],
+['NGA','Nigeria','Abuja',9.08,7.40,'AF'],['RWA','Rwanda','Kigali',-1.95,30.06,'AF'],['SDN','Soudan','Khartoum',15.50,32.56,'AF'],
+['SEN','Sénégal','Dakar',14.72,-17.47,'AF'],['SLE','Sierra Leone','Freetown',8.48,-13.23,'AF'],['SOM','Somalie','Mogadiscio',2.05,45.32,'AF'],
+['SSD','Soudan du Sud','Djouba',4.85,31.58,'AF'],['STP','Sao Tomé-et-Principe','São Tomé',0.34,6.73,'AF'],['SWZ','Eswatini','Mbabane',-26.31,31.14,'AF'],
+['SYC','Seychelles','Victoria',-4.62,55.45,'AF'],['TCD','Tchad',"N'Djaména",12.13,15.06,'AF'],['TGO','Togo','Lomé',6.13,1.22,'AF'],
+['TUN','Tunisie','Tunis',36.81,10.18,'AF'],['TZA','Tanzanie','Dodoma',-6.16,35.75,'AF'],['UGA','Ouganda','Kampala',0.35,32.58,'AF'],
+['ZAF','Afrique du Sud','Pretoria',-25.75,28.19,'AF'],['ZMB','Zambie','Lusaka',-15.39,28.32,'AF'],['ZWE','Zimbabwe','Harare',-17.83,31.05,'AF'],
+// Amérique du Nord, centrale, Caraïbes
+['ATG','Antigua-et-Barbuda',"Saint John's",17.12,-61.85,'NA'],['BHS','Bahamas','Nassau',25.05,-77.35,'NA'],['BLZ','Belize','Belmopan',17.25,-88.76,'NA'],
+['BRB','Barbade','Bridgetown',13.10,-59.62,'NA'],['CAN','Canada','Ottawa',45.42,-75.70,'NA'],['CRI','Costa Rica','San José',9.93,-84.08,'NA'],
+['CUB','Cuba','La Havane',23.11,-82.37,'NA'],['DMA','Dominique','Roseau',15.30,-61.39,'NA'],['DOM','République dominicaine','Saint-Domingue',18.49,-69.93,'NA'],
+['GRD','Grenade','Saint-Georges',12.06,-61.75,'NA'],['GTM','Guatemala','Guatemala',14.63,-90.51,'NA'],['HND','Honduras','Tegucigalpa',14.07,-87.19,'NA'],
+['HTI','Haïti','Port-au-Prince',18.54,-72.34,'NA'],['JAM','Jamaïque','Kingston',18.02,-76.80,'NA'],['KNA','Saint-Christophe-et-Niévès','Basseterre',17.30,-62.72,'NA'],
+['LCA','Sainte-Lucie','Castries',14.01,-60.99,'NA'],['MEX','Mexique','Mexico',19.43,-99.13,'NA'],['NIC','Nicaragua','Managua',12.11,-86.24,'NA'],
+['PAN','Panama','Panama',8.98,-79.52,'NA'],['SLV','Salvador','San Salvador',13.69,-89.22,'NA'],['TTO','Trinité-et-Tobago',"Port-d'Espagne",10.66,-61.51,'NA'],
+['USA','États-Unis','Washington',38.90,-77.04,'NA'],['VCT','Saint-Vincent-et-les-Grenadines','Kingstown',13.16,-61.23,'NA'],
+// Amérique du Sud
+['ARG','Argentine','Buenos Aires',-34.60,-58.38,'SA'],['BOL','Bolivie','Sucre',-19.04,-65.26,'SA'],['BRA','Brésil','Brasília',-15.79,-47.88,'SA'],
+['CHL','Chili','Santiago',-33.45,-70.67,'SA'],['COL','Colombie','Bogota',4.71,-74.07,'SA'],['ECU','Équateur','Quito',-0.18,-78.47,'SA'],
+['GUY','Guyana','Georgetown',6.80,-58.16,'SA'],['PER','Pérou','Lima',-12.05,-77.04,'SA'],['PRY','Paraguay','Asuncion',-25.26,-57.58,'SA'],
+['SUR','Suriname','Paramaribo',5.85,-55.20,'SA'],['URY','Uruguay','Montevideo',-34.90,-56.16,'SA'],['VEN','Venezuela','Caracas',10.48,-66.90,'SA'],
+// Océanie
+['AUS','Australie','Canberra',-35.28,149.13,'OC'],['FJI','Fidji','Suva',-18.14,178.44,'OC'],['FSM','Micronésie','Palikir',6.92,158.16,'OC'],
+['KIR','Kiribati','Tarawa',1.33,172.98,'OC'],['MHL','Îles Marshall','Majuro',7.09,171.38,'OC'],['NRU','Nauru','Yaren',-0.55,166.92,'OC'],
+['NZL','Nouvelle-Zélande','Wellington',-41.29,174.78,'OC'],['PLW','Palaos','Ngerulmud',7.50,134.62,'OC'],['PNG','Papouasie-Nouvelle-Guinée','Port Moresby',-9.44,147.18,'OC'],
+['SLB','Îles Salomon','Honiara',-9.43,159.95,'OC'],['TON','Tonga',"Nuku'alofa",-21.14,-175.20,'OC'],['TUV','Tuvalu','Funafuti',-8.52,179.20,'OC'],
+['VUT','Vanuatu','Port-Vila',-17.73,168.32,'OC'],['WSM','Samoa','Apia',-13.83,-171.76,'OC'],
+];
+const REGIONS = {EU:'Europe',AF:'Afrique',AS:'Asie',NA:'Amérique du Nord, centrale & Caraïbes',SA:'Amérique du Sud',OC:'Océanie'};
+const ALIAS = {KOS:'XKX',KSV:'XKX',XK:'XKX',ROM:'ROU',ZAR:'COD',TMP:'TLS',SDS:'SSD',SAH:'ESH'};
+const TERRITORIES = {GRL:'Groenland (Danemark)',ESH:'Sahara occidental',ATA:'Antarctique',PRI:'Porto Rico (États-Unis)',NCL:'Nouvelle-Calédonie (France)',
+  FLK:'Îles Malouines (Royaume-Uni)',ATF:'Terres australes françaises',PYF:'Polynésie française',GUF:'Guyane (France)',FRO:'Îles Féroé (Danemark)',
+  BMU:'Bermudes (Royaume-Uni)',HKG:'Hong Kong (Chine)',MAC:'Macao (Chine)',GUM:'Guam (États-Unis)',SGS:'Géorgie du Sud',CYN:'Chypre du Nord',SOL:'Somaliland'};
+
+/* ================== MONNAIE | LANGUES OFFICIELLES | POPULATION (millions, estimations 2024) ================== */
+const EXTRA_RAW = `
+ALB;Lek;albanais;2.8
+AND;Euro;catalan;0.08
+AUT;Euro;allemand;9.1
+BEL;Euro;néerlandais|français|allemand;11.8
+BGR;Lev bulgare;bulgare;6.4
+BIH;Mark convertible;bosnien|croate|serbe;3.2
+BLR;Rouble biélorusse;biélorusse|russe;9.1
+CHE;Franc suisse;allemand|français|italien|romanche;8.9
+CYP;Euro;grec|turc;1.3
+CZE;Couronne tchèque;tchèque;10.9
+DEU;Euro;allemand;84
+DNK;Couronne danoise;danois;5.9
+ESP;Euro;espagnol;48.6
+EST;Euro;estonien;1.37
+FIN;Euro;finnois|suédois;5.6
+FRA;Euro;français;68.4
+GBR;Livre sterling;anglais;69
+GRC;Euro;grec;10.4
+HRV;Euro;croate;3.86
+HUN;Forint;hongrois;9.6
+IRL;Euro;irlandais|anglais;5.3
+ISL;Couronne islandaise;islandais;0.39
+ITA;Euro;italien;59
+XKX;Euro;albanais|serbe;1.6
+LIE;Franc suisse;allemand;0.04
+LTU;Euro;lituanien;2.89
+LUX;Euro;luxembourgeois|français|allemand;0.67
+LVA;Euro;letton;1.87
+MCO;Euro;français;0.038
+MDA;Leu moldave;roumain;2.5
+MKD;Denar;macédonien|albanais;1.8
+MLT;Euro;maltais|anglais;0.55
+MNE;Euro;monténégrin;0.62
+NLD;Euro;néerlandais;18
+NOR;Couronne norvégienne;norvégien;5.6
+POL;Złoty;polonais;36.6
+PRT;Euro;portugais;10.6
+ROU;Leu roumain;roumain;19
+RUS;Rouble russe;russe;144
+SMR;Euro;italien;0.034
+SRB;Dinar serbe;serbe;6.6
+SVK;Euro;slovaque;5.4
+SVN;Euro;slovène;2.1
+SWE;Couronne suédoise;suédois;10.6
+UKR;Hryvnia;ukrainien;37
+VAT;Euro;italien|latin;0.0008
+AFG;Afghani;pachto|dari;42
+ARE;Dirham des Émirats;arabe;10.2
+ARM;Dram;arménien;3
+AZE;Manat azerbaïdjanais;azéri;10.2
+BGD;Taka;bengali;173
+BHR;Dinar bahreïni;arabe;1.6
+BRN;Dollar de Brunei;malais;0.46
+BTN;Ngultrum;dzongkha;0.79
+CHN;Yuan (renminbi);mandarin;1410
+GEO;Lari;géorgien;3.8
+IDN;Roupie indonésienne;indonésien;282
+IND;Roupie indienne;hindi|anglais;1450
+IRN;Rial iranien;persan;91
+IRQ;Dinar irakien;arabe|kurde;46
+ISR;Shekel;hébreu;9.9
+JOR;Dinar jordanien;arabe;11.5
+JPN;Yen;japonais;124
+KAZ;Tenge;kazakh|russe;20.3
+KGZ;Som;kirghiz|russe;7.2
+KHM;Riel;khmer;17.6
+KOR;Won sud-coréen;coréen;51.7
+KWT;Dinar koweïtien;arabe;4.9
+LAO;Kip;lao;7.7
+LBN;Livre libanaise;arabe;5.8
+LKA;Roupie srilankaise;cinghalais|tamoul;22
+MDV;Rufiyaa;maldivien;0.53
+MMR;Kyat;birman;54
+MNG;Tugrik;mongol;3.5
+MYS;Ringgit;malais;35.5
+NPL;Roupie népalaise;népalais;29.6
+OMN;Rial omanais;arabe;5.3
+PAK;Roupie pakistanaise;ourdou|anglais;251
+PHL;Peso philippin;filipino|anglais;116
+PRK;Won nord-coréen;coréen;26
+PSE;Shekel|Dinar jordanien;arabe;5.5
+QAT;Riyal qatari;arabe;3
+SAU;Riyal saoudien;arabe;34
+SGP;Dollar de Singapour;anglais|malais|mandarin|tamoul;6
+SYR;Livre syrienne;arabe;24
+THA;Baht;thaï;71.7
+TJK;Somoni;tadjik;10.6
+TKM;Manat turkmène;turkmène;7.5
+TLS;Dollar américain;tétoum|portugais;1.4
+TUR;Livre turque;turc;87
+TWN;Nouveau dollar de Taïwan;mandarin;23.4
+UZB;Sum;ouzbek;36.4
+VNM;Dông;vietnamien;101
+YEM;Rial yéménite;arabe;40
+AGO;Kwanza;portugais;37.9
+BDI;Franc burundais;kirundi|français|anglais;14
+BEN;Franc CFA;français;14.5
+BFA;Franc CFA;mooré|dioula|peul|français;23.5
+BWA;Pula;anglais|tswana;2.5
+CAF;Franc CFA;français|sango;5.3
+CIV;Franc CFA;français;31.9
+CMR;Franc CFA;français|anglais;29
+COD;Franc congolais;français;109
+COG;Franc CFA;français;6.3
+COM;Franc comorien;comorien|français|arabe;0.87
+CPV;Escudo cap-verdien;portugais;0.53
+DJI;Franc djiboutien;français|arabe;1.2
+DZA;Dinar algérien;arabe|tamazight;46.8
+EGY;Livre égyptienne;arabe;116
+ERI;Nakfa;tigrinya|arabe|anglais;3.5
+ETH;Birr;amharique;128
+GAB;Franc CFA;français;2.5
+GHA;Cedi;anglais;34.4
+GIN;Franc guinéen;français;14.8
+GMB;Dalasi;anglais;2.8
+GNB;Franc CFA;portugais;2.2
+GNQ;Franc CFA;espagnol|français|portugais;1.9
+KEN;Shilling kényan;swahili|anglais;56
+LBR;Dollar libérien;anglais;5.6
+LBY;Dinar libyen;arabe;7.4
+LSO;Loti;sotho|anglais;2.3
+MAR;Dirham marocain;arabe|tamazight;38
+MDG;Ariary;malgache|français;31.9
+MLI;Franc CFA;bambara|français;24.5
+MOZ;Metical;portugais;34.6
+MRT;Ouguiya;arabe;5.2
+MUS;Roupie mauricienne;anglais|français|créole mauricien;1.27
+MWI;Kwacha malawien;anglais|chichewa;21.7
+NAM;Dollar namibien;anglais;3
+NER;Franc CFA;haoussa|français;27
+NGA;Naira;anglais;232
+RWA;Franc rwandais;kinyarwanda|français|anglais|swahili;14.3
+SDN;Livre soudanaise;arabe|anglais;50
+SEN;Franc CFA;français;18.5
+SLE;Leone;anglais;8.6
+SOM;Shilling somalien;somali|arabe;19
+SSD;Livre sud-soudanaise;anglais;11.9
+STP;Dobra;portugais;0.23
+SWZ;Lilangeni;swati|anglais;1.2
+SYC;Roupie seychelloise;créole seychellois|anglais|français;0.13
+TCD;Franc CFA;français|arabe;20
+TGO;Franc CFA;français;9.5
+TUN;Dinar tunisien;arabe;12.3
+TZA;Shilling tanzanien;swahili|anglais;68
+UGA;Shilling ougandais;anglais|swahili;50
+ZAF;Rand;anglais|zoulou|xhosa|afrikaans|sotho|tswana;64
+ZMB;Kwacha zambien;anglais;21.3
+ZWE;Zimbabwe Gold (ZiG);anglais|shona|ndébélé;16.6
+ATG;Dollar des Caraïbes orientales;anglais;0.094
+BHS;Dollar bahaméen;anglais;0.41
+BLZ;Dollar bélizien;anglais;0.42
+BRB;Dollar barbadien;anglais;0.28
+CAN;Dollar canadien;anglais|français;41
+CRI;Colón;espagnol;5.1
+CUB;Peso cubain;espagnol;11
+DMA;Dollar des Caraïbes orientales;anglais;0.067
+DOM;Peso dominicain;espagnol;11.4
+GRD;Dollar des Caraïbes orientales;anglais;0.12
+GTM;Quetzal;espagnol;18.4
+HND;Lempira;espagnol;10.8
+HTI;Gourde;créole haïtien|français;11.8
+JAM;Dollar jamaïcain;anglais;2.8
+KNA;Dollar des Caraïbes orientales;anglais;0.047
+LCA;Dollar des Caraïbes orientales;anglais;0.18
+MEX;Peso mexicain;espagnol;131
+NIC;Córdoba;espagnol;7
+PAN;Balboa|Dollar américain;espagnol;4.5
+SLV;Dollar américain;espagnol;6.3
+TTO;Dollar de Trinité-et-Tobago;anglais;1.5
+USA;Dollar américain;anglais;340
+VCT;Dollar des Caraïbes orientales;anglais;0.1
+ARG;Peso argentin;espagnol;45.7
+BOL;Boliviano;espagnol|quechua|aymara;12.4
+BRA;Real;portugais;212
+CHL;Peso chilien;espagnol;19.8
+COL;Peso colombien;espagnol;53
+ECU;Dollar américain;espagnol;18
+GUY;Dollar guyanien;anglais;0.83
+PER;Sol;espagnol|quechua|aymara;34
+PRY;Guaraní;espagnol|guarani;6.9
+SUR;Dollar surinamais;néerlandais;0.63
+URY;Peso uruguayen;espagnol;3.4
+VEN;Bolivar;espagnol;28.4
+AUS;Dollar australien;anglais;27
+FJI;Dollar fidjien;anglais|fidjien|hindi des Fidji;0.93
+FSM;Dollar américain;anglais;0.11
+KIR;Dollar australien;anglais|gilbertin;0.13
+MHL;Dollar américain;marshallais|anglais;0.04
+NRU;Dollar australien;nauruan|anglais;0.012
+NZL;Dollar néo-zélandais;anglais|maori;5.2
+PLW;Dollar américain;paluan|anglais;0.018
+PNG;Kina;tok pisin|anglais|hiri motu;10.3
+SLB;Dollar des Salomon;anglais;0.82
+TON;Pa'anga;tongien|anglais;0.1
+TUV;Dollar australien;tuvaluan|anglais;0.01
+VUT;Vatu;bichelamar|anglais|français;0.33
+WSM;Tala;samoan|anglais;0.22`;
+const EXTRA = new Map(EXTRA_RAW.trim().split('\n').map(l=>{ const [id,cur,lang,pop]=l.split(';'); return [id,{cur:cur.split('|'), lang:lang.split('|'), pop:+pop*1e6}]; }));
+
+/* ================== RELIEFS (lignes de crête principales, [lon, lat]) ================== */
+const RIDGES = [
+ {n:'Himalaya',w:1.8,c:[[73,35.5],[75,34.5],[77,33.3],[79,31],[81,30],[84,28.6],[87,27.9],[89,27.8],[92,27.8],[95,28.8],[97,28.3]]},
+ {n:'Karakoram',w:1.4,c:[[74,36.5],[76.5,35.8],[78,35]]},
+ {n:'Hindou Kouch',w:1.2,c:[[67,34.5],[69.5,35.5],[71.5,36.3],[73.5,36.8]]},
+ {n:'Pamir',w:1.2,c:[[71.5,38.8],[73,38.4],[75,38.6]]},
+ {n:'Tian Shan',w:1.3,c:[[69,41.5],[72,41.5],[76,42],[80,42.5],[84,43],[88,43.2],[93,43]]},
+ {n:'Kunlun',w:1.2,c:[[76,36.5],[80,36],[84,36],[88,36],[92,35.8],[97,35.5],[101,35]]},
+ {n:'Altaï',w:1,c:[[84,51],[87,49.5],[90,48.5],[94,47],[98,45.5]]},
+ {n:'Saïan',w:.8,c:[[89,52.5],[94,52.2],[98,51.8],[101,51.5]]},
+ {n:'Grand Khingan',w:.7,c:[[119,43],[120,46],[121.5,49],[122,52]]},
+ {n:'Qinling',w:.7,c:[[104,33.6],[107,33.8],[110,34],[112,33.8]]},
+ {n:'Hengduan',w:1,c:[[98,32],[99,29],[99.5,26],[99,24]]},
+ {n:'Zagros',w:1.1,c:[[44,37],[46,35],[48,33],[50,31],[52,29.5],[55,28],[57.5,27]]},
+ {n:'Elbourz',w:.9,c:[[48,37.5],[51,36.1],[54,36.5],[57,37.5]]},
+ {n:'Caucase',w:1.2,c:[[37.5,44.5],[40,43.5],[42.5,42.9],[45,42.3],[47.5,41.5],[49.5,40.8]]},
+ {n:'Taurus',w:.9,c:[[29,36.8],[32,36.6],[35,37.3],[38,38],[41,39.5],[43.5,39.7]]},
+ {n:'Alpes',w:1.2,c:[[7.0,43.9],[6.9,45.0],[7.2,45.9],[8.5,46.4],[10.5,46.6],[12.5,47.0],[14.5,47.3],[16,47.6]]},
+ {n:'Pyrénées',w:.9,c:[[-1.7,43.1],[0,42.8],[1.5,42.6],[3,42.4]]},
+ {n:'Carpates',w:.9,c:[[18.5,49.3],[20.5,49.3],[23,48.8],[25,47.8],[25.8,46.5],[25.5,45.5],[23.5,45.4],[22.5,44.8]]},
+ {n:'Apennins',w:.7,c:[[8.5,44.4],[10.5,44.2],[12.5,43.3],[13.8,42.2],[15.2,40.8],[16.2,39.5],[16.1,38.3]]},
+ {n:'Alpes dinariques',w:.7,c:[[14.5,45.5],[16.5,44.3],[18.5,43],[20,42],[21,40.8],[21.8,39.5]]},
+ {n:'Alpes scandinaves',w:.9,c:[[6.5,58.8],[8,61],[10,62.5],[13,64.5],[15.5,66.5],[18,68.3],[21,69.5]]},
+ {n:'Oural',w:.9,c:[[59,47.5],[59,51],[58.8,55],[59.3,59],[59.5,62],[60,65],[63,67.5],[66,68.5]]},
+ {n:'Atlas',w:1.1,c:[[-9.5,30.5],[-7,31.3],[-5,32.5],[-3,33.5],[-1,34.5],[2,35.5],[5,36],[8,36.2],[10,36.3]]},
+ {n:'Hauts plateaux éthiopiens',w:1,c:[[37.3,14],[38.5,12],[39.5,10],[38.5,8],[37.5,7]]},
+ {n:'Rift est-africain',w:.9,c:[[30,0.5],[29.4,-2],[30.5,-4.5],[32,-8],[34,-10.5],[34.7,-13]]},
+ {n:'Kilimandjaro',w:.9,c:[[36,1],[37,-0.2],[37.4,-3.1]]},
+ {n:'Drakensberg',w:.9,c:[[27,-31],[28.5,-29.5],[29.5,-28.5],[30.5,-27],[31,-25]]},
+ {n:'Tibesti',w:.7,c:[[16.8,21.6],[18.6,20.5]]},
+ {n:'Hoggar',w:.7,c:[[4.8,23.8],[6.2,22.6]]},
+ {n:'Montagnes Rocheuses',w:1.5,c:[[-148,61],[-140,60.5],[-134,59],[-128,57],[-123,53],[-118,50],[-114.5,48],[-111,45],[-108,42],[-106,39],[-105.5,36],[-106.5,33]]},
+ {n:'Chaîne de Brooks',w:.8,c:[[-162,68.3],[-155,68.2],[-148,68.3],[-142,68.8]]},
+ {n:'Chaîne d\'Alaska',w:1,c:[[-154,61.5],[-151,63],[-147,63.4],[-142,62.5]]},
+ {n:'Sierra Nevada & Cascades',w:.9,c:[[-121.5,48.8],[-121.7,46.8],[-121.8,44.5],[-122,42],[-121,40],[-119.5,38],[-118.3,36]]},
+ {n:'Sierra Madre occidentale',w:.9,c:[[-110,31],[-108,28],[-106,25],[-104.5,23],[-103.5,21]]},
+ {n:'Sierra Madre orientale',w:.8,c:[[-101,27],[-100,25],[-99.5,22.5],[-98,20]]},
+ {n:'Cordillère volcanique',w:.7,c:[[-104,19.5],[-101,19.4],[-98.5,19.1],[-97,19]]},
+ {n:'Appalaches',w:.8,c:[[-85.5,34],[-83.5,35.5],[-81,37],[-79,39],[-77,40.5],[-75,41.8],[-73,43],[-71,44.3],[-69,45.5]]},
+ {n:'Cordillère centraméricaine',w:.7,c:[[-91.5,15.2],[-88,14.5],[-86,13.3],[-85,11],[-83.5,9.5]]},
+ {n:'Cordillère des Andes',w:1.7,c:[[-73,8],[-75.5,5],[-77,2],[-78.5,-0.5],[-79,-3],[-77.5,-8],[-75.5,-11.5],[-72,-14.5],[-69,-16.5],[-68,-19],[-67.8,-23],[-68.5,-27],[-70,-31],[-70,-34],[-70.8,-37],[-71.5,-41],[-72.5,-46],[-73.3,-50],[-72.5,-53]]},
+ {n:'Andes vénézuéliennes',w:.9,c:[[-74,10.8],[-73,8],[-70.5,9],[-67,10.3]]},
+ {n:'Serra do Mar',w:.6,c:[[-49,-25],[-46,-23.3],[-43.5,-22.4],[-41.5,-20.5]]},
+ {n:'Cordillère australienne',w:.9,c:[[145.5,-15],[146,-18],[147.5,-21],[149,-24],[151,-27.5],[151.5,-30],[150,-33],[148.5,-36],[146.5,-37.5]]},
+ {n:'Alpes du Sud',w:.9,c:[[167.5,-45.8],[169,-44.2],[171,-43],[172.7,-41.8]]},
+ {n:'Alpes japonaises',w:.8,c:[[136.5,35.5],[137.6,36.5],[138.5,37.5],[140,39],[140.8,41]]},
+ {n:'Cordillère néo-guinéenne',w:1,c:[[136,-4],[138.5,-4.2],[141,-5],[143.5,-5.8],[146,-6.5]]},
+ {n:'Monts de Verkhoïansk',w:.9,c:[[127,62],[129,65],[131,67.5],[128,70]]},
+ {n:'Monts Tcherski',w:.8,c:[[138,66],[143,66.5],[148,66],[152,65]]},
+ {n:'Kamtchatka',w:.8,c:[[156.5,51],[158.5,54],[160,56],[161.5,58.5]]},
+ {n:'Ghâts occidentaux',w:.7,c:[[73.5,20],[74,16],[75,13],[76.5,10],[77.3,8.5]]},
+ {n:'Monts du Hedjaz',w:.8,c:[[35.5,28],[37.5,25],[39.5,22],[41.5,18],[43.5,14.5],[44,13]]},
+ {n:'Monts d\'Oman',w:.6,c:[[56.3,26],[57.5,23.3],[59,22.5]]},
+ {n:'Monts Transantarctiques',w:1.2,c:[[160,-71],[162,-75],[160,-78],[165,-82],[175,-85],[-160,-86],[-140,-86]]},
+];
+const PLATEAUS = [
+ {n:'Plateau tibétain',c:[[78,35],[84,35.6],[92,35],[98,33],[100,30],[98,28.5],[92,28.2],[86,28.5],[81,30],[78,32.5],[78,35]]},
+ {n:'Altiplano',c:[[-70,-14.5],[-67.5,-15.5],[-66,-19],[-66.5,-23],[-68.5,-23],[-69.5,-19],[-71,-16],[-70,-14.5]]},
+ {n:'Hauts plateaux éthiopiens',c:[[36,15],[39.5,14.5],[40.5,11],[42,9],[40,6.5],[37,6],[35.5,8.5],[36.5,12],[36,15]]},
+ {n:'Plateau iranien',c:[[46,38.5],[52,37],[58,37.5],[61,35],[61,30],[58,27.5],[53,29],[49,32],[46,35],[46,38.5]]},
+ {n:'Plateau mongol',c:[[90,49],[100,50],[110,49],[116,46],[112,43],[104,42],[96,44],[91,46],[90,49]]},
+];
+const DESERTS = [
+ {n:'Sahara',c:[[-16,21],[-13,27],[-9,29],[-3,31],[3,31.5],[9,31],[15,30],[20,30.5],[25,30],[30,29.5],[33,26],[35,22],[36,19],[33,17.5],[28,16],[22,15.5],[16,15.5],[10,16],[4,16],[-2,16],[-8,16.5],[-13,17.5],[-16,19],[-16,21]]},
+ {n:'Désert d\'Arabie',c:[[38,30],[44,31],[48,29],[51,26.5],[55,24],[57,21],[55,17.5],[52,17],[48,16],[44,17],[41,20],[38,25],[36.5,28],[38,30]]},
+ {n:'Thar',c:[[69,24.5],[70,29],[73,30],[75,28.5],[74,25.5],[71,24],[69,24.5]]},
+ {n:'Kalahari',c:[[13.5,-17],[17,-17],[21,-17.5],[24,-19],[25,-23],[23,-27],[19,-28.5],[15.5,-27],[15,-22],[13.5,-17]]},
+ {n:'Taklamakan',c:[[76,37.5],[78,40.5],[83,41.7],[88,41],[90,39],[86,37.5],[81,36.8],[76,37.5]]},
+ {n:'Gobi',c:[[94,40],[95,43.5],[100,44],[106,44.5],[111,44],[113,42.5],[109,41],[104,39.5],[98,39],[94,40]]},
+ {n:'Karakoum',c:[[53,41],[56,43.5],[61,44.5],[65,43.5],[66,41],[63,38.5],[59,37.8],[55,38.5],[53,41]]},
+ {n:'Déserts australiens',c:[[118,-20],[122,-18.5],[128,-19],[134,-21],[139,-23],[140,-27],[137,-30],[132,-31],[126,-30],[121,-28],[117,-25],[118,-20]]},
+ {n:'Atacama',c:[[-70.3,-18],[-69.2,-18.5],[-68.8,-24],[-69.5,-28],[-71.3,-27],[-70.5,-23],[-70.3,-18]]},
+ {n:'Déserts nord-américains',c:[[-120,41],[-114,42],[-111,40],[-110,35],[-109,31.5],[-112,29],[-114.5,30],[-116,33],[-118.5,35],[-119.5,38],[-120,41]]},
+ {n:'Patagonie',c:[[-71,-40],[-66,-40],[-65,-44],[-67,-47],[-69,-51],[-71.5,-50],[-71.5,-45],[-71,-40]]},
+];
+const SEAS = [
+ ['Océan Atlantique',-40,30,2],['Océan Atlantique',-15,-25,2],['Océan Pacifique',-145,15,2],['Océan Pacifique',-120,-30,2],['Océan Pacifique',165,22,2],
+ ['Océan Indien',78,-20,2],['Océan Arctique',-10,84,2],['Océan Austral',60,-60,2],['Océan Austral',-120,-64,2],
+ ['Mer Méditerranée',18,34.4,1],['Mer Noire',34.5,43.3,1],['Mer Caspienne',50.7,42,1],['Mer Rouge',38.5,20.5,1],['Golfe Persique',51,27.2,1],
+ ["Mer d'Arabie",64,15,1],['Golfe du Bengale',88,15,1],['Mer de Chine méridionale',114,13,1],['Mer de Chine orientale',126,29,1],
+ ['Mer du Japon',134,40.5,1],["Mer d'Okhotsk",149,55,1],['Mer de Béring',-178,58,1],["Golfe d'Alaska",-145,56,1],['Golfe du Mexique',-90,25,1],
+ ['Mer des Caraïbes',-75,15,1],["Baie d'Hudson",-85,60,1],['Mer du Labrador',-55,58,1],['Mer du Nord',3,56,1],['Mer Baltique',19,57.5,1],
+ ['Mer de Norvège',3,68,1],['Mer de Barents',40,73,1],['Mer de Corail',155,-17,1],['Mer de Tasman',161,-39,1],['Canal du Mozambique',41,-18,1],
+ ['Golfe de Guinée',3,1.5,1],['Mer des Philippines',132,18,1],["Mer d'Arafura",135,-9.8,1],['Mer de Weddell',-45,-71,1],['Mer de Ross',-175,-75,1],
+ ['Manche',-2.5,50,1],['Mer Égée',25,38.5,1],['Mer Adriatique',15.5,43,1],['Mer de Kara',70,75,1],['Mer de Sibérie orientale',165,73,1],
+];
+
+/* ================== MOTEUR ================== */
+window.addEventListener('error', e=>{ const m=document.getElementById('load-msg'); if(m && document.getElementById('loading')) m.textContent='Erreur : '+e.message; });
+window.addEventListener('unhandledrejection', e=>{ const m=document.getElementById('load-msg'); if(m && document.getElementById('loading')) m.textContent='Erreur : '+(e.reason&&e.reason.message||e.reason); });
+(async function(){
+const $ = s => document.querySelector(s);
+const R_EARTH = 6371;
+const info = new Map(COUNTRIES.map(r => [r[0], {id:r[0], name:r[1], cap:r[2], lat:r[3], lon:r[4], reg:r[5]}]));
+const nameOf = id => info.get(id)?.name || TERRITORIES[id] || null;
+
+// ---------- Chargement des cartes ----------
+function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
+const GEO_URLS = ['https://cdn.jsdelivr.net/npm/plotly.js@2.35.2/dist/plotly-geo-assets.js','https://unpkg.com/plotly.js@2.35.2/dist/plotly-geo-assets.js'];
+let assets = null;
+for (const u of GEO_URLS){ try { await loadScript(u); assets = window.PlotlyGeoAssets; if (assets) break; } catch(e){} }
+if (!assets || !window.d3 || !window.topojson){ $('#load-msg').textContent = "Impossible de charger les cartes. Vérifie ta connexion puis recharge la page."; return; }
+const topos = assets.topojson || assets;
+const T50 = topos.world_50m, T110 = topos.world_110m || topos.world_50m;
+
+function getId(g){
+  let id = g.id ?? g.properties?.id ?? g.properties?.ISO_A3 ?? g.properties?.iso_a3 ?? g.properties?.ADM0_A3 ?? '';
+  id = String(id).toUpperCase(); return ALIAS[id] || id;
+}
+function cleanGeom(g){ // retire les anneaux dégénérés (ex. Fidji) qui font planter d3
+  if (!g) return null;
+  if (g.type==='Polygon'){ const c=g.coordinates.filter(r=>r&&r.length>=4); return c.length?{type:'Polygon',coordinates:c}:null; }
+  if (g.type==='MultiPolygon'){ const c=g.coordinates.map(p=>p.filter(r=>r&&r.length>=4)).filter(p=>p.length); return c.length?{type:'MultiPolygon',coordinates:c}:null; }
+  return g;
+}
+function fixWinding(f){
+  if (f.geometry) f.geometry=cleanGeom(f.geometry);
+  if (!f.geometry) return f;
+  if (d3.geoArea(f) > 2*Math.PI){
+    const g=f.geometry;
+    if (g.type==='Polygon') g.coordinates.forEach(r=>r.reverse());
+    if (g.type==='MultiPolygon') g.coordinates.forEach(p=>p.forEach(r=>r.reverse()));
+  }
+  return f;
+}
+function cleanFC(fc){ if(fc.features){ fc.features.forEach(fixWinding); fc.features=fc.features.filter(f=>f.geometry); } return fc; }
+function prep(topo){
+  const o = topo.objects;
+  const fc = topojson.feature(topo, o.countries);
+  const countries = fc.features.map((f,i)=>{ f.id = getId(o.countries.geometries[i]); return fixWinding(f); }).filter(f=>f.geometry);
+  return {
+    countries,
+    borders: topojson.mesh(topo, o.countries, (a,b)=>a!==b),
+    coast: o.coastlines ? topojson.feature(topo, o.coastlines) : topojson.mesh(topo, o.countries, (a,b)=>a===b),
+    land: o.land ? cleanFC(topojson.feature(topo, o.land)) : {type:'FeatureCollection', features:countries},
+    lakes: o.lakes ? cleanFC(topojson.feature(topo, o.lakes)) : null,
+    rivers: o.rivers ? topojson.feature(topo, o.rivers) : null,
+    neighbors: topojson.neighbors(o.countries.geometries),
+    ids: o.countries.geometries.map(getId)
+  };
+}
+const HI = prep(T50), LO = prep(T110);
+if (HI.land.features) HI.land.features.forEach(fixWinding);
+if (LO.land.features) LO.land.features.forEach(fixWinding);
+const hiById = new Map(); HI.countries.forEach(f=>{ if(!hiById.has(f.id)) hiById.set(f.id,f); else { // fusion de géométries homonymes
+  const a=hiById.get(f.id); const toMP=g=>g.type==='Polygon'?[g.coordinates]:g.coordinates;
+  a.geometry={type:'MultiPolygon',coordinates:toMP(a.geometry).concat(toMP(f.geometry))}; }});
+HI.countries.forEach(f=>{ try{ f.bbox = d3.geoBounds(f); }catch(e){ f.bbox=[[-180,-90],[180,90]]; } });
+
+// voisins (pour les indices)
+const neighborsOf = new Map();
+HI.ids.forEach((id,i)=>{ const s = neighborsOf.get(id) || new Set(); HI.neighbors[i].forEach(j=>{ if (HI.ids[j]!==id) s.add(HI.ids[j]); }); neighborsOf.set(id,s); });
+
+// couleurs naturelles (coloration de graphe : deux voisins n'ont jamais la même teinte)
+const PALETTE = ['#a3bf80','#bccd8e','#cdd59f','#acc792','#d9d2a2','#c2cf95','#97b67c','#cbc48f'];
+const colorOf = new Map();
+HI.ids.forEach((id,i)=>{
+  if (colorOf.has(id)) return;
+  const used = new Set(HI.neighbors[i].map(j=>colorOf.get(HI.ids[j])));
+  let c = PALETTE.find((p,k)=>!used.has(p) && k===((i*5)%PALETTE.length)) || PALETTE.find(p=>!used.has(p)) || PALETTE[i%PALETTE.length];
+  colorOf.set(id,c);
+});
+['GRL','ATA'].forEach(id=>colorOf.set(id,'#e9eff3'));
+
+// points d'étiquette (centre du plus grand morceau)
+function mainPoly(f){
+  if (f._main) return f._main;
+  const g=f.geometry;
+  if (g.type==='MultiPolygon'){ let best=null,ba=-1; for(const c of g.coordinates){ const p={type:'Polygon',coordinates:c}; const a=d3.geoArea(p); if(a>ba){ba=a;best=p;} } f._main=best; }
+  else f._main=g;
+  return f._main;
+}
+hiById.forEach(f=>{ f.labelPt = d3.geoCentroid(mainPoly(f)); f.area = d3.geoArea(f); });
+
+// éléments de relief en GeoJSON
+const lineF = r => ({type:'Feature', properties:{n:r.n,w:r.w}, geometry:{type:'LineString', coordinates:r.c}});
+const polyF = r => fixWinding({type:'Feature', properties:{n:r.n}, geometry:{type:'Polygon', coordinates:[r.c]}});
+const ridgeF = RIDGES.map(lineF), plateauF = PLATEAUS.map(polyF), desertF = DESERTS.map(polyF);
+const graticule = d3.geoGraticule10();
+
+// ---------- Pré-calculs pour le masquage hors champ ----------
+function allCoords(g, out){
+  if (!g) return out;
+  if (g.type==='Point') out.push(g.coordinates);
+  else if (g.type==='LineString'||g.type==='MultiPoint') out.push(...g.coordinates);
+  else if (g.type==='Polygon'||g.type==='MultiLineString') g.coordinates.forEach(r=>out.push(...r));
+  else if (g.type==='MultiPolygon') g.coordinates.forEach(p=>p.forEach(r=>out.push(...r)));
+  else if (g.type==='GeometryCollection') g.geometries.forEach(x=>allCoords(x,out));
+  return out;
+}
+function addCull(f){
+  const pts=allCoords(f.geometry||f,[]); if(!pts.length){ f.cen=[0,0]; f.rad=Math.PI; return f; }
+  f.cen=d3.geoCentroid(f); if(!isFinite(f.cen[0])) f.cen=pts[0];
+  let m=0; const step=Math.max(1,Math.floor(pts.length/400));
+  for(let i=0;i<pts.length;i+=step){ const d=d3.geoDistance(f.cen,pts[i]); if(d>m) m=d; }
+  f.rad=Math.min(Math.PI, m*1.05+0.01); return f;
+}
+function splitLines(geo){ // découpe un maillage en morceaux pour pouvoir masquer ce qui est caché
+  const lines=[]; const push=g=>{ if(!g) return; if(g.type==='LineString') lines.push(g.coordinates); else if(g.type==='MultiLineString') lines.push(...g.coordinates); };
+  if (geo.type==='FeatureCollection') geo.features.forEach(f=>push(f.geometry)); else if (geo.type==='Feature') push(geo.geometry); else push(geo);
+  return lines.map(c=>addCull({type:'Feature',geometry:{type:'LineString',coordinates:c}}));
+}
+function featList(geo){ if(!geo) return []; return (geo.type==='FeatureCollection'?geo.features:[geo]).map(addCull); }
+for (const D of [HI,LO]){
+  D.countries.forEach(addCull);
+  D.landF=featList(D.land); D.lakesF=featList(D.lakes); D.riversF=featList(D.rivers);
+  D.bordersF=splitLines(D.borders); D.coastF=splitLines(D.coast);
+}
+
+const loById=new Map(); LO.countries.forEach(f=>{ if(!loById.has(f.id)) loById.set(f.id,f); });
+// ---------- Canvas & projection ----------
+const cv=$('#globe'), mainCtx=cv.getContext('2d'), sc=$('#stars'), sctx=sc.getContext('2d');
+const bc=document.createElement('canvas'), bctx=bc.getContext('2d');
+const proj = d3.geoOrthographic().clipAngle(90).precision(0.2);
+const path = d3.geoPath(proj), pathA = d3.geoPath(proj);
+let ctx = mainCtx; path.context(ctx);
+function use(c){ ctx=c; path.context(c); }
+let W,H,dpr,area,base=300, rot=[-12,-28,0], zoom=1;
+const ZMIN=0.8, ZMAX=40;
+const layers={relief:true,rivers:true,caps:true,borders:true,seas:true,rnames:false,cnames:false,grat:true};
+
+function drawStars(){
+  sctx.setTransform(dpr,0,0,dpr,0,0); sctx.clearRect(0,0,W,H);
+  const g=sctx.createRadialGradient(W*.35,H*.4,0,W*.35,H*.4,Math.max(W,H)*.8);
+  g.addColorStop(0,'#0b1428'); g.addColorStop(1,'#020308'); sctx.fillStyle=g; sctx.fillRect(0,0,W,H);
+  const rnd=d3.randomLcg(42);
+  for(let i=0;i<(W*H)/2600;i++){ const x=rnd()*W,y=rnd()*H,r=rnd()*1.1+.15; sctx.globalAlpha=rnd()*.7+.15; sctx.fillStyle=rnd()>.85?'#ffe9c4':'#dfe8ff'; sctx.beginPath(); sctx.arc(x,y,r,0,7); sctx.fill(); }
+  sctx.globalAlpha=1;
+}
+function resize(){
+  dpr=Math.min(2,window.devicePixelRatio||1); W=innerWidth; H=innerHeight;
+  [cv,sc,bc].forEach(c=>{ c.width=Math.round(W*dpr); c.height=Math.round(H*dpr); });
+  const mobile = W<820;
+  area = mobile ? {w:W, h:H*0.57} : {w:W-392, h:H};
+  base = Math.min(area.w, area.h)*0.42;
+  proj.translate([area.w/2, area.h/2]);
+  lastKey=''; drawStars(); req();
+}
+window.addEventListener('resize', resize);
+
+let needs=false, moving=false, lastT=0, vel=[0,0], anim=null, autoSpin=true, dragging=false, settleTimer=null;
+function req(){ if(!needs){ needs=true; requestAnimationFrame(frame); } }
+const clampLat = v => Math.max(-89, Math.min(89, v));
+function frame(t){
+  needs=false;
+  const dt = lastT ? Math.min(50, t-lastT) : 16; lastT=t;
+  let active=false;
+  if (anim){
+    const k=Math.min(1,(t-anim.t0)/anim.dur), e=d3.easeCubicInOut(k);
+    rot=[anim.r0[0]+(anim.r1[0]-anim.r0[0])*e, anim.r0[1]+(anim.r1[1]-anim.r0[1])*e, 0];
+    zoom=anim.z0*Math.pow(anim.z1/anim.z0,e);
+    if(k>=1) anim=null; active=true;
+  } else if (!dragging && (Math.abs(vel[0])>0.005 || Math.abs(vel[1])>0.005)){
+    rot[0]+=vel[0]; rot[1]=clampLat(rot[1]+vel[1]); vel[0]*=0.93; vel[1]*=0.93; active=true;
+  } else if (autoSpin && !dragging){ rot[0]+=dt*0.005; active=true; }
+  moving = active || dragging || wheeling;
+  render();
+  if (active) req(); else lastT=0;
+}
+let wheeling=false, wheelTimer=null;
+function markWheel(){ wheeling=true; clearTimeout(wheelTimer); wheelTimer=setTimeout(()=>{ wheeling=false; req(); },160); }
+function animateTo(lonlat, z1, dur=1100){
+  autoSpin=false; vel=[0,0];
+  const r0=[rot[0],rot[1]]; const r1=[-lonlat[0], clampLat(-lonlat[1])];
+  while(r1[0]-r0[0]>180) r1[0]-=360; while(r1[0]-r0[0]<-180) r1[0]+=360;
+  anim={t0:performance.now(), dur, r0, r1, z0:zoom, z1:Math.max(ZMIN,Math.min(ZMAX,z1??zoom))};
+  lastT=0; req();
+}
+
+// ---------- Rendu ----------
+let hoverId=null, selectedId=null, lastKey='';
+function center(){ return [-rot[0], -rot[1]]; }
+function visible(ll, lim=Math.PI/2-0.03){ return d3.geoDistance(ll, center()) < lim; }
+let viewAng=Math.PI/2, ctr=[0,0];
+function inView(f){ return d3.geoDistance(f.cen, ctr) - f.rad < viewAng; }
+function drawSet(list){ for (const f of list) if (inView(f)) path(f); }
+function pathOf(list){ const p=new Path2D(); path.context(p); drawSet(list); path.context(ctx); return p; }
+
+function render(){
+  proj.scale(base*zoom).rotate(rot);
+  ctr=center();
+  const half=Math.hypot(area.w,area.h)/2, s=proj.scale();
+  viewAng = s>half ? Math.min(Math.PI/2, Math.asin(half/s)+0.05) : Math.PI/2;
+  const lowRes = moving && zoom<2.5;
+  const key=[rot[0].toFixed(3),rot[1].toFixed(3),zoom.toFixed(4),lowRes,JSON.stringify(layers),Q.active,Q.answered,Q.done,moving,Q.history.length].join('|');
+  if (key!==lastKey){ use(bctx); renderBase(lowRes ? LO : HI); lastKey=key; }
+  use(mainCtx);
+  mainCtx.setTransform(1,0,0,1,0,0); mainCtx.clearRect(0,0,cv.width,cv.height); mainCtx.drawImage(bc,0,0);
+  mainCtx.setTransform(dpr,0,0,dpr,0,0);
+  renderOverlay();
+}
+
+function renderBase(D){
+  const r = proj.scale(), [cx,cy] = proj.translate();
+  const zs = Math.sqrt(zoom);
+  ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
+
+  // halo atmosphérique
+  let g=ctx.createRadialGradient(cx,cy,r*.96,cx,cy,r*1.18);
+  g.addColorStop(0,'rgba(120,180,255,.42)'); g.addColorStop(.35,'rgba(90,150,255,.14)'); g.addColorStop(1,'rgba(80,140,255,0)');
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,r*1.18,0,7); ctx.fill();
+
+  // océan
+  g=ctx.createRadialGradient(cx-r*.35,cy-r*.4,r*.05,cx,cy,r);
+  g.addColorStop(0,'#3a8cc2'); g.addColorStop(.55,'#1d6195'); g.addColorStop(1,'#0b2f52');
+  ctx.beginPath(); path({type:'Sphere'}); ctx.fillStyle=g; ctx.fill();
+
+  if (layers.grat){ ctx.beginPath(); path(graticule); ctx.strokeStyle='rgba(255,255,255,.07)'; ctx.lineWidth=.6; ctx.stroke(); }
+
+  const landP = pathOf(D.landF);
+  // plateau continental (liseré clair le long des côtes)
+  ctx.strokeStyle='rgba(120,200,235,.22)'; ctx.lineWidth=Math.min(10,4*zs); ctx.lineJoin='round'; ctx.stroke(landP);
+
+  // terres, regroupées par couleur
+  const groups=new Map();
+  for (const f of D.countries){ if(!inView(f)) continue; const c=colorOf.get(f.id)||'#bccd8e'; let p=groups.get(c); if(!p){ p=new Path2D(); groups.set(c,p); } path.context(p); path(f); }
+  path.context(ctx);
+  for (const [c,p] of groups){ ctx.fillStyle=c; ctx.fill(p); }
+  // pays déjà demandés : restent en surbrillance (couleur du joueur, rouge si raté)
+  for (const h of Q.history){
+    const f=(D===LO && loById.get(h.id)) || hiById.get(h.id); if(!f || !inView(f)) continue;
+    ctx.globalAlpha=.62; ctx.beginPath(); path(f); ctx.fillStyle=h.color; ctx.fill(); ctx.globalAlpha=1;
+  }
+
+  // reliefs, déserts (limités aux terres)
+  if (layers.relief){
+    ctx.save(); ctx.clip(landP);
+    ctx.globalAlpha=.45; ctx.fillStyle='#e6d29d';
+    for (const f of desertF){ ctx.beginPath(); path(f); ctx.fill(); }
+    ctx.globalAlpha=.30; ctx.fillStyle='#9a7448';
+    for (const f of plateauF){ ctx.beginPath(); path(f); ctx.fill(); }
+    ctx.globalAlpha=1; ctx.lineCap='round'; ctx.lineJoin='round';
+    const bw = Math.min(26, 5.5*zs);
+    for (const f of ridgeF){ ctx.beginPath(); path(f); ctx.strokeStyle='rgba(92,62,32,.30)'; ctx.lineWidth=bw*f.properties.w*2.1; ctx.stroke(); }
+    for (const f of ridgeF){ ctx.beginPath(); path(f); ctx.strokeStyle='rgba(122,86,50,.55)'; ctx.lineWidth=bw*f.properties.w*1.05; ctx.stroke(); }
+    ctx.save(); ctx.translate(-bw*.18,-bw*.18);
+    for (const f of ridgeF){ ctx.beginPath(); path(f); ctx.strokeStyle='rgba(255,248,238,.55)'; ctx.lineWidth=Math.max(.8,bw*f.properties.w*.28); ctx.stroke(); }
+    ctx.restore(); ctx.restore();
+  }
+
+  // lacs & fleuves
+  if (layers.rivers){
+    const lp=pathOf(D.lakesF); ctx.fillStyle='#2c77ad'; ctx.fill(lp); ctx.strokeStyle='rgba(140,200,240,.6)'; ctx.lineWidth=.5; ctx.stroke(lp);
+    ctx.strokeStyle='rgba(58,132,196,.9)'; ctx.lineWidth=Math.min(2.6,.55*zs); ctx.lineCap='round'; ctx.stroke(pathOf(D.riversF));
+  }
+
+  // frontières & côtes
+  if (layers.borders){ ctx.strokeStyle='rgba(255,252,240,.85)'; ctx.lineWidth=Math.min(1.6,.55*zs); ctx.stroke(pathOf(D.bordersF)); }
+  ctx.strokeStyle='rgba(30,70,100,.55)'; ctx.lineWidth=Math.min(1.4,.5*zs); ctx.stroke(pathOf(D.coastF));
+
+  // éclairage 3D
+  g=ctx.createRadialGradient(cx-r*.4,cy-r*.45,r*.1,cx,cy,r*1.02);
+  g.addColorStop(0,'rgba(255,255,255,.10)'); g.addColorStop(.45,'rgba(255,255,255,0)'); g.addColorStop(.85,'rgba(0,8,30,.28)'); g.addColorStop(1,'rgba(0,6,24,.62)');
+  ctx.beginPath(); path({type:'Sphere'}); ctx.fillStyle=g; ctx.fill();
+
+  // noms des mers
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  if (layers.seas){
+    for (const [n,lon,lat,lvl] of SEAS){
+      if (lvl===1 && zoom<1.7) continue;
+      if (lvl===2 && zoom>7) continue;
+      const d=d3.geoDistance([lon,lat],ctr); if(d>1.3) continue;
+      const p=proj([lon,lat]); if(!p) continue;
+      ctx.globalAlpha=Math.min(1,(1.3-d)/.35);
+      if (lvl===2){ ctx.font=`600 ${Math.round(11+2*Math.min(zs,2))}px Inter,sans-serif`; if('letterSpacing' in ctx) ctx.letterSpacing='3px'; ctx.fillStyle='rgba(205,232,255,.62)'; ctx.fillText(n.toUpperCase(),p[0],p[1]); if('letterSpacing' in ctx) ctx.letterSpacing='0px'; }
+      else { ctx.font=`italic 500 ${Math.round(11+Math.min(zs,3))}px Fraunces,serif`; ctx.fillStyle='rgba(215,236,255,.78)'; ctx.fillText(n,p[0],p[1]); }
+    }
+    ctx.globalAlpha=1;
+  }
+  // noms des reliefs
+  if (layers.relief && layers.rnames && zoom>=1.4){
+    ctx.font=`italic 600 ${Math.round(10+Math.min(zs,3))}px Fraunces,serif`;
+    for (const rd of RIDGES){ const pt=rd.c[Math.floor(rd.c.length/2)]; if(!visible(pt,1.25)) continue; const p=proj(pt);
+      ctx.lineWidth=3; ctx.strokeStyle='rgba(255,250,235,.75)'; ctx.strokeText(rd.n,p[0],p[1]-10); ctx.fillStyle='#5b3b1c'; ctx.fillText(rd.n,p[0],p[1]-10); }
+    if (zoom>=2.2) for (const pl of [...PLATEAUS,...DESERTS]){ const pt=d3.geoCentroid({type:'Polygon',coordinates:[pl.c]}); if(!visible(pt,1.2)) continue; const p=proj(pt);
+      ctx.lineWidth=3; ctx.strokeStyle='rgba(255,250,235,.6)'; ctx.strokeText(pl.n,p[0],p[1]); ctx.fillStyle='#6b4a22'; ctx.fillText(pl.n,p[0],p[1]); }
+  }
+
+  // capitales ■
+  if (layers.caps){
+    const s = Math.max(3.2, Math.min(8, 2.6+zoom*.55));
+    const showNames = zoom>=4 && !moving && (!Q.active || Q.done);
+    for (const c of info.values()){
+      const ll=[c.lon,c.lat]; if(!visible(ll)) continue; const p=proj(ll);
+      ctx.fillStyle='#fffaf0'; ctx.strokeStyle='#2a1d12'; ctx.lineWidth=1.1;
+      ctx.fillRect(p[0]-s/2,p[1]-s/2,s,s); ctx.strokeRect(p[0]-s/2,p[1]-s/2,s,s);
+      if (showNames){
+        ctx.font='600 11px Inter,sans-serif'; ctx.textAlign='left'; ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,.8)';
+        ctx.strokeText(c.cap,p[0]+s,p[1]-s); ctx.fillStyle='#1d140b'; ctx.fillText(c.cap,p[0]+s,p[1]-s); ctx.textAlign='center';
+      }
+    }
+  }
+
+  // noms des pays (exploration seulement)
+  if (layers.cnames && !moving && (!Q.active || Q.done)){
+    ctx.font=`600 ${Math.round(10+Math.min(zs,2.5))}px Inter,sans-serif`;
+    for (const [id,f] of hiById){
+      const nm=nameOf(id); if(!nm || !visible(f.labelPt,1.3)) continue;
+      const a=pathA.area(f._main||mainPoly(f)); if(a<1800) continue;
+      const p=proj(f.labelPt); ctx.lineWidth=3; ctx.strokeStyle='rgba(20,30,20,.55)'; ctx.strokeText(nm,p[0],p[1]+10); ctx.fillStyle='#fff'; ctx.fillText(nm,p[0],p[1]+10);
+    }
+  }
+  // étiquettes des pays déjà demandés
+  if (Q.history.length){
+    ctx.font='600 12px Inter,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    const placed=[]; // évite que les étiquettes se chevauchent (les plus récentes d'abord)
+    for (let k=Q.history.length-1;k>=0;k--){ const h=Q.history[k];
+      if (Q.answered && Q.cur && Q.cur.id===h.id) continue;
+      const c=info.get(h.id); const f=hiById.get(h.id);
+      const pt = (h.mode==='cap' || !f) ? [c.lon,c.lat] : f.labelPt;
+      if (!visible(pt,1.45)) continue;
+      const p=proj(pt); const txt = h.mode==='cap' ? c.cap : c.name;
+      const w=ctx.measureText(txt).width+18, y=p[1]-(h.mode==='cap'?16:0);
+      const box=[p[0]-w/2-2,y-12,p[0]+w/2+2,y+12];
+      if (placed.some(q=>box[0]<q[2]&&box[2]>q[0]&&box[1]<q[3]&&box[3]>q[1])) continue;
+      placed.push(box);
+      ctx.fillStyle='rgba(8,14,26,.82)'; roundRect(p[0]-w/2,y-10,w,20,10); ctx.fill();
+      ctx.strokeStyle=h.color; ctx.lineWidth=1.5; ctx.stroke();
+      ctx.fillStyle='#fff'; ctx.fillText(txt,p[0],y+.5);
+    }
+  }
+}
+
+function renderOverlay(){
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  const fillId=(id,col,a)=>{ const f=hiById.get(id); if(!f) return; ctx.globalAlpha=a; ctx.beginPath(); path(f); ctx.fillStyle=col; ctx.fill(); ctx.globalAlpha=1; };
+  const strokeId=(id,col,w)=>{ const f=hiById.get(id); if(!f) return; ctx.beginPath(); path(f); ctx.strokeStyle=col; ctx.lineWidth=w; ctx.stroke(); };
+  if (Q.answered && Q.clicked){ fillId(Q.clicked,'#ff5a5f',.6); strokeId(Q.clicked,'#ffb3b5',1.6); }
+  if (Q.answered && Q.cur && Q.mode==='pays'){ fillId(Q.cur.id,'#2fd17a',.65); strokeId(Q.cur.id,'#d6ffe6',2); }
+  if (Q.active && Q.mode==='choix' && Q.cur && !Q.answered){
+    const t=Q.cur, tf=hiById.get(t.id);
+    if (tf){ fillId(t.id,'#f2c14e',.7); strokeId(t.id,'#fff3cf',2); }
+    if (!tf || tf.area<6e-5){ const ll=[t.lon,t.lat]; if(visible(ll)){ const p=proj(ll); ctx.beginPath(); ctx.arc(p[0],p[1],16,0,7); ctx.strokeStyle='#f2c14e'; ctx.lineWidth=3; ctx.stroke(); } }
+    const lp=tf?tf.labelPt:[t.lon,t.lat];
+    if (visible(lp)){ const p=proj(lp); ctx.font='700 14px Inter,sans-serif'; const w=ctx.measureText(t.name).width+16; ctx.fillStyle='rgba(40,28,4,.9)'; roundRect(p[0]-w/2,p[1]-34,w,24,7); ctx.fill(); ctx.fillStyle='#ffe3a1'; ctx.fillText(t.name,p[0],p[1]-22); }
+  }
+  if (Q.answered && Q.cur && Q.mode==='choix'){ fillId(Q.cur.id, Q.ok?Q.pl.color:MISS, .65); }
+  if (selectedId){ fillId(selectedId,'#f2c14e',.55); strokeId(selectedId,'#fff3cf',1.8); }
+  if (hoverId && hoverId!==selectedId) fillId(hoverId,'#ffffff',.25);
+
+  if (Q.answered && Q.cur){
+    const t=Q.cur;
+    if (Q.clickPt && Q.targetPt && !Q.ok){
+      ctx.beginPath(); path({type:'LineString',coordinates:[Q.clickPt,Q.targetPt]}); ctx.setLineDash([6,5]); ctx.strokeStyle='rgba(255,255,255,.9)'; ctx.lineWidth=1.6; ctx.stroke(); ctx.setLineDash([]);
+    }
+    if (Q.clickPt && visible(Q.clickPt)){ const p=proj(Q.clickPt); ctx.beginPath(); ctx.arc(p[0],p[1],5,0,7); ctx.fillStyle=Q.ok?'#2fd17a':'#ff5a5f'; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke(); }
+    const tf=hiById.get(t.id);
+    const cl=[t.lon,t.lat];
+    if (visible(cl)){ const p=proj(cl); const s=Math.max(5,Math.min(11,4+zoom*.6)); ctx.fillStyle='#2fd17a'; ctx.strokeStyle='#08311b'; ctx.lineWidth=1.4; ctx.fillRect(p[0]-s/2,p[1]-s/2,s,s); ctx.strokeRect(p[0]-s/2,p[1]-s/2,s,s);
+      if (Q.mode==='cap' || !tf || tf.area<6e-5){ ctx.beginPath(); ctx.arc(p[0],p[1],15,0,7); ctx.strokeStyle='#2fd17a'; ctx.lineWidth=2.5; ctx.stroke(); ctx.beginPath(); ctx.arc(p[0],p[1],22,0,7); ctx.strokeStyle='rgba(47,209,122,.4)'; ctx.lineWidth=2; ctx.stroke(); } }
+    const lp = Q.mode==='cap' ? cl : (tf ? tf.labelPt : cl);
+    if (Q.online && Q.others) for (const o of Q.others){ if(!visible(o.ll)) continue; const p=proj(o.ll);
+      ctx.beginPath(); ctx.arc(p[0],p[1],6,0,7); ctx.fillStyle=o.color; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke();
+      ctx.font='600 11px Inter,sans-serif'; ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,.65)'; ctx.strokeText(o.name,p[0],p[1]+15); ctx.fillStyle='#fff'; ctx.fillText(o.name,p[0],p[1]+15); }
+    if (visible(lp)){ const p=proj(lp); const txt = Q.mode==='cap' ? t.cap : t.name;
+      ctx.font='700 14px Inter,sans-serif'; const w=ctx.measureText(txt).width+16;
+      ctx.fillStyle='rgba(10,40,24,.9)'; roundRect(p[0]-w/2,p[1]-34,w,24,7); ctx.fill(); ctx.fillStyle='#bdf5d3'; ctx.fillText(txt,p[0],p[1]-22); }
+  }
+}
+function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+// ---------- Détection ----------
+function inBox(b,[lon,lat]){ if(lat<b[0][1]-.01||lat>b[1][1]+.01) return false; return b[0][0]<=b[1][0] ? (lon>=b[0][0]-.01&&lon<=b[1][0]+.01) : (lon>=b[0][0]||lon<=b[1][0]); }
+function featureAt(ll){
+  let best=null;
+  for (const f of HI.countries){ if(!inBox(f.bbox,ll)) continue; if(d3.geoContains(f,ll)){ const id=f.id; if(!best || (hiById.get(id)?.area||1) < (hiById.get(best)?.area||1)) best=id; } }
+  return best;
+}
+function invertPt(x,y){ const [tx,ty]=proj.translate(); if(Math.hypot(x-tx,y-ty)>proj.scale()) return null; const ll=proj.invert([x,y]); return ll && isFinite(ll[0]) ? ll : null; }
+function nearest(ll,t){
+  const f=hiById.get(t.id);
+  if (!f) return {d:d3.geoDistance(ll,[t.lon,t.lat])*R_EARTH, p:[t.lon,t.lat]};
+  let bd=Infinity,bp=null; const g=f.geometry; const polys=g.type==='Polygon'?[g.coordinates]:g.coordinates;
+  for (const poly of polys) for (const ring of poly) for (let i=0;i<ring.length;i+= (ring.length>4000?3:1)){ const d=d3.geoDistance(ll,ring[i]); if(d<bd){bd=d;bp=ring[i];} }
+  return {d:bd*R_EARTH, p:bp};
+}
+
+// ---------- Interactions ----------
+const tip=$('#tooltip');
+const pointers=new Map(); let drag=null, pinch=null, lastMoveT=0, hoverPending=null;
+cv.addEventListener('pointerdown', e=>{
+  cv.setPointerCapture(e.pointerId); pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  autoSpin=false; anim=null; vel=[0,0];
+  if (pointers.size===1){ drag={x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,moved:false}; }
+  else if (pointers.size===2){ const [a,b]=[...pointers.values()]; pinch={d:Math.hypot(a.x-b.x,a.y-b.y), z:zoom}; drag=null; dragging=true; }
+});
+cv.addEventListener('pointermove', e=>{
+  if (pointers.has(e.pointerId)) pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if (pinch && pointers.size===2){ const [a,b]=[...pointers.values()]; zoom=Math.max(ZMIN,Math.min(ZMAX,pinch.z*Math.hypot(a.x-b.x,a.y-b.y)/pinch.d)); req(); return; }
+  if (drag){
+    const dx=e.clientX-drag.x, dy=e.clientY-drag.y; drag.x=e.clientX; drag.y=e.clientY;
+    if (!drag.moved && Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)>4){ drag.moved=true; dragging=true; cv.classList.add('dragging'); tip.style.display='none'; }
+    if (drag.moved){ const k=57.2958/(base*zoom); rot[0]+=dx*k; rot[1]=clampLat(rot[1]-dy*k); vel=[dx*k,-dy*k]; lastMoveT=performance.now(); req(); }
+    return;
+  }
+  if (e.pointerType==='mouse'){ hoverPending=[e.clientX,e.clientY]; requestAnimationFrame(doHover); }
+});
+function endPointer(e){
+  pointers.delete(e.pointerId);
+  if (pinch){ if(pointers.size<2){ pinch=null; dragging=false; drag=null; req(); } return; }
+  if (drag){
+    if (!drag.moved) handleClick(e.clientX,e.clientY);
+    else if (performance.now()-lastMoveT>80) vel=[0,0];
+    drag=null; dragging=false; cv.classList.remove('dragging'); req();
+  }
+}
+cv.addEventListener('pointerup', endPointer); cv.addEventListener('pointercancel', endPointer);
+cv.addEventListener('pointerleave', ()=>{ if(!drag){ hoverId=null; tip.style.display='none'; req(); } });
+cv.addEventListener('wheel', e=>{ e.preventDefault(); autoSpin=false; anim=null; zoom=Math.max(ZMIN,Math.min(ZMAX,zoom*Math.exp(-e.deltaY*0.0016))); markWheel(); req(); }, {passive:false});
+function doHover(){
+  if (!hoverPending) return; const [x,y]=hoverPending; hoverPending=null;
+  const ll=invertPt(x,y); const id = ll ? featureAt(ll) : null;
+  if (id!==hoverId){ hoverId=id; req(); }
+  const quizHidden = Q.active && !Q.done;
+  if (id && !quizHidden){
+    const c=info.get(id); const nm=nameOf(id);
+    if (nm){ tip.innerHTML = `<b>${nm}</b>${c?`<small>Capitale : ${c.cap}</small>`:''}`; tip.style.left=x+'px'; tip.style.top=y+'px'; tip.style.display='block'; return; }
+  }
+  tip.style.display='none';
+}
+$('#zin').onclick=()=>{ animateTo(center(), zoom*1.6, 400); };
+$('#zout').onclick=()=>{ animateTo(center(), zoom/1.6, 400); };
+$('#zreset').onclick=()=>{ animateTo(center(), 1, 700); };
+
+function handleClick(x,y){
+  const ll=invertPt(x,y); if(!ll) return;
+  if (Q.active && !Q.answered){ if (Q.mode!=='choix') answer(ll,x,y); return; }
+  if (Q.active && !Q.done) return;
+  const id=featureAt(ll);
+  selectedId = (id && nameOf(id)) ? id : null;
+  showInfo(selectedId); req();
+}
+function showInfo(id){
+  const box=$('#info');
+  if (!id || Q.active){ box.classList.add('hidden'); return; }
+  const c=info.get(id);
+  box.innerHTML = c ? `<div class="nm">${c.name}</div><div class="sub">Capitale : <b>${c.cap}</b> · ${REGIONS[c.reg]}</div>` : `<div class="nm">${nameOf(id)}</div><div class="sub">Territoire (non posé dans le quiz)</div>`;
+  box.classList.remove('hidden');
+}
+
+// ---------- Calques ----------
+document.querySelectorAll('.layers input').forEach(inp=>{
+  inp.addEventListener('change', ()=>{ layers[inp.dataset.l]=inp.checked; req(); });
+});
+
+// ---------- Quiz ----------
+const FRANCE_VIEW = [2.4, 46.6];
+const PCOLORS = ['#2fd17a','#4ea8ff','#ff9f43','#d27dff','#ff6fae','#3fd9d9','#f2e34e','#c9a37a'];
+const MISS = '#e5484d';
+const HINT_PEN = 250, SKIP_PEN = 5000, TIME_PEN = 10; // TIME_PEN : points par seconde // pénalités : indice, question passée
+const Q = {active:false, mode:'pays', bonus:new Set(), done:false, inBonus:false, hints:0, bonusPts:0, dPts:0, dkm:0, sub:'flag', steps:[], step:0, wrong:0, stepRes:[], locked:false, region:'ALL', n:10, np:1, players:[], pl:null, list:[], i:0, ok:false, answered:false, hint:false, cur:null, results:[], history:[], clicked:null, clickPt:null, targetPt:null};
+function seg(id, key){ const el=$(id); el.addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; el.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); Q[key] = (key==='n'||key==='np') ? +b.dataset.v : b.dataset.v; if(key==='np') renderNames(); if(key==='mode') $('#bonus-wrap').classList.toggle('hidden', Q.mode!=='pays'); showBest(); }); }
+seg('#seg-mode','mode');
+$('#chips').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; const k=b.dataset.k; if(Q.bonus.has(k)) Q.bonus.delete(k); else Q.bonus.add(k); b.classList.toggle('on', Q.bonus.has(k)); showBest(); }); seg('#seg-n','n'); seg('#seg-p','np');
+$('#sel-region').addEventListener('change', e=>{ Q.region=e.target.value; showBest(); });
+
+const savedNames = ['','','',''];
+function renderNames(){
+  const box=$('#pnames');
+  box.querySelectorAll('input').forEach((inp,k)=>savedNames[k]=inp.value);
+  box.innerHTML='';
+  if (Q.np<2) return;
+  for (let k=0;k<Q.np;k++){
+    const inp=document.createElement('input'); inp.id='pn'+k; inp.maxLength=16; inp.placeholder=`Joueur ${k+1}`; inp.value=savedNames[k]||'';
+    inp.style.setProperty('--c',PCOLORS[k]); box.appendChild(inp);
+  }
+}
+
+const bestKey = () => `geoglobe3:${Q.mode}${Q.mode==='pays'?'-'+[...Q.bonus].sort().join(''):''}:${Q.region}:${Q.n}`;
+function getBest(){ try{ const v=localStorage.getItem(bestKey()); return v==null?null:+v; }catch(e){ return null; } }
+function setBest(v){ try{ localStorage.setItem(bestKey(), v); }catch(e){} }
+function showBest(){ const b=Q.np===1?getBest():null; $('#best').textContent = b!=null ? `Record pour ces réglages : ${b.toLocaleString('fr-FR')} pts (le moins possible !)` : ''; }
+
+function view(v){ ['setup','quiz','end'].forEach(k=>$('#v-'+k).classList.toggle('hidden',k!==v)); }
+const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function board(el, highlight){
+  const multi=Q.players.length>1;
+  el.classList.toggle('hidden', !multi);
+  if (!multi) return;
+  const list = Q.online ? Q.players.slice().sort((a,b)=>a.score-b.score) : Q.players;
+  el.innerHTML = list.map(p=>`<div class="p${p===highlight?' cur':''}" style="--c:${p.color}"><span class="dot"></span>${esc(p.name)}${Q.online && Q.active && p.got.has(Q.i)?' <span class="okc">✓</span>':''}<span class="sub">${p.ok}/${p.n}</span><b>${p.score.toLocaleString('fr-FR')}</b></div>`).join('');
+}
+async function start(){
+  if (Q.mode==='pays' && Q.bonus.has('flag') && !FLAGS){
+    const b=$('#b-start'), old=b.textContent; b.textContent='Chargement des drapeaux…'; b.disabled=true;
+    await flagsReady; b.textContent=old; b.disabled=false;
+    if (!FLAGS){ $('#best').textContent="Impossible de charger les drapeaux (connexion ?). Décoche le bonus « Drapeau »."; return; }
+  }
+  let pool=[...info.values()].filter(c=>Q.region==='ALL'||c.reg===Q.region);
+  d3.shuffle(pool);
+  Q.online=false;
+  const np=Q.np||1;
+  Q.players=[...Array(np)].map((_,k)=>({ name:(document.querySelector('#pn'+k)?.value.trim()) || (np===1?'Joueur':`Joueur ${k+1}`), color:PCOLORS[k], score:0, ok:0, n:0, d:[] }));
+  Q.list = Q.n ? pool.slice(0, Q.n*np) : pool;
+  if (Q.list.length>np) Q.list = Q.list.slice(0, Q.list.length - Q.list.length%np); // même nombre de questions pour chacun
+  Q.i=0; Q.results=[]; Q.history=[]; Q.active=true; selectedId=null; showInfo(null);
+  $('#q-tot').textContent=Q.list.length;
+  view('quiz'); ask();
+}
+function ask(){
+  const t=Q.cur=Q.list[Q.i];
+  const pl=Q.pl= Q.online ? Q.players[Q.me] : Q.players[Q.i % Q.players.length];
+  Q.others=[]; Q.firstDone=0; Q.advanced=false; $('#q-wait').hidden=true;
+  Q.answered=false; Q.hint=false; Q.clicked=null; Q.clickPt=null; Q.targetPt=null; Q.ok=false;
+  $('#q-num').textContent=Q.i+1; $('#q-score').textContent=pl.score.toLocaleString('fr-FR');
+  $('#q-bar').style.width=(Q.i/Q.list.length*100)+'%';
+  const turn=$('#q-turn');
+  if (Q.players.length>1 && !Q.online){ turn.classList.remove('hidden'); turn.style.setProperty('--c',pl.color); turn.innerHTML=`<span class="dot"></span>Au tour de <b>${esc(pl.name)}</b>`; }
+  else turn.classList.add('hidden');
+  board($('#q-board'), pl);
+  $('#q-ask').textContent = Q.mode==='pays' ? 'Où se trouve…' : 'Où se trouve la capitale…';
+  $('#q-target').textContent = Q.mode==='pays' ? t.name : t.cap;
+  $('#q-hint').classList.add('hidden'); $('#q-fb').innerHTML='';
+  $('#q-actions').classList.remove('hidden'); $('#b-next').classList.add('hidden'); $('#b-hint').disabled=false;
+  $('#q-opts').innerHTML=''; $('#q-opts').className='opts'; $('#q-step').classList.add('hidden');
+  Q.locked=false; Q.done=false; Q.inBonus=false; Q.hints=0; Q.bonusPts=0; Q.wrong=0; Q.stepRes=[]; Q.dPts=0; Q.dkm=0;
+  tip.style.display='none'; selectedId=null;
+  animateTo(FRANCE_VIEW, 1, 900); // recentre sur la France, globe entier visible
+  startTimer();
+}
+function record(t, ok, dkm, pts, skipped, sec){
+  const pl=Q.pl;
+  pl.score+=pts; pl.n++; if(ok) pl.ok++; if(dkm!=null) pl.d.push(dkm); pl.t=(pl.t||0)+sec;
+  Q.results.push({c:t, ok, dkm, pts, skipped, pl, sec, wrongN: Q.wrong});
+  Q.history.push({id:t.id, ok, color: ok ? pl.color : MISS, mode:Q.mode});
+  $('#q-score').textContent=pl.score.toLocaleString('fr-FR');
+  board($('#q-board'), pl);
+}
+function answer(ll,x,y){
+  const t=Q.cur; let ok=false, dkm=0, tp=[t.lon,t.lat];
+  const tf=hiById.get(t.id);
+  if (Q.mode==='pays'){
+    const id=featureAt(ll);
+    ok = id===t.id;
+    if (!ok && (!tf || tf.area<6e-5)) ok = d3.geoDistance(ll,[t.lon,t.lat])*R_EARTH < 150;
+    Q.clicked = (!ok && id && id!==t.id) ? id : null;
+    if (!ok){ const r=nearest(ll,t); dkm=r.d; tp=r.p; } else tp = tf ? tf.labelPt : tp;
+  } else {
+    dkm=d3.geoDistance(ll,[t.lon,t.lat])*R_EARTH;
+    const p=proj([t.lon,t.lat]);
+    ok = dkm<100 || (visible([t.lon,t.lat]) && Math.hypot(p[0]-x,p[1]-y)<12);
+    if (ok) dkm=0;
+  }
+  Q.ok=ok; Q.answered=true; Q.clickPt=ll; Q.targetPt=tp;
+  ok ? Snd.ok() : Snd.ko();
+  Q.dkm = ok?0:dkm; Q.dPts = ok?0:Math.round(dkm);   // 1 km d'écart = 1 point
+  const clickedName = Q.clicked ? nameOf(Q.clicked) : null;
+  const what = Q.mode==='pays' ? t.name : `${t.cap}`;
+  const msg = ok
+    ? (Q.mode==='pays'?`<b>${t.name}</b>${Q.bonus.has('cap')?'':` — capitale : ${t.cap}`}.`:`<b>${t.cap}</b> est la capitale de ${t.name}.`)
+    : `${Q.mode==='pays' && clickedName?`Tu as cliqué sur <b>${clickedName}</b>. `:''}<b>${what}</b> ${Q.mode==='cap'?`(${t.name}) `:''}était à <b>${fmtKm(dkm)}</b> de ton clic.${Q.mode==='pays' && !Q.bonus.has('cap')?` Capitale : ${t.cap}.`:''}`;
+  $('#q-fb').innerHTML = `<div class="fb ${ok?'ok':'ko'}"><span class="pts" id="fb-pts"></span><div class="t">${ok?'Bravo !':'Raté…'}</div>${msg}<div class="bonus" id="fb-bonus"></div><div class="detail" id="fb-detail"></div></div>`;
+  $('#q-hint').classList.add('hidden');
+  finishQuestion(tp, ll);
+  if (Q.mode==='pays' && Q.bonus.size) startBonus(); else finalize(false);
+}
+function finishQuestion(tp, ll){ // recentre le globe sur la bonne réponse
+  const t=Q.cur; const tf=hiById.get(t.id);
+  let z = zoom;
+  if (Q.mode==='pays' && tf){ const b=d3.geoBounds(mainPoly(tf)); let lonSpan=b[1][0]-b[0][0]; if(lonSpan<0) lonSpan+=360; const span=Math.max(b[1][1]-b[0][1], lonSpan*Math.cos(tf.labelPt[1]*Math.PI/180)); z=Math.max(1,Math.min(9,48/Math.max(span,1))); }
+  else z=Math.max(zoom,3);
+  const focus = Q.mode==='pays' && tf ? tf.labelPt : [t.lon,t.lat];
+  if (ll){ const ang=d3.geoDistance(ll,focus); if(ang>0.05) z=Math.min(z, Math.max(1, 1.15/ang)); }
+  animateTo(focus, z, 1100);
+}
+let timerId=null;
+const fmtS = s => s.toLocaleString('fr-FR',{minimumFractionDigits:1,maximumFractionDigits:1})+' s';
+function startTimer(){
+  Q.t0=performance.now(); clearInterval(timerId);
+  const el=$('#q-chrono'); el.classList.remove('stopped');
+  const tick=()=>{ const sec=(performance.now()-Q.t0)/1000; el.innerHTML=`<span class="ic">⏱</span><span class="tv">${fmtS(sec)}</span><span class="tp">+${Math.round(sec*TIME_PEN).toLocaleString('fr-FR')} pts</span>`; };
+  tick(); timerId=setInterval(tick,100);
+}
+function stopTimer(){ clearInterval(timerId); timerId=null; $('#q-chrono').classList.add('stopped'); return (performance.now()-Q.t0)/1000; }
+function fmtKm(d){ return d<10 ? 'moins de 10 km' : Math.round(d).toLocaleString('fr-FR')+' km'; }
+
+
+// ---------- Questions bonus (après avoir situé le pays) ----------
+const WRONG_PEN = 1000, NB_OPTS = 20;
+const BONUS_ORDER = ['flag','cap','cur','lang','pop'];
+const BONUS_LBL = {flag:'Drapeau', cap:'Capitale', cur:'Monnaie', lang:'Langue officielle', pop:"Nombre d'habitants"};
+const BONUS_Q = {flag:'Quel est le drapeau de…', cap:'Quelle est la capitale de…', cur:'Quelle est la monnaie de…', lang:'Quelle est une langue officielle de…', pop:"Combien d'habitants compte…"};
+const ISO2 = Object.fromEntries(('ALB:AL AND:AD AUT:AT BEL:BE BGR:BG BIH:BA BLR:BY CHE:CH CYP:CY CZE:CZ DEU:DE DNK:DK ESP:ES EST:EE FIN:FI FRA:FR GBR:GB GRC:GR HRV:HR HUN:HU IRL:IE ISL:IS ITA:IT XKX:XK LIE:LI LTU:LT LUX:LU LVA:LV MCO:MC MDA:MD MKD:MK MLT:MT MNE:ME NLD:NL NOR:NO POL:PL PRT:PT ROU:RO RUS:RU SMR:SM SRB:RS SVK:SK SVN:SI SWE:SE UKR:UA VAT:VA '+
+ 'AFG:AF ARE:AE ARM:AM AZE:AZ BGD:BD BHR:BH BRN:BN BTN:BT CHN:CN GEO:GE IDN:ID IND:IN IRN:IR IRQ:IQ ISR:IL JOR:JO JPN:JP KAZ:KZ KGZ:KG KHM:KH KOR:KR KWT:KW LAO:LA LBN:LB LKA:LK MDV:MV MMR:MM MNG:MN MYS:MY NPL:NP OMN:OM PAK:PK PHL:PH PRK:KP PSE:PS QAT:QA SAU:SA SGP:SG SYR:SY THA:TH TJK:TJ TKM:TM TLS:TL TUR:TR TWN:TW UZB:UZ VNM:VN YEM:YE '+
+ 'AGO:AO BDI:BI BEN:BJ BFA:BF BWA:BW CAF:CF CIV:CI CMR:CM COD:CD COG:CG COM:KM CPV:CV DJI:DJ DZA:DZ EGY:EG ERI:ER ETH:ET GAB:GA GHA:GH GIN:GN GMB:GM GNB:GW GNQ:GQ KEN:KE LBR:LR LBY:LY LSO:LS MAR:MA MDG:MG MLI:ML MOZ:MZ MRT:MR MUS:MU MWI:MW NAM:NA NER:NE NGA:NG RWA:RW SDN:SD SEN:SN SLE:SL SOM:SO SSD:SS STP:ST SWZ:SZ SYC:SC TCD:TD TGO:TG TUN:TN TZA:TZ UGA:UG ZAF:ZA ZMB:ZM ZWE:ZW '+
+ 'ATG:AG BHS:BS BLZ:BZ BRB:BB CAN:CA CRI:CR CUB:CU DMA:DM DOM:DO GRD:GD GTM:GT HND:HN HTI:HT JAM:JM KNA:KN LCA:LC MEX:MX NIC:NI PAN:PA SLV:SV TTO:TT USA:US VCT:VC '+
+ 'ARG:AR BOL:BO BRA:BR CHL:CL COL:CO ECU:EC GUY:GY PER:PE PRY:PY SUR:SR URY:UY VEN:VE AUS:AU FJI:FJ FSM:FM KIR:KI MHL:MH NRU:NR NZL:NZ PLW:PW PNG:PG SLB:SB TON:TO TUV:TV VUT:VU WSM:WS').split(' ').map(p=>p.split(':')));
+let FLAGS=null;
+const flagsReady = import('https://cdn.jsdelivr.net/npm/country-flag-icons@1.6.20/string/3x2/+esm').then(m=>{ FLAGS=m; return m; }).catch(()=>null);
+const flagCache=new Map();
+function flagURI(id){
+  if (flagCache.has(id)) return flagCache.get(id);
+  const svg = FLAGS && FLAGS[ISO2[id]]; const u = svg ? 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg) : null;
+  flagCache.set(id,u); return u;
+}
+const cap1 = s => s.charAt(0).toUpperCase()+s.slice(1);
+function valuesOf(c, kind){
+  if (kind==='cap') return [c.cap];
+  if (kind==='flag') return [c.id];
+  const e=EXTRA.get(c.id); return e ? e[kind] : [];
+}
+// 20 propositions uniques : la bonne + des leurres pris surtout dans la même région
+function pickOptions(t, kind){
+  // en ligne, tout le monde voit les mêmes propositions (hasard calculé à partir de la question)
+  const rnd = Q.online ? mulberry(hashStr(Q.seed+':'+Q.i+':'+kind)) : Math.random, shuffle = d3.shuffler(rnd);
+  const good=valuesOf(t,kind), goodSet=new Set(good);
+  const correct = good[Math.floor(rnd()*good.length)];
+  const others=[...info.values()].filter(c=>c.id!==t.id && (kind!=='flag' || flagURI(c.id)));
+  const same=shuffle(others.filter(c=>c.reg===t.reg)), rest=shuffle(others.filter(c=>c.reg!==t.reg));
+  const opts=[{v:correct, ok:true}], seen=new Set(good);
+  const take = list => { for (const c of list){ if(opts.length>=NB_OPTS) return; for (const v of shuffle(valuesOf(c,kind).slice())){ if(seen.has(v)) continue; seen.add(v); opts.push({v, ok:false}); break; } } };
+  take(same.slice(0,12)); take(rest); take(same.slice(12));
+  return shuffle(opts);
+}
+function startBonus(){
+  Q.steps = BONUS_ORDER.filter(k=>Q.bonus.has(k) && (k!=='flag' || FLAGS));
+  Q.step=0; Q.inBonus=true;
+  $('#q-actions').classList.remove('hidden');
+  renderStep();
+}
+function renderStep(){
+  const kind=Q.steps[Q.step], t=Q.cur;
+  $('#q-ask').textContent = BONUS_Q[kind];
+  $('#q-target').textContent = t.name;
+  const st=$('#q-step'); st.classList.remove('hidden');
+  st.textContent = `Bonus ${Q.step+1}/${Q.steps.length} · ${BONUS_LBL[kind]}`;
+  $('#b-hint').disabled = kind==='pop';
+  $('#q-hint').classList.add('hidden');
+  const box=$('#q-opts'); box.innerHTML='';
+  if (kind==='pop'){ renderPop(box); }
+  else {
+    box.className='opts '+(kind==='flag'?'flags':'caps');
+    for (const o of pickOptions(t, kind)){
+      const b=document.createElement('button'); b.className='opt '+(kind==='flag'?'flag':'cap'); b.dataset.ok=o.ok?'1':'';
+      if (kind==='flag'){ const im=document.createElement('img'); im.src=flagURI(o.v); im.alt='drapeau'; im.draggable=false; b.appendChild(im); }
+      else b.textContent = kind==='lang' ? cap1(o.v) : o.v;
+      b.onclick=()=>choose(b);
+      box.appendChild(b);
+    }
+  }
+  setTimeout(()=>box.scrollIntoView({block:'nearest',behavior:'smooth'}),30);
+}
+const POP_MIN=4, POP_MAX=9.3; // 10^4 à 2 milliards
+const sliderToPop = x => Math.pow(10, POP_MIN + (POP_MAX-POP_MIN)*x/1000);
+function fmtPop(n){
+  if (n>=1e9) return (n/1e9).toLocaleString('fr-FR',{maximumFractionDigits:2})+' milliard'+(n>=2e9?'s':'');
+  if (n>=1e6) return (n/1e6).toLocaleString('fr-FR',{maximumFractionDigits:n<1e7?2:(n<1e8?1:0)})+' million'+(n>=2e6?'s':'');
+  if (n>=1e4) return (Math.round(n/1000)*1000).toLocaleString('fr-FR');
+  return (Math.round(n/100)*100).toLocaleString('fr-FR');
+}
+function renderPop(box){
+  box.className='opts pop';
+  box.innerHTML=`<div class="popv" id="pop-v"></div><input type="range" id="pop-r" min="0" max="1000" value="560"><div class="popscale"><span>10 000</span><span>1 M</span><span>100 M</span><span>2 Md</span></div><button class="btn primary" id="pop-ok">Valider</button>`;
+  const r=$('#pop-r'), v=$('#pop-v'); const upd=()=>v.textContent=fmtPop(sliderToPop(+r.value)); r.oninput=upd; upd();
+  $('#pop-ok').onclick=()=>choosePop(sliderToPop(+r.value));
+}
+// population : 0 point à ±10 %, sinon 1000 × log10(écart) → ×2 = 301 pts, ×10 = 1000 pts
+function popPenalty(g,a){ const r=Math.max(g/a,a/g); return r<=1.1 ? 0 : Math.round(1000*Math.log10(r)); }
+function stepDone(kind, ok, pts, txt){
+  Q.bonusPts+=pts; if(!ok) Q.wrong++;
+  ok ? Snd.ok() : Snd.ko();
+  Q.stepRes.push({kind, ok, pts});
+  $('#fb-bonus').insertAdjacentHTML('beforeend', `<div class="bl"><span>${BONUS_LBL[kind]} ${ok?'<span class="okc">✓</span>':'<span class="koc">✗</span>'}</span><span class="bv">${txt}</span><span class="bp">+${pts.toLocaleString('fr-FR')}</span></div>`);
+  Q.locked=true;
+  setTimeout(()=>{ Q.locked=false; if(!Q.active) return;
+    if (Q.step < Q.steps.length-1){ Q.step++; renderStep(); } else { Q.inBonus=false; $('#q-step').classList.add('hidden'); finalize(false); }
+  }, ok?700:1500);
+}
+function correctLabel(kind){
+  const t=Q.cur;
+  if (kind==='flag') return flagURI(t.id)?`<img class="mini" src="${flagURI(t.id)}" alt="">`:'';
+  if (kind==='cap') return t.cap;
+  if (kind==='lang') return EXTRA.get(t.id).lang.map(cap1).join(', ');
+  if (kind==='cur') return EXTRA.get(t.id).cur.join(' / ');
+  return '';
+}
+function choose(btn){
+  if (!Q.active || !Q.inBonus || Q.locked) return;
+  const kind=Q.steps[Q.step], ok=btn.dataset.ok==='1';
+  $('#q-opts').querySelectorAll('.opt').forEach(b=>{ b.disabled=true; if(b.dataset.ok==='1') b.classList.add('ok'); else if(b===btn) b.classList.add('ko'); });
+  stepDone(kind, ok, ok?0:WRONG_PEN, correctLabel(kind));
+}
+function choosePop(g){
+  if (!Q.active || !Q.inBonus || Q.locked) return;
+  const a=EXTRA.get(Q.cur.id).pop, pts=popPenalty(g,a), ok=pts===0;
+  $('#pop-ok').disabled=true; $('#pop-r').disabled=true;
+  $('#pop-v').innerHTML=`Ta réponse : ${fmtPop(g)}<br><span class="okc">Réponse : ${fmtPop(a)}</span>`;
+  stepDone('pop', ok, pts, `${fmtPop(a)}`);
+}
+function skipStep(){ // passer une question bonus = comme une erreur
+  const kind=Q.steps[Q.step];
+  if (kind==='pop'){ $('#pop-ok').disabled=true; $('#pop-r').disabled=true; stepDone('pop', false, WRONG_PEN, fmtPop(EXTRA.get(Q.cur.id).pop)); }
+  else { $('#q-opts').querySelectorAll('.opt').forEach(b=>{ b.disabled=true; if(b.dataset.ok==='1') b.classList.add('ok'); }); stepDone(kind, false, WRONG_PEN, correctLabel(kind)); }
+}
+function hintStep(){
+  const wrong=[...$('#q-opts').querySelectorAll('.opt')].filter(b=>b.dataset.ok!=='1' && !b.disabled);
+  d3.shuffle(wrong).slice(0, Math.floor(NB_OPTS/2)).forEach(b=>{ b.disabled=true; b.classList.add('gone'); });
+  $('#q-hint').innerHTML = `10 mauvaises propositions retirées. <span style="opacity:.7">(+${HINT_PEN} pts)</span>`;
+  $('#q-hint').classList.remove('hidden');
+}
+// fin de la question : on additionne tout
+function finalize(skipped){
+  if (Q.done) return;
+  const t=Q.cur, sec=stopTimer(), tPts=Math.round(sec*TIME_PEN);
+  const base = skipped ? SKIP_PEN : Q.dPts;
+  const pts = base + Q.bonusPts + tPts + Q.hints*HINT_PEN;
+  Q.done=true;
+  record(t, !skipped && Q.ok, skipped?null:Q.dkm, pts, skipped, sec);
+  $('#fb-pts').textContent='+'+pts.toLocaleString('fr-FR');
+  const parts=[ skipped ? `Passée : +${SKIP_PEN.toLocaleString('fr-FR')}` : `${Q.mode==='cap'?'Distance':'Position'} : +${Q.dPts.toLocaleString('fr-FR')}` ];
+  if (Q.stepRes.length) parts.push(`Bonus : +${Q.bonusPts.toLocaleString('fr-FR')}`);
+  parts.push(`Temps (${fmtS(sec)}) : +${tPts.toLocaleString('fr-FR')}`);
+  if (Q.hints) parts.push(`Indice${Q.hints>1?'s':''} : +${(Q.hints*HINT_PEN).toLocaleString('fr-FR')}`);
+  $('#fb-detail').textContent = parts.join(' · ');
+  $('#q-actions').classList.add('hidden'); $('#b-next').classList.remove('hidden');
+  const last = Q.i>=Q.list.length-1;
+  $('#b-next').innerHTML = last ? 'Voir les résultats <kbd>Entrée</kbd>' : (Q.players.length>1 ? `Joueur suivant : ${esc(Q.players[(Q.i+1)%Q.players.length].name)} <kbd>Entrée</kbd>` : 'Suivant <kbd>Entrée</kbd>');
+  $('#b-next').focus({preventScroll:true});
+  setTimeout(()=>$('#b-next').scrollIntoView({block:'nearest',behavior:'smooth'}),60);
+  if (Q.online){ $('#b-next').classList.add('hidden'); netDone(pts, !skipped && Q.ok, skipped?null:Q.dkm, sec, skipped); }
+  req();
+}
+
+$('#b-start').onclick=start;
+$('#b-skip').onclick=()=>{
+  if (!Q.active || Q.done || Q.locked) return;
+  if (Q.inBonus){ skipStep(); return; }
+  if (Q.answered) return;
+  const t=Q.cur; Q.answered=true; Q.ok=false;
+  $('#q-fb').innerHTML=`<div class="fb ko"><span class="pts" id="fb-pts"></span><div class="t">Passé</div>${Q.mode==='pays'?`Voici <b>${t.name}</b> (capitale : ${t.cap}).`:`Voici <b>${t.cap}</b>, capitale de ${t.name}.`}<div class="bonus" id="fb-bonus"></div><div class="detail" id="fb-detail"></div></div>`;
+  $('#q-hint').classList.add('hidden');
+  finishQuestion(null,null); finalize(true);
+};
+$('#b-hint').onclick=()=>{
+  if (!Q.active || Q.done || Q.locked) return;
+  Q.hints++; $('#b-hint').disabled=true;
+  if (Q.inBonus){ hintStep(); return; }
+  const t=Q.cur;
+  const nb=[...(neighborsOf.get(t.id)||[])].map(nameOf).filter(Boolean);
+  let h = `Continent : <b>${REGIONS[t.reg]}</b>. `;
+  if (Q.mode==='cap') h += `C'est la capitale de <b>${t.name}</b>.`;
+  else h += nb.length ? `Pays voisins : ${nb.slice(0,5).join(', ')}${nb.length>5?'…':''}.` : `Pas de frontière terrestre (pays insulaire).${Q.bonus.has('cap')?'':` Capitale : ${t.cap}.`}`;
+  $('#q-hint').innerHTML = h + ` <span style="opacity:.7">(+${HINT_PEN} pts)</span>`;
+  $('#q-hint').classList.remove('hidden');
+};
+function next(force){
+  if (!Q.active || !Q.done) return;
+  if (Q.online && !force) return;
+  Q.i++;
+  if (Q.i>=Q.list.length) return end();
+  ask();
+}
+$('#b-next').onclick=next;
+document.addEventListener('keydown', e=>{ if(e.target.tagName==='INPUT') return; if((e.key==='Enter'||e.key===' ') && Q.active && Q.done){ e.preventDefault(); next(); } });
+$('#b-quit').onclick=()=>{ if (Q.online){ Net.leave(); return; } clearInterval(timerId); Q.active=false; Q.answered=false; Q.cur=null; Q.history=[]; view('setup'); showBest(); req(); };
+function end(){
+  Q.active=false; Q.answered=false; Q.cur=null;
+  $('#q-bar').style.width='100%';
+  const multi=Q.players.length>1;
+  const okN=Q.results.filter(r=>r.ok).length, n=Q.results.length;
+  const ds=Q.results.filter(r=>r.dkm!=null).map(r=>r.dkm);
+  $('#e-ok').textContent=`${okN}/${n}`; $('#e-pct').textContent=fmtS(d3.mean(Q.results,r=>r.sec)||0);
+  if (Q.mode==='choix'){ $('#e-dist').textContent=Q.results.reduce((a,r)=>a+(r.wrongN||0),0); $('#e-distk').textContent='Mauvais choix'; }
+  else { $('#e-dist').textContent= ds.length ? Math.round(d3.mean(ds)).toLocaleString('fr-FR') : '—'; $('#e-distk').textContent="km d'écart moy."; }
+  const rank=$('#e-rank');
+  if (multi){
+    const sorted=Q.players.slice().sort((a,b)=>a.score-b.score);
+    const top=sorted.filter(p=>p.score===sorted[0].score);
+    $('#e-lbl').textContent='Vainqueur';
+    $('#e-score').textContent = top.length>1 ? 'Égalité !' : sorted[0].name;
+    $('#e-score').style.color = top.length>1 ? '' : sorted[0].color;
+    $('#e-best').textContent = top.length>1 ? `${top.map(p=>p.name).join(' et ')} : ${sorted[0].score.toLocaleString('fr-FR')} pts chacun` : `gagne avec seulement ${sorted[0].score.toLocaleString('fr-FR')} pts`;
+    const medals=['🥇','🥈','🥉','4ᵉ'];
+    rank.classList.remove('hidden');
+    rank.innerHTML = sorted.map((p,k)=>`<div class="p" style="--c:${p.color}"><span class="medal">${medals[k]}</span><span class="dot"></span>${esc(p.name)}<span class="sub">${p.ok}/${p.n} trouvés · ${fmtS((p.t||0)/Math.max(1,p.n))}/q.</span><b>${p.score.toLocaleString('fr-FR')}</b></div>`).join('');
+  } else {
+    const p=Q.players[0];
+    rank.classList.add('hidden');
+    $('#e-lbl').textContent='Score final'; $('#e-score').style.color='';
+    $('#e-score').textContent=p.score.toLocaleString('fr-FR')+' pts';
+    const best=getBest(); if(best==null || p.score<best){ setBest(p.score); $('#e-best').textContent='🏆 Nouveau record pour ces réglages (le moins de points) !'; } else $('#e-best').textContent=`Record : ${best.toLocaleString('fr-FR')} pts — essaie de faire moins !`;
+  }
+  const rv=$('#e-review'); rv.innerHTML='';
+  Q.results.slice().sort((a,b)=>b.pts-a.pts).forEach(r=>{
+    const b=document.createElement('button');
+    const label = Q.mode==='cap' ? `${r.c.cap} (${r.c.name})` : r.c.name;
+    const who = multi ? `<span class="dot" style="--c:${r.pl.color};display:inline-block;margin-right:6px"></span>` : '';
+    b.innerHTML=`<span>${who}<span class="${r.ok?'ok':'ko'}">${r.ok?'✓':'✗'}</span> ${label}</span><span class="d">${r.skipped?'passé · ':''}${fmtS(r.sec)} · +${r.pts.toLocaleString('fr-FR')} pts</span>`;
+    b.onclick=()=>{ selectedId=hiById.has(r.c.id)?r.c.id:null; const f=hiById.get(r.c.id); animateTo(f?f.labelPt:[r.c.lon,r.c.lat], f? Math.max(1.5,Math.min(8, 0.25/Math.sqrt(f.area+1e-6))) : 6, 900); };
+    rv.appendChild(b);
+  });
+  view('end'); animateTo(center(), 1, 900);
+  Snd.end();
+  if (Q.online){ $('#b-again').textContent='Rejouer ensemble'; $('#b-menu').textContent='Quitter la table'; }
+  else { $('#b-again').textContent='Rejouer'; $('#b-menu').textContent='Menu'; }
+}
+$('#b-again').onclick=()=>{ if (Q.online){ nsend({t:'again', g:Q.game}); $('#b-again').disabled=true; $('#b-again').textContent='Lancement…'; return; } start(); };
+$('#b-menu').onclick=()=>{ if (Q.online){ Net.leave(); return; } Q.history=[]; view('setup'); showBest(); selectedId=null; req(); };
+
+
+// ---------- Sons ----------
+const Snd = {
+  ctx:null, on:true,
+  init(){ if(!this.ctx){ const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return; this.ctx=new AC(); this.out=this.ctx.createGain(); this.out.gain.value=.7; this.out.connect(this.ctx.destination); } if(this.ctx.state==='suspended') this.ctx.resume(); },
+  tone(f0,f1,dur,peak,delay=0,type='sine'){ if(!this.on||!this.ctx) return; const c=this.ctx,t=c.currentTime+delay,o=c.createOscillator(),g=c.createGain();
+    o.type=type; o.frequency.setValueAtTime(f0,t); o.frequency.exponentialRampToValueAtTime(Math.max(30,f1),t+dur);
+    g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(peak,t+.008); g.gain.exponentialRampToValueAtTime(.0001,t+dur); o.connect(g).connect(this.out); o.start(t); o.stop(t+dur+.02); },
+  ok(){ [659,880,1175].forEach((f,i)=>this.tone(f,f,.18,.09,i*.07,'triangle')); },
+  ko(){ this.tone(330,200,.32,.09,0,'sawtooth'); },
+  ping(){ this.tone(1320,1320,.09,.05,0,'sine'); },
+  next(){ this.tone(520,780,.14,.07,0,'triangle'); },
+  end(){ [523,659,784,1047].forEach((f,i)=>this.tone(f,f,i===3?.7:.22,.1,.05+i*.11,'triangle')); }
+};
+['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev,()=>Snd.init(),{capture:true}));
+
+// ---------- En ligne : tous sur la même question en même temps ----------
+function mulberry(a){ return ()=>{ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function hashStr(s){ let h=2166136261; for (let k=0;k<s.length;k++){ h^=s.charCodeAt(k); h=Math.imul(h,16777619); } return h>>>0; }
+const LATE = 45; // secondes laissées aux retardataires une fois que quelqu'un a répondu
+Q.online=false; Q.seed=0; Q.game=0; Q.me=0; Q.others=[];
+let netTok=0;
+function nsend(a){ if(a.s===undefined) a.s=Net.me; Net.send(a, a.s, 'free'); }
+async function netLoop(){
+  const my=++netTok;
+  while (Q.online && my===netTok){ const a=await Net.next(); if(my!==netTok || !Q.online) return; if(a) onNet(a); }
+}
+async function startOnline(){
+  if (Q.mode==='pays' && Q.bonus.has('flag') && !FLAGS) await flagsReady;
+  Net.cancel();
+  let pool=[...info.values()].filter(c=>Q.region==='ALL'||c.reg===Q.region);
+  pool=d3.shuffler(()=>Net.rand())(pool);
+  Q.seed=Math.floor(Net.rand()*1e9);
+  Q.game++; Q.me=Net.me;
+  Q.players=Net.names.map((nm,k)=>({name: k===Net.me ? nm+' (vous)' : nm, color:PCOLORS[k%PCOLORS.length], score:0, ok:0, n:0, d:[], t:0, got:new Set()}));
+  Q.list = Q.n ? pool.slice(0, Q.n) : pool;
+  Q.i=0; Q.results=[]; Q.history=[]; Q.active=true; selectedId=null; showInfo(null);
+  $('#b-again').disabled=false;
+  $('#q-tot').textContent=Q.list.length;
+  view('quiz'); ask(); netLoop();
+}
+function netDone(pts, ok, dkm, sec, skipped){
+  Q.pl.got.add(Q.i);
+  const ll = Q.clickPt ? [Math.round(Q.clickPt[0]*1000)/1000, Math.round(Q.clickPt[1]*1000)/1000] : null;
+  nsend({t:'done', i:Q.i, pts, ok, dkm: dkm==null?null:Math.round(dkm), sec: Math.round(sec*10)/10, ll, skipped:!!skipped});
+  board($('#q-board'), Q.pl); waitBox(); checkAll(Q.i);
+}
+function forceDone(){ // réponse déjà donnée avant un rechargement de la page
+  if (Q.done) return;
+  stopTimer(); Q.answered=true; Q.done=true; Q.inBonus=false;
+  $('#q-actions').classList.add('hidden'); $('#q-opts').innerHTML=''; $('#q-step').classList.add('hidden');
+  $('#q-fb').innerHTML='<div class="fb ok"><div class="t">Réponse enregistrée</div>Votre réponse à cette question avait déjà été envoyée.</div>';
+}
+function onNet(a){
+  if (a.t==='again'){ if (a.g===Q.game && !Q.active) startOnline(); return; }
+  if (a.t!=='done') return;
+  const p=Q.players[a.s]; if (!p || p.got.has(a.i)) return;
+  p.got.add(a.i); p.score+=a.pts|0; p.n++; if(a.ok) p.ok++; p.t+=a.sec||0; if(a.dkm!=null) p.d.push(a.dkm);
+  if (a.i===Q.i){
+    if (a.s!==Q.me && a.ll) Q.others.push({ll:a.ll, color:p.color, name:Net.names[a.s]});
+    if (!Q.firstDone) Q.firstDone=performance.now();
+    if (a.s===Q.me && !Q.done) forceDone();
+    if (a.s!==Q.me) Snd.ping();
+  }
+  board($('#q-board'), Q.pl); waitBox(); checkAll(a.i); req();
+}
+function checkAll(i){
+  if (!Q.online || i!==Q.i || Q.advanced) return;
+  if (!Q.players.every(p=>p.got.has(i))) return;
+  Q.advanced=true; waitBox();
+  setTimeout(()=>{ if (!Q.online || Q.i!==i || !Q.active) return; if(!Q.done) forceDone(); Snd.next(); next(true); }, 4000);
+}
+function waitBox(){
+  const w=$('#q-wait'); if (!Q.online || !Q.active){ w.hidden=true; return; }
+  const missing=Q.players.filter(p=>!p.got.has(Q.i));
+  if (Q.advanced){ w.hidden=false; w.classList.remove('urgent'); w.innerHTML = Q.i>=Q.list.length-1 ? 'Tout le monde a répondu. <b>Résultats dans un instant…</b>' : 'Tout le monde a répondu. <b>Question suivante dans un instant…</b> Regardez sur le globe où les autres ont cliqué.'; return; }
+  if (Q.done){ w.hidden=false; w.classList.remove('urgent'); w.innerHTML = `En attente de <b>${missing.map(p=>esc(p.name)).join(', ')}</b>…`; return; }
+  if (Q.firstDone){ const left=Math.max(0, Math.ceil(LATE-(performance.now()-Q.firstDone)/1000)); w.hidden=false; w.classList.toggle('urgent', left<=15);
+    w.innerHTML = `⏳ ${Q.players.length-missing.length} joueur${Q.players.length-missing.length>1?'s ont':' a'} déjà répondu. Il vous reste <b>${left} s</b>.`; return; }
+  w.hidden=true;
+}
+setInterval(()=>{
+  if (!Q.online || !Q.active) return;
+  waitBox();
+  // délai écoulé : la question est passée d'office
+  if (!Q.done && Q.firstDone && (performance.now()-Q.firstDone)/1000 >= LATE){
+    if (!Q.answered){ if(!Q.locked) $('#b-skip').onclick(); }
+    else if (Q.inBonus){ Q.bonusPts += WRONG_PEN*(Q.steps.length-Q.step); Q.wrong += Q.steps.length-Q.step; Q.inBonus=false; Q.locked=true; $('#q-opts').querySelectorAll('.opt').forEach(b=>b.disabled=true); finalize(false); Q.locked=false; }
+  }
+  // l'hôte répond « passé » pour les joueurs qui ont quitté la partie
+  if (Net.isHost() && Net._v){
+    const away=Net._v.away||[], i=Q.i;
+    const present=Q.players.filter((p,k)=>!away[k]);
+    if (present.every(p=>p.got.has(i))) Q.players.forEach((p,k)=>{ if(away[k] && !p.got.has(i) && !(Q.sentFor||{})[i+'_'+k]){ (Q.sentFor=Q.sentFor||{})[i+'_'+k]=1; nsend({t:'done', s:k, i, pts:SKIP_PEN, ok:false, dkm:null, sec:0, ll:null, skipped:true}); } });
+  }
+}, 500);
+if (window.Net){
+  $('#netnote').hidden=false;
+  Net.setup({
+    game:'geoglobe', name:'GéoGlobe', min:2, max:8, bots:false, seats:()=>4,
+    cfg:()=>({mode:Q.mode, bonus:[...Q.bonus], region:Q.region, n:Q.n}),
+    seatName:k=>'Joueur '+(k+1),
+    current:()=>-1,
+    start(info){
+      const c=info.cfg||{};
+      Q.mode=c.mode==='cap'?'cap':'pays'; Q.bonus=new Set(Q.mode==='pays'?(c.bonus||[]):[]); Q.region=c.region||'ALL'; Q.n=c.n===undefined?10:c.n;
+      Q.online=true; Q.game=0; startOnline();
+    },
+    leave(){ Q.online=false; netTok++; clearInterval(timerId); Q.active=false; Q.answered=false; Q.cur=null; Q.history=[]; Q.players=[]; $('#q-wait').hidden=true; view('setup'); showBest(); req(); }
+  });
+}
+
+// ---------- Go ----------
+resize(); showBest();
+const L=$('#loading'); L.style.opacity=0; setTimeout(()=>L.remove(),650);
+})();
+</script>

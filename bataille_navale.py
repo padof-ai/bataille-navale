@@ -703,7 +703,16 @@ ART = {
       <path d="M44 70 Q46 40 70 36 Q96 32 104 56 Q108 72 86 74 Q60 76 44 70 Z" fill="#ffd166" stroke="#1f2a44" stroke-width="3" stroke-linejoin="round"/>
       <circle cx="80" cy="50" r="4" fill="#1f2a44"/><path d="M104 56 L124 46 L120 64 Z" fill="#ef476f" stroke="#1f2a44" stroke-width="3" stroke-linejoin="round"/>
       <path d="M30 24 l14 0" stroke="#118ab2" stroke-width="4" stroke-linecap="round"/><path d="M110 20 q6 -6 12 0" stroke="#06d6a0" stroke-width="4" fill="none" stroke-linecap="round"/>
-      <text x="124" y="88" font-family="Arial Black,sans-serif" font-size="22" fill="#ef476f" text-anchor="middle">?</text>'''
+      <text x="124" y="88" font-family="Arial Black,sans-serif" font-size="22" fill="#ef476f" text-anchor="middle">?</text>''',
+    "geoglobe": '''
+      <rect x="10" y="4" width="140" height="92" rx="10" fill="#03050b"/>
+      <g fill="#fff" opacity=".7"><circle cx="24" cy="16" r="1"/><circle cx="136" cy="22" r="1.2"/><circle cx="128" cy="80" r="1"/><circle cx="30" cy="78" r="1.3"/><circle cx="114" cy="12" r=".9"/></g>
+      <circle cx="80" cy="50" r="38" fill="#1b4f8a"/>
+      <path d="M58 26c8-4 18-2 22 4s-2 10 4 14 14 0 16 8-6 12-12 12-6 8-14 6-4-12-12-14-12-6-12-14 2-12 8-16z" fill="#a3bf80"/>
+      <path d="M98 66c4-2 10 0 10 4s-6 8-10 6-2-8 0-10z" fill="#bccd8e"/>
+      <g fill="none" stroke="rgba(255,255,255,.22)" stroke-width="1"><ellipse cx="80" cy="50" rx="38" ry="13"/><ellipse cx="80" cy="50" rx="14" ry="38"/><path d="M42 50h76"/></g>
+      <circle cx="80" cy="50" r="38" fill="none" stroke="#7fb6ff" stroke-width="2" opacity=".6"/>
+      <g transform="translate(86 36)"><path d="M0 0c-6 0-10 4-10 10 0 7 10 16 10 16s10-9 10-16C10 4 6 0 0 0z" fill="#f2c14e" stroke="#5a3d05" stroke-width="1.5"/><circle cy="10" r="3.6" fill="#5a3d05"/></g>'''
 }
 
 GAMES = [
@@ -755,15 +764,17 @@ GAMES = [
     {"slug": "rentiers", "file": "immobilier.html", "name": "Rentiers de La Chapelle", "lid": "#b3261e",
      "hook": "Achetez les rues de La Chapelle-sur-Erdre, du Chemin des Chaumes à la Châtaigneraie, et ruinez vos amis.", "facts": "2–6 joueurs · 45 min et plus", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "sudoku", "file": "sudoku.html", "name": "Sudoku", "cat": "solo", "lid": "#2f3b52",
-     "hook": "Des grilles à solution unique, de facile à expert, avec notes au crayon.", "facts": "1 joueur · 5 à 30 min", "modes": ["Solo"], "new": "Nouveau"},
+     "hook": "Des grilles à solution unique, de facile à expert, avec notes au crayon.", "facts": "1 joueur · 5 à 30 min", "modes": ["Solo"]},
     {"slug": "mot-du-jour", "file": "mot_du_jour.html", "name": "Le mot du jour", "cat": "solo", "lid": "#2f9e5a",
-     "hook": "Trouvez le mot de 5 lettres en 6 essais. Un nouveau mot chaque jour.", "facts": "1 joueur · 3 min", "modes": ["Solo"], "new": "Nouveau"},
+     "hook": "Trouvez le mot de 5 lettres en 6 essais. Un nouveau mot chaque jour.", "facts": "1 joueur · 3 min", "modes": ["Solo"]},
     {"slug": "petit-bac", "file": "petit_bac.html", "name": "Le petit bac", "lid": "#e94f37",
-     "hook": "Une lettre, des catégories, et le premier qui a tout rempli crie « Stop ! ».", "facts": "2–8 joueurs · 15 min", "modes": ["En ligne", "Solo"], "new": "Nouveau"},
+     "hook": "Une lettre, des catégories, et le premier qui a tout rempli crie « Stop ! ».", "facts": "2–8 joueurs · 15 min", "modes": ["En ligne", "Solo"]},
     {"slug": "dominos", "file": "dominos.html", "name": "Dominos", "lid": "#1d5b4a",
-     "hook": "Le double six, la pioche et la chaîne qui serpente sur la table.", "facts": "2–4 joueurs · 20 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"], "new": "Nouveau"},
+     "hook": "Le double six, la pioche et la chaîne qui serpente sur la table.", "facts": "2–4 joueurs · 20 min", "modes": ["En ligne", "Contre l'ordi", "Même écran"]},
     {"slug": "dessine-devine", "file": "dessine_devine.html", "name": "Dessine et devine", "lid": "#ef476f",
-     "hook": "L'un dessine sur son téléphone, les autres devinent le plus vite possible.", "facts": "2–8 joueurs · 20 min", "modes": ["En ligne", "Même écran"], "new": "Nouveau"},
+     "hook": "L'un dessine sur son téléphone, les autres devinent le plus vite possible.", "facts": "2–8 joueurs · 20 min", "modes": ["En ligne", "Même écran"]},
+    {"slug": "geoglobe", "file": "geoglobe.html", "name": "GéoGlobe", "lid": "#1b4f8a",
+     "hook": "Retrouvez chaque pays et chaque capitale sur un vrai globe. À plusieurs, tout le monde répond à la même question en même temps.", "facts": "1–8 joueurs · 10 min", "modes": ["En ligne", "Solo", "Même écran"], "new": "Nouveau"},
 ]
 OLD_SLUGS = {"/puissance-4": "/quatre-en-ligne", "/dix-de-chute": "/chute-libre", "/mastermind": "/code-secret", "/decal": "/decalage",
              "/skyjo": "/grille-basse", "/uno": "/couleurs-chiffres", "/mille-bornes": "/rallye-des-bornes", "/rummikub": "/rami-des-tuiles"}
